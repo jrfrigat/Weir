@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.Diagnostics</PackageId>
+    <PackageId>FrigaT.Weir.Diagnostics</PackageId>
     <Description>Weir telemetry - ActivitySource and Meter instruments plus an in-memory metrics aggregator that powers the admin dashboard. OTLP export is wired up by the host.</Description>
   </PropertyGroup>
 

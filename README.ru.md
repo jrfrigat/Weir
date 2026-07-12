@@ -125,13 +125,14 @@ docker run -p 8080:8080 \
 Тома, compose и высокую доступность см. в [Деплое](docs/ru/deployment.md).
 
 **NuGet-библиотеки** - нужны, только если вы собираете собственный хост или свой data-plane коннектор
-(большинству достаточно просто запустить образ). Публикуются на NuGet.org: `Weir.Contracts`,
-`Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`,
-`Weir.ControlPlane.PostgreSql`, `Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`,
-`Weir.Connectors.PostgreSql`.
+(большинству достаточно просто запустить образ). Публикуются на NuGet.org с префиксом `FrigaT.Weir.*`
+(сборки и namespaces остаются `Weir.*`): `FrigaT.Weir.Contracts`, `FrigaT.Weir.Abstractions`,
+`FrigaT.Weir.Core`, `FrigaT.Weir.Diagnostics`, `FrigaT.Weir.ControlPlane.Sqlite`,
+`FrigaT.Weir.ControlPlane.PostgreSql`, `FrigaT.Weir.ControlPlane.SqlServer`,
+`FrigaT.Weir.Connectors.SqlServer`, `FrigaT.Weir.Connectors.PostgreSql`.
 
 ```sh
-dotnet add package Weir.Abstractions   # реализуйте IDbConnector / IControlPlaneStore поверх портов
+dotnet add package FrigaT.Weir.Abstractions   # реализуйте IDbConnector / IControlPlaneStore (namespace: Weir.Abstractions)
 ```
 
 Как написать коннектор или плагин - см. [Расширение](docs/ru/extending.md).

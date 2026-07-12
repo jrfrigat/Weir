@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.Connectors.SqlServer</PackageId>
+    <PackageId>FrigaT.Weir.Connectors.SqlServer</PackageId>
     <Description>SQL Server data-plane connector for Weir - executes stored procedures / functions via Microsoft.Data.SqlClient with TVP, output-parameter, return-value and InfoMessage support.</Description>
   </PropertyGroup>
 

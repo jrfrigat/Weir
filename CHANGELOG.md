@@ -55,6 +55,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- NuGet package ids are now prefixed `FrigaT.Weir.*` (for example `FrigaT.Weir.Core`). The bare `Weir`
+  id prefix is reserved on nuget.org by another owner, which silently blocked every publish. Only the
+  package ids change: assemblies, namespaces, project references and the container image stay `Weir.*` /
+  `weir`, so a consumer runs `dotnet add package FrigaT.Weir.Abstractions` and still writes
+  `using Weir.Abstractions`.
 - Dependencies updated to their latest stable versions ahead of the first release, including major
   bumps: Microsoft.Data.SqlClient 6 -> 7, Npgsql 9 -> 10, Serilog.AspNetCore 8 -> 10, Serilog.Sinks.File
   6 -> 7, StackExchange.Redis 2 -> 3, Microsoft.NET.Test.Sdk 17 -> 18 and xunit.runner.visualstudio

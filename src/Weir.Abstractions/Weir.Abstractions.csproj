@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.Abstractions</PackageId>
+    <PackageId>FrigaT.Weir.Abstractions</PackageId>
     <Description>Weir server-side ports - IDbConnector, IControlPlaneStore, telemetry and cache interfaces. Concrete drivers and stores implement these in separate packages.</Description>
   </PropertyGroup>
 

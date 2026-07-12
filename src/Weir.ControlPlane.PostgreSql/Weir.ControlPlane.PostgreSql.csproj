@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.ControlPlane.PostgreSql</PackageId>
+    <PackageId>FrigaT.Weir.ControlPlane.PostgreSql</PackageId>
     <Description>PostgreSQL-backed control-plane store for Weir - a shared metadata store for high-availability deployments where several Weir instances run against one control database.</Description>
   </PropertyGroup>
 

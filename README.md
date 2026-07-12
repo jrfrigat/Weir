@@ -123,12 +123,13 @@ docker run -p 8080:8080 \
 See [Deployment](docs/en/deployment.md) for volumes, compose and high-availability.
 
 **NuGet libraries** - reference these only if you build a custom host or your own data-plane connector
-(most users just run the image). Published to NuGet.org: `Weir.Contracts`, `Weir.Abstractions`,
-`Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`,
-`Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql`.
+(most users just run the image). Published to NuGet.org under the `FrigaT.Weir.*` prefix (the assemblies
+and namespaces stay `Weir.*`): `FrigaT.Weir.Contracts`, `FrigaT.Weir.Abstractions`, `FrigaT.Weir.Core`,
+`FrigaT.Weir.Diagnostics`, `FrigaT.Weir.ControlPlane.Sqlite`, `FrigaT.Weir.ControlPlane.PostgreSql`,
+`FrigaT.Weir.ControlPlane.SqlServer`, `FrigaT.Weir.Connectors.SqlServer`, `FrigaT.Weir.Connectors.PostgreSql`.
 
 ```sh
-dotnet add package Weir.Abstractions   # implement IDbConnector / IControlPlaneStore against the ports
+dotnet add package FrigaT.Weir.Abstractions   # implement IDbConnector / IControlPlaneStore (namespace: Weir.Abstractions)
 ```
 
 See [Extending](docs/en/extending.md) for writing a connector or plugin.

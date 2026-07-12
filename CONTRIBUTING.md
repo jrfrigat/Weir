@@ -60,7 +60,7 @@ Two GitHub Actions workflows drive the pipeline:
 
   | Artifact | What | Where |
   | :-- | :-- | :-- |
-  | **NuGet packages** | The 9 reusable libraries: `Weir.Contracts`, `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql` | NuGet.org, via Trusted Publishing (OIDC) |
+  | **NuGet packages** | The 9 reusable libraries, published under the `FrigaT.Weir.*` prefix (assemblies/namespaces stay `Weir.*`): `FrigaT.Weir.Contracts`, `FrigaT.Weir.Abstractions`, `FrigaT.Weir.Core`, `FrigaT.Weir.Diagnostics`, `FrigaT.Weir.ControlPlane.Sqlite`, `FrigaT.Weir.ControlPlane.PostgreSql`, `FrigaT.Weir.ControlPlane.SqlServer`, `FrigaT.Weir.Connectors.SqlServer`, `FrigaT.Weir.Connectors.PostgreSql` | NuGet.org, via Trusted Publishing (OIDC) |
   | **Container image** | The runnable app: `Weir.Host` with the Blazor WASM admin bundled as static assets | `ghcr.io/jrfrigat/weir:X.Y.Z` and `:latest` |
   | **GitHub Release** | The tag's release page, with auto-generated notes and the `.nupkg` files attached | `github.com/jrfrigat/weir/releases` |
 
@@ -76,7 +76,9 @@ up once:
 
 1. On nuget.org, sign in and open **Account -> Trusted Publishing**, then add a policy for this
    repository. Set the owner (`jrfrigat`), repository (`weir`) and the workflow file (`release.yml`).
-   Repeat, or use a glob, so the policy covers every package id the workflow pushes.
+   Repeat, or use a glob, so the policy covers every package id the workflow pushes - the packages use
+   the `FrigaT.Weir.*` prefix (the bare `Weir` prefix is reserved by another nuget.org owner, so the
+   published ids are namespaced under the account while the assemblies/namespaces stay `Weir.*`).
 2. Add a repository **variable** (not a secret) named `NUGET_USER` set to the nuget.org account/username
    that owns the packages: `gh variable set NUGET_USER --repo jrfrigat/weir --body "<nuget-username>"`.
 

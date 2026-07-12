@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.Core</PackageId>
+    <PackageId>FrigaT.Weir.Core</PackageId>
     <Description>Weir engine - endpoint catalog, parameter binding (incl. TVP), streaming JSON writer and cache orchestration over the data-plane connectors.</Description>
   </PropertyGroup>
 

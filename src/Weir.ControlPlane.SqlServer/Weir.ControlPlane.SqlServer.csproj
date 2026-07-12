@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Weir.ControlPlane.SqlServer</PackageId>
+    <PackageId>FrigaT.Weir.ControlPlane.SqlServer</PackageId>
     <Description>SQL Server-backed control-plane store for Weir - a shared metadata store for deployments that keep Weir's own metadata (endpoints, API keys, scopes, admins, audit, settings) in SQL Server.</Description>
   </PropertyGroup>
 
