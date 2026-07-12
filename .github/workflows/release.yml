@@ -66,18 +66,40 @@ jobs:
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
-      # GHCR requires a lowercase repository path, but github.repository preserves the repo's case
-      # (e.g. jrfrigat/Weir). Lowercase it for the image tags.
-      - name: Compute lowercase image name
-        id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      # Build the image tag list. GHCR needs a lowercase repository path (github.repository preserves
+      # the repo's case, e.g. jrfrigat/Weir). Docker Hub tags are added only when the DOCKERHUB_USERNAME
+      # variable is set, so the release still works with GHCR alone if Docker Hub is not configured.
+      - name: Compute image tags
+        id: tags
+        env:
+          DOCKERHUB_USER: ${{ vars.DOCKERHUB_USERNAME }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          GHCR="ghcr.io/${GITHUB_REPOSITORY,,}"
+          {
+            echo "list<<EOF"
+            echo "${GHCR}:${VERSION}"
+            echo "${GHCR}:latest"
+            if [ -n "${DOCKERHUB_USER}" ]; then
+              echo "docker.io/${DOCKERHUB_USER}/weir:${VERSION}"
+              echo "docker.io/${DOCKERHUB_USER}/weir:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Log in to the container registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: ${{ vars.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -85,9 +107,7 @@ jobs:
           context: .
           file: build/Dockerfile
           push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ steps.version.outputs.value }}
-            ${{ steps.image.outputs.name }}:latest
+          tags: ${{ steps.tags.outputs.list }}
 
       - name: Create GitHub Release
         env:
