@@ -14,7 +14,7 @@ docker run -p 8080:8080 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
-  jrfrigat/weir:latest
+  frigat/weir:latest
 # Open http://localhost:8080
 ```
 

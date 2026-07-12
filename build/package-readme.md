@@ -6,7 +6,7 @@ C# - only routing, authentication, parameter mapping, caching, telemetry and ser
 
 This is one of the Weir libraries. Reference the `Weir.*` packages only if you build a custom host or
 your own data-plane connector; most users just run the container image (`ghcr.io/jrfrigat/weir` or
-`docker.io/jrfrigat/weir`).
+`docker.io/frigat/weir`).
 
 Library packages: `Weir.Contracts`, `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`,
 `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.Connectors.SqlServer`,
