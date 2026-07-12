@@ -45,6 +45,16 @@
     <RepositoryUrl>https://github.com/jrfrigat/weir</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>mssql;sql-server;postgresql;stored-procedure;api-gateway;http-gateway;dapper;json;aspnetcore;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
+
+  <!-- Shared NuGet package README and icon, embedded into every packable project (the packages carry
+       one brand README and the Weir mark on nuget.org). Harmless for IsPackable=false projects, which
+       are never packed. -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)build\package-readme.md" Pack="true" PackagePath="README.md" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)build\package-icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
+  </ItemGroup>
 
 </Project>

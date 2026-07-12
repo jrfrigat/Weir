@@ -109,6 +109,20 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.list }}
 
+      # Sync the Docker Hub repository overview + short description from build/dockerhub-overview.md.
+      # Non-fatal (continue-on-error) so a description hiccup never fails a release, and gated on the
+      # Docker Hub credentials being configured.
+      - name: Update Docker Hub description
+        if: ${{ vars.DOCKERHUB_USERNAME != '' }}
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_USERNAME }}/weir
+          short-description: "High-performance HTTP gateway: MSSQL/PostgreSQL stored procedures as a JSON API. .NET 10."
+          readme-filepath: build/dockerhub-overview.md
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
