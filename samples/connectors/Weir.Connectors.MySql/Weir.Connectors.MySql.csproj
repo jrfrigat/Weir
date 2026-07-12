@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sample third-party Weir connector for MySQL. It is a reference implementation for connector
+    authors, not an officially maintained connector. It is not shipped in the Weir image and is not
+    published to NuGet; it builds in the solution so it stays compatible with the connector ports.
+    A real third-party connector would reference the Weir.Abstractions NuGet package instead of the
+    project.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Description>Sample MySQL connector for Weir (reference implementation for connector authors).</Description>
+    <!--
+      Copy NuGet dependencies (MySqlConnector) next to the plugin so the deployed plugin folder is
+      self-contained. The host's plugin loader resolves a plugin's private dependencies from beside
+      it. Authors can instead 'dotnet publish' the plugin to gather its dependencies.
+    -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Weir.Abstractions\Weir.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

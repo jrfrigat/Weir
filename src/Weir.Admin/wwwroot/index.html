@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weir Admin</title>
+    <base href="/" />
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link href="manifest.webmanifest" rel="manifest" />
+    <meta name="theme-color" content="#0f1011" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Weir" />
+
+    <!-- Self-hosted Material Symbols (icon font used by Flare); no external CDN, CSP-friendly. -->
+    <link rel="stylesheet" href="css/material-symbols.css" />
+
+    <link rel="stylesheet" href="_content/Flare.Components/css/flare-components.css" />
+    <link rel="stylesheet" href="_content/Flare.Components.IDE/css/flare-ide.css" />
+    <link rel="stylesheet" href="css/app.css" />
+
+    <!-- Applies the saved Flare theme/palette/mode classes to <html> before first paint. -->
+    <script src="_content/Flare.Components/js/flare-bootstrap.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="weir-boot">Loading Weir Admin...</div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">x</span>
+    </div>
+
+    <!-- Offline banner, toggled by register-sw.js (kept outside Blazor so it works before/around the app).
+         The "new version available" notice is a Flare snackbar rendered by the PwaUpdater component. -->
+    <div id="weir-offline" class="weir-banner" hidden>Offline - showing the last loaded data.</div>
+
+    <script src="_content/Flare.Components/js/flare-components.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="js/register-sw.js"></script>
+</body>
+
+</html>

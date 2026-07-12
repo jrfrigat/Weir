@@ -1,0 +1,42 @@
+## .NET / build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+*.user
+*.suo
+*.userprefs
+
+## Rider / VS / VS Code
+.vs/
+.idea/
+.vscode/
+
+## Blazor WASM publish / AOT
+publish/
+*.nupkg
+*.snupkg
+
+## Local secrets & runtime data
+appsettings.*.local.json
+secrets.json
+.env
+docker-compose.override.yml
+# Local Claude Code config (launch.json carries a machine-specific dev connection string).
+.claude/
+*.db
+*.db-shm
+*.db-wal
+weir-control.db*
+
+## Serilog file logs
+logs/
+*.log
+
+## OS
+.DS_Store
+Thumbs.db

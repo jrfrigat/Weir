@@ -1,0 +1,1256 @@
+@page "/endpoints"
+@attribute [Authorize]
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@inject WeirApiClient Api
+@inject IDialogService Dialog
+@inject NavigationManager Nav
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="endpoints" Description="HTTP routes mapped to stored procedures and functions">
+        <Actions>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">Sync all</FlareButton>
+            <label style="position:relative;display:inline-flex">
+                <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm">Import</FlareButton>
+                <InputFile OnChange="ImportAsync" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer" />
+            </label>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="Export">Export</FlareButton>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="BuildOpenApiAsync" Loading="_openApiBusy">OpenAPI</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">New endpoint</FlareButton>
+        </Actions>
+    </PageHeader>
+
+    @if (_notice is not null)
+    {
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
+            @* Plain anchors: the download targets are data: URLs, which Flare's href-safety check
+               rejects (it would render them as about:blank). *@
+            @if (_exportUrl is not null)
+            {
+                <a href="@_exportUrl" download="weir-endpoints.json" style="color:var(--flare-color-primary)">download endpoints.json</a>
+            }
+            @if (_openApiUrl is not null)
+            {
+                <a href="@_openApiUrl" download="weir-openapi.json" style="color:var(--flare-color-primary)">download openapi.json</a>
+            }
+        </FlareStack>
+    }
+
+    <FlareTabs ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
+        <FlareTab Label="Endpoints">
+            @if (_endpoints is null)
+            {
+                <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+            }
+            else if (_endpoints.Count == 0)
+            {
+                <FlareEmptyState Title="No endpoints yet" Description="Create one, or map a database object from the Database tab.">
+                    <Icon><FlareIcon Name="api" /></Icon>
+                </FlareEmptyState>
+            }
+            else
+            {
+                <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
+                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;align-self:center;">// FILTER</FlareText>
+                    <FlareSelect TValue="string" Label="Required scope" Size="FieldSize.Sm" Value="_filterScope" ValueChanged="OnFilterScopeChanged" Items="ScopeFilterOptions" ItemLabel="ScopeFilterLabel" Style="min-width:12rem;" />
+                    <FlareSelect TValue="string" Label="Reachable by key" Size="FieldSize.Sm" Value="_filterKeyId" ValueChanged="OnFilterKeyChanged" Items="KeyFilterOptions" ItemLabel="KeyFilterLabel" Style="min-width:14rem;" />
+                    @if (IsFiltered)
+                    {
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Style="align-self:center;">showing @FilteredEndpoints.Count of @_endpoints.Count - Export and OpenAPI honour this filter</FlareText>
+                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">Clear</FlareButton>
+                    }
+                </FlareStack>
+                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu">
+                    <ToolbarContent><FlareDataGridQuickFilter Placeholder="Filter..." /></ToolbarContent>
+                    <Columns>
+                        <FlareColumn TItem="EndpointDefinition" Title="Status">
+                            <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? "Enabled" : "Disabled")" /></Template>
+                        </FlareColumn>
+                        <FlareColumn TItem="EndpointDefinition" Title="Method" Field="@(e => (object?)e.HttpMethod)" Sortable="true">
+                            <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
+                        </FlareColumn>
+                        <FlareColumn TItem="EndpointDefinition" Title="Route" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true">
+                            <Template><FlareText Element="span" Mono="true">/api/@context.Route</FlareText></Template>
+                        </FlareColumn>
+                        <FlareColumn TItem="EndpointDefinition" Title="Connection" Field="@(e => (object?)e.ConnectionName)" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="Object" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="Type" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="Params" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
+                        <FlareColumn TItem="EndpointDefinition" Title="Actions" Align="ColumnAlign.End">
+                            <Template>
+                                <FlareStack Row Gap="FlareSpacing.XSmall" Justify="FlareJustifyContent.End">
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Primary" OnClick="@(() => StartTest(context))">Test</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => OpenLogs(context))">Logs</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => Edit(context))">Edit</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SyncOneAsync(context.Id))">Sync</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Error" OnClick="@(() => DeleteAsync(context))">Delete</FlareButton>
+                                </FlareStack>
+                            </Template>
+                        </FlareColumn>
+                    </Columns>
+                </FlareDataGrid>
+            }
+        </FlareTab>
+        <FlareTab Label="Database">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small">
+                    <FlareSelect TValue="string" Label="Connection" Value="_dbConnection" ValueChanged="SetDbConnectionAsync" Items="@ConnectionNames" ItemLabel="ProviderLabel" />
+                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="OnConnectionChangedAsync">Refresh</FlareButton>
+                </FlareStack>
+                @if (_objectsError is not null)
+                {
+                    <FlareAlert Severity="AlertSeverity.Warning">Objects not browsable on this connection (@_objectsError).</FlareAlert>
+                }
+                <FlareStack Row Gap="FlareSpacing.Medium" Align="FlareAlignItems.Start" Wrap="true">
+                    <div style="flex:2 1 26rem;min-width:0;">
+                        @if (_objects is null)
+                        {
+                            <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                        }
+                        else if (_objects.Count == 0)
+                        {
+                            <FlareText Color="FlareColor.OnSurfaceVariant">No objects found on this connection.</FlareText>
+                        }
+                        else
+                        {
+                            <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" RowClick="OnObjectRowClick">
+                                <Columns>
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="Schema" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="Object" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
+                                        <Template><FlareText Element="span" Mono="true">@context.Name</FlareText></Template>
+                                    </FlareColumn>
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="Type" Field="@(o => (object?)ObjectTypeLabel(o.ObjectType))" Sortable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="Endpoint" Align="ColumnAlign.End">
+                                        <Template>
+                                            @{
+                                                var mapped = EndpointsForObject(context.Schema, context.Name);
+                                            }
+                                            @if (mapped.Count == 0)
+                                            {
+                                                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Default" Label="none" />
+                                            }
+                                            else
+                                            {
+                                                <FlareStack Row Gap="FlareSpacing.XSmall" Justify="FlareJustifyContent.End" Wrap="true">
+                                                    @foreach (var mappedEndpoint in mapped)
+                                                    {
+                                                        <FlareTooltip Content="@($"{mappedEndpoint.HttpMethod} /api/{mappedEndpoint.Route}")" Arrow="true">
+                                                            <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="FlareColor.Success" OnClick="@(() => Edit(mappedEndpoint))">
+                                                                <FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(mappedEndpoint.HttpMethod)">@mappedEndpoint.HttpMethod</FlareText>
+                                                                <FlareText Element="span" Mono="true">&nbsp;/@mappedEndpoint.Route</FlareText>
+                                                            </FlareChip>
+                                                        </FlareTooltip>
+                                                    }
+                                                </FlareStack>
+                                            }
+                                        </Template>
+                                    </FlareColumn>
+                                </Columns>
+                            </FlareDataGrid>
+                        }
+                    </div>
+                    <FlareCard Variant="CardVariant.Outlined" Style="flex:1 1 20rem;min-width:18rem;">
+                        @if (_selectedObject is null)
+                        {
+                            <FlareText Color="FlareColor.OnSurfaceVariant" Typo="TypographyScale.BodySmall">Select an object to inspect its parameters, then create an endpoint pre-filled from it.</FlareText>
+                        }
+                        else
+                        {
+                            <FlareStack Gap="FlareSpacing.Small">
+                                <div>
+                                    <FlareText Mono="true">@_selectedObject.Schema.@_selectedObject.Name</FlareText>
+                                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@ObjectTypeLabel(_selectedObject.ObjectType) - @(_selectedParameters?.Count ?? 0) parameters</FlareText>
+                                </div>
+                                @if (_selectedParameters is null)
+                                {
+                                    <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                                }
+                                else
+                                {
+                                    <FlareDescriptionList>
+                                        @foreach (var parameter in _selectedParameters)
+                                        {
+                                            <FlareDescriptionItem>
+                                                <LabelContent>
+                                                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                                                        <FlareText Element="span" Mono="true">@parameter.Name</FlareText>
+                                                        <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Label="@parameter.Direction.ToString()" />
+                                                    </FlareStack>
+                                                </LabelContent>
+                                                <ChildContent><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@TypeLabel(parameter.DbType, parameter.TypeName, parameter.Size)</FlareText></ChildContent>
+                                            </FlareDescriptionItem>
+                                        }
+                                    </FlareDescriptionList>
+                                }
+                                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" FullWidth="true" OnClick="@(() => CreateFromObjectAsync(_selectedObject))">Create endpoint from this object</FlareButton>
+                            </FlareStack>
+                        }
+                    </FlareCard>
+                </FlareStack>
+            </FlareStack>
+        </FlareTab>
+    </FlareTabs>
+</FlareStack>
+
+@* ===== Editor drawer ===== *@
+<FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="44rem" Variant="DrawerVariant.Temporary">
+    <Header><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? "Edit endpoint" : "New endpoint")</FlareText></Header>
+    <ChildContent>
+        @if (_editing is not null)
+        {
+            <FlareStack Gap="FlareSpacing.Medium">
+                <FlareGrid Columns="2" Gap="FlareSpacing.Small">
+                    <FlareCol Span="1"><FlareSelect TValue="string" Label="Method" Size="FieldSize.Sm" @bind-Value="_editing.HttpMethod" Items="_methods" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="Route" Size="FieldSize.Sm" @bind-Value="_editing.Route" Placeholder="orders/create" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="string" Label="Connection" Size="FieldSize.Sm" @bind-Value="_editing.ConnectionName" Items="@ConnectionNames" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="DbObjectType" Label="Object type" Size="FieldSize.Sm" @bind-Value="_editing.ObjectType" Items="Enum.GetValues<DbObjectType>()" ItemLabel="@(v => ObjectTypeLabel(v))" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="Schema" Size="FieldSize.Sm" @bind-Value="_editing.Schema" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="Object" Size="FieldSize.Sm" @bind-Value="_editing.ObjectName" Placeholder="usp_CreateOrder" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="ResultMode" Label="Result mode" Size="FieldSize.Sm" @bind-Value="_editing.ResultMode" Items="Enum.GetValues<ResultMode>()" ItemLabel="@(v => v.ToString())" /></FlareCol>
+                    <FlareCol Span="1"><FlareNumericField TValue="int?" Label="Timeout (s)" Size="FieldSize.Sm" @bind-Value="_editing.CommandTimeoutSeconds" /></FlareCol>
+                </FlareGrid>
+
+                <FlareStack Row Gap="FlareSpacing.Large" Wrap="true">
+                    <FlareSwitch Value="_editing.Enabled" ValueChanged="@(v => _editing.Enabled = v)" Label="Enabled" />
+                    <FlareSwitch Value="_editing.SuppressMessages" ValueChanged="@(v => _editing.SuppressMessages = v)" Label="Suppress SQL messages" />
+                </FlareStack>
+
+                <FlareDivider Text="Caching" TextAlign="DividerTextAlign.Left" />
+                <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
+                    <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="Enable cache" />
+                    <FlareNumericField TValue="int" Label="TTL (s)" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Style="max-width:9rem;" />
+                    <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="Vary by API key" />
+                </FlareStack>
+                @if (_editing.CacheEnabled)
+                {
+                    <div>
+                        <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Vary cache by parameters</FlareText>
+                        @if (_editing.Parameters.Count == 0)
+                        {
+                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No parameters defined; one response is cached for the whole endpoint.</FlareText>
+                        }
+                        else
+                        {
+                            <FlareStack Row Wrap="true" Gap="FlareSpacing.XSmall">
+                                @foreach (var parameter in _editing.Parameters)
+                                {
+                                    var on = _editing.CacheVaryBy.Contains(parameter.Name);
+                                    <FlareChip Size="ChipSize.Sm" Label="@parameter.Name"
+                                               Variant="@(on ? ChipVariant.Filled : ChipVariant.Outlined)"
+                                               Color="@(on ? FlareColor.Primary : FlareColor.Default)"
+                                               OnClick="@(() => ToggleCacheVary(parameter.Name, !on))" />
+                                }
+                            </FlareStack>
+                        }
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Selected parameters (and, if set, the API key) become part of the cache key, so callers with different values get separate cached responses. Leave empty to cache one shared response per endpoint. The row cap and TTL bound each entry.</FlareText>
+                    </div>
+                }
+
+                <FlareDivider Text="Logging" TextAlign="DividerTextAlign.Left" />
+                <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
+                    <FlareSwitch Value="_editing.LogEnabled" ValueChanged="@(v => _editing.LogEnabled = v)" Label="Log requests" />
+                    <FlareSwitch Value="_editing.LogParameters" ValueChanged="@(v => _editing.LogParameters = v)" Label="Capture parameters" />
+                    <FlareSwitch Value="_editing.LogResult" ValueChanged="@(v => _editing.LogResult = v)" Label="Capture result" />
+                    <FlareNumericField TValue="int?" Label="Slow threshold %" Size="FieldSize.Sm" @bind-Value="_editing.SlowThresholdPercent" Placeholder="from settings" Style="max-width:12rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Parameter and result capture can hold PII; enable only where needed. A call is flagged slow when it exceeds this endpoint's rolling average by the threshold (blank uses the global setting).</FlareText>
+
+                <div>
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Required scopes</FlareText>
+                    @if (_scopes is null || _scopes.Count == 0)
+                    {
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No scopes defined.</FlareText>
+                    }
+                    else
+                    {
+                        <FlareStack Row Wrap="true" Gap="FlareSpacing.XSmall">
+                            @foreach (var scope in _scopes)
+                            {
+                                var selected = _editing.Scopes.Contains(scope.Name);
+                                <FlareChip Size="ChipSize.Sm" Label="@scope.Name" Variant="@(selected ? ChipVariant.Filled : ChipVariant.Outlined)" Color="@(selected ? FlareColor.Primary : FlareColor.Default)" OnClick="@(() => ToggleScope(scope.Name, !selected))" />
+                            }
+                        </FlareStack>
+                    }
+                </div>
+
+                <FlareDivider Text="Parameters" TextAlign="DividerTextAlign.Left" />
+                <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="DiscoverParametersAsync" Loading="_discovering">Discover from database</FlareButton>
+                    @if (_discoverError is not null)
+                    {
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.Error">@_discoverError</FlareText>
+                    }
+                </FlareStack>
+                @foreach (var parameter in _editing.Parameters)
+                {
+                    <FlareCard Variant="CardVariant.Outlined" Compact="true">
+                        <FlareStack Gap="FlareSpacing.XSmall">
+                            <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Wrap="true">
+                                <FlareField TValue="string" Placeholder="name" Size="FieldSize.Sm" @bind-Value="parameter.Name" />
+                                <FlareSelect TValue="ParameterSource" Size="FieldSize.Sm" @bind-Value="parameter.Source" Items="Enum.GetValues<ParameterSource>()" ItemLabel="@(v => v.ToString())" />
+                                <FlareSelect TValue="Weir.Contracts.ParameterDirection" Size="FieldSize.Sm" @bind-Value="parameter.Direction" Items="Enum.GetValues<Weir.Contracts.ParameterDirection>()" ItemLabel="@(v => v.ToString())" />
+                                <FlareSelect TValue="WeirDbType" Size="FieldSize.Sm" @bind-Value="parameter.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" />
+                                <FlareNumericField TValue="int?" Placeholder="size" Size="FieldSize.Sm" @bind-Value="parameter.Size" Style="max-width:6rem;" />
+                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveParameter(parameter))">Remove</FlareButton>
+                            </FlareStack>
+                            @if (parameter.DbType == WeirDbType.Structured)
+                            {
+                                <FlareField TValue="string" Placeholder="TVP type e.g. dbo.OrderLineType" Size="FieldSize.Sm" @bind-Value="parameter.TypeName" />
+                                @foreach (var column in parameter.Columns)
+                                {
+                                    <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center">
+                                        <FlareField TValue="string" Placeholder="column" Size="FieldSize.Sm" @bind-Value="column.Name" />
+                                        <FlareSelect TValue="WeirDbType" Size="FieldSize.Sm" @bind-Value="column.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" />
+                                        <FlareTooltip Content="Remove column" Arrow="true">
+                                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveColumn(parameter, column))">x</FlareButton>
+                                        </FlareTooltip>
+                                    </FlareStack>
+                                }
+                                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddColumn(parameter))">Add column</FlareButton>
+                            }
+                        </FlareStack>
+                    </FlareCard>
+                }
+                <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddParameter">Add parameter</FlareButton></FlareStack>
+
+                <FlareDivider />
+                <FlareStack Row Gap="FlareSpacing.Small" Justify="FlareJustifyContent.End">
+                    <FlareButton Variant="ButtonVariant.Text" OnClick="CancelEdit">Cancel</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Loading="_busy">Save endpoint</FlareButton>
+                </FlareStack>
+            </FlareStack>
+        }
+    </ChildContent>
+</FlareDrawer>
+
+@* ===== Test drawer ===== *@
+<FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="44rem" Variant="DrawerVariant.Temporary">
+    <Header>
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+            <FlareText Typo="TypographyScale.TitleMedium">Test</FlareText>
+            @if (_testing is not null)
+            {
+                <FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(_testing.HttpMethod)">@_testing.HttpMethod</FlareText>
+                <FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">/api/@_testing.Route</FlareText>
+            }
+        </FlareStack>
+    </Header>
+    <ChildContent>
+        @if (_testing is not null)
+        {
+            <FlareStack Gap="FlareSpacing.Medium">
+                <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
+                    <FlareText Typo="TypographyScale.TitleSmall">Parameters</FlareText>
+                    <FlareSwitch Value="_testRaw" ValueChanged="ToggleRaw" Label="Raw JSON" />
+                </FlareStack>
+
+                @if (_testRaw)
+                {
+                    <FlareTextArea @bind-Value="_testRawBody" Rows="10" />
+                }
+                else if (_testInputParameters.Count == 0)
+                {
+                    <FlareText Color="FlareColor.OnSurfaceVariant">This endpoint takes no input parameters.</FlareText>
+                }
+                else
+                {
+                    @foreach (var parameter in _testInputParameters)
+                    {
+                        <FlareStack Gap="FlareSpacing.None">
+                            @if (parameter.DbType == WeirDbType.Boolean)
+                            {
+                                <FlareCheckbox Label="@parameter.Name" Value="GetTestBool(parameter.Name)" ValueChanged="@(v => SetTestBool(parameter.Name, v == true))" />
+                            }
+                            else if (parameter.DbType == WeirDbType.Structured)
+                            {
+                                <FlareText Typo="TypographyScale.LabelMedium" Mono="true">@parameter.Name</FlareText>
+                                @if (parameter.TableColumns is { Count: > 0 })
+                                {
+                                    @foreach (var row in TestRows(parameter))
+                                    {
+                                        <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center">
+                                            @foreach (var column in parameter.TableColumns)
+                                            {
+                                                <FlareField TValue="string" Placeholder="@column.Name" Size="FieldSize.Sm" Value="@GetCell(row, column.Name)" ValueChanged="@(v => SetCell(row, column.Name, v))" />
+                                            }
+                                        </FlareStack>
+                                    }
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddTestRow(parameter))">Add row</FlareButton>
+                                }
+                                else
+                                {
+                                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No column metadata; use Raw JSON.</FlareText>
+                                }
+                            }
+                            else
+                            {
+                                <FlareField TValue="string" Label="@parameter.Name" HelperText="@TestParamHint(parameter)" Size="FieldSize.Sm" Type="@InputType(parameter.DbType)" Value="@GetTestValue(parameter.Name)" ValueChanged="@(v => SetTestValue(parameter.Name, v))" />
+                            }
+                        </FlareStack>
+                    }
+                }
+
+                @if (_testResponse is not null)
+                {
+                    <FlareDivider Text="Response" TextAlign="DividerTextAlign.Left" />
+                    <FlareCodeBlock Value="@_testResponse" Language="json" ReadOnly="true" />
+                }
+
+                <FlareDivider />
+                <FlareStack Row Gap="FlareSpacing.Small" Justify="FlareJustifyContent.End">
+                    <FlareButton Variant="ButtonVariant.Text" OnClick="CloseTest">Close</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SendTestAsync" Loading="_testBusy">Send request</FlareButton>
+                </FlareStack>
+            </FlareStack>
+        }
+    </ChildContent>
+</FlareDrawer>
+
+@code {
+    private static readonly string[] _methods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+    private List<EndpointDefinition>? _endpoints;
+    private List<Scope>? _scopes;
+    private List<ConnectionInfo>? _connections;
+    private List<ApiKeyInfo>? _keys;
+    private HashSet<string> _linked = new(StringComparer.OrdinalIgnoreCase);
+
+    // Endpoint list filter: narrow to endpoints that require a scope, and/or that a key could reach.
+    // Export and the OpenAPI document both honour the active filter, so an integrator can be handed
+    // exactly the surface a given key sees.
+    private string _filterScope = string.Empty;
+    private string _filterKeyId = string.Empty;
+    private EndpointEditModel? _editing;
+    private bool _busy;
+    private bool _discovering;
+    private string? _discoverError;
+    private string? _exportUrl;
+    private string? _openApiUrl;
+    private string? _notice;
+    private bool _openApiBusy;
+    private bool _syncBusy;
+
+    // Database tab
+    private int _epTabIndex;
+    private string _dbConnection = string.Empty;
+    private List<DbObjectDescriptor>? _objects;
+    private string? _objectsError;
+    private DbObjectDescriptor? _selectedObject;
+    private List<DbParameterDescriptor>? _selectedParameters;
+
+    // Test console
+    private EndpointDefinition? _testing;
+    private readonly Dictionary<string, string?> _testValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<Dictionary<string, string?>>> _testRows = new(StringComparer.OrdinalIgnoreCase);
+    private List<EndpointParameter> _testInputParameters = [];
+    private bool _testRaw;
+    private string _testRawBody = "{}";
+    private string? _testResponse;
+    private bool _testBusy;
+
+    /// <summary>Connection names for the toolbar and editor selectors.</summary>
+    private IEnumerable<string> ConnectionNames => _connections?.Select(c => c.Name) ?? [];
+
+    /// <summary>Loads endpoints, scopes, connections and keys (keys drive the "reachable by key" filter).</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        _endpoints = await Api.GetEndpointsAsync();
+        _scopes = await Api.GetScopesAsync();
+        _connections = await Api.GetConnectionsAsync();
+        _keys = await Api.GetKeysAsync();
+        _dbConnection = _endpoints?.FirstOrDefault()?.ConnectionName
+            ?? _connections?.FirstOrDefault()?.Name
+            ?? string.Empty;
+        RebuildLinked();
+    }
+
+    // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------
+
+    /// <summary>Whether a scope or key filter is currently applied.</summary>
+    private bool IsFiltered => !string.IsNullOrEmpty(_filterScope) || !string.IsNullOrEmpty(_filterKeyId);
+
+    /// <summary>The selected key's id, or null when no key filter is active.</summary>
+    private Guid? FilterKeyId => Guid.TryParse(_filterKeyId, out var id) ? id : null;
+
+    /// <summary>The endpoints after applying the active scope and/or key filter.</summary>
+    private List<EndpointDefinition> FilteredEndpoints
+    {
+        get
+        {
+            IEnumerable<EndpointDefinition> query = _endpoints ?? [];
+            if (!string.IsNullOrEmpty(_filterScope))
+            {
+                query = query.Where(e => e.RequiredScopes.Contains(_filterScope, StringComparer.Ordinal));
+            }
+
+            if (FilterKeyId is { } keyId && _keys?.FirstOrDefault(k => k.Id == keyId) is { } key)
+            {
+                query = query.Where(e => KeyCanReach(key, e));
+            }
+
+            return query.ToList();
+        }
+    }
+
+    /// <summary>
+    /// Whether the key could call the endpoint: it must hold every required scope and (unless it has
+    /// no grants, meaning unrestricted) at least one grant must match the endpoint's procedure. Mirrors
+    /// the server-side <c>EndpointAccess</c> so the grid preview matches the generated OpenAPI document.
+    /// </summary>
+    /// <param name="key">The API key to test.</param>
+    /// <param name="endpoint">The endpoint to test.</param>
+    /// <returns>True if the key would be authorized to call the endpoint.</returns>
+    private static bool KeyCanReach(ApiKeyInfo key, EndpointDefinition endpoint)
+    {
+        if (endpoint.RequiredScopes.Count > 0)
+        {
+            var granted = new HashSet<string>(key.Scopes, StringComparer.Ordinal);
+            if (endpoint.RequiredScopes.Any(scope => !granted.Contains(scope)))
+            {
+                return false;
+            }
+        }
+
+        return key.Grants.Count == 0
+            || key.Grants.Any(grant => grant.Allows(endpoint.ConnectionName, endpoint.Schema, endpoint.ObjectName));
+    }
+
+    /// <summary>Options for the scope filter: an "all" sentinel plus each defined scope name.</summary>
+    private IEnumerable<string> ScopeFilterOptions => new[] { string.Empty }.Concat(_scopes?.Select(s => s.Name) ?? []);
+
+    /// <summary>Label for a scope filter option ("All scopes" for the empty sentinel).</summary>
+    /// <param name="value">The scope name, or empty for the sentinel.</param>
+    /// <returns>The display label.</returns>
+    private static string ScopeFilterLabel(string value) => string.IsNullOrEmpty(value) ? "All scopes" : value;
+
+    /// <summary>Options for the key filter: an "all" sentinel plus each key id (as a string).</summary>
+    private IEnumerable<string> KeyFilterOptions => new[] { string.Empty }.Concat(_keys?.Select(k => k.Id.ToString()) ?? []);
+
+    /// <summary>Label for a key filter option ("All keys" for the empty sentinel, otherwise the key name).</summary>
+    /// <param name="value">The key id string, or empty for the sentinel.</param>
+    /// <returns>The display label.</returns>
+    private string KeyFilterLabel(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "All keys";
+        }
+
+        var key = _keys?.FirstOrDefault(k => k.Id.ToString() == value);
+        return key is null ? value : key.Name;
+    }
+
+    /// <summary>Applies the chosen scope filter.</summary>
+    /// <param name="value">The selected scope, or empty for all.</param>
+    private void OnFilterScopeChanged(string? value) => _filterScope = value ?? string.Empty;
+
+    /// <summary>Applies the chosen key filter.</summary>
+    /// <param name="value">The selected key id, or empty for all.</param>
+    private void OnFilterKeyChanged(string? value) => _filterKeyId = value ?? string.Empty;
+
+    /// <summary>Clears both filters.</summary>
+    private void ClearFilters()
+    {
+        _filterScope = string.Empty;
+        _filterKeyId = string.Empty;
+    }
+
+    /// <summary>Reloads the endpoint list and the linked-object set.</summary>
+    private async Task LoadAsync()
+    {
+        _endpoints = await Api.GetEndpointsAsync();
+        RebuildLinked();
+    }
+
+    /// <summary>Recomputes which database objects already have an endpoint mapped to them.</summary>
+    private void RebuildLinked() =>
+        _linked = (_endpoints ?? []).Select(e => e.Schema + "." + e.ObjectName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Endpoints mapped to a given database object (there can be several, e.g. a GET and a POST).</summary>
+    /// <param name="schema">The object's schema.</param>
+    /// <param name="name">The object's name.</param>
+    /// <returns>The matching endpoint definitions, newest binding order.</returns>
+    private IReadOnlyList<EndpointDefinition> EndpointsForObject(string schema, string name) =>
+        (_endpoints ?? [])
+            .Where(e => string.Equals(e.Schema, schema, StringComparison.OrdinalIgnoreCase)
+                     && string.Equals(e.ObjectName, name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    // ----- Database tab ---------------------------------------------------------------------------
+
+    /// <summary>Handles a sub-tab switch, loading database objects when the Database tab first opens.</summary>
+    /// <param name="index">The new active tab index.</param>
+    private async Task OnTabChangedAsync(int index)
+    {
+        _epTabIndex = index;
+        if (index == 1 && _objects is null && _objectsError is null)
+        {
+            await LoadObjectsAsync();
+        }
+    }
+
+    /// <summary>Reloads the objects for the selected connection.</summary>
+    private async Task OnConnectionChangedAsync() => await LoadObjectsAsync();
+
+    /// <summary>Sets the active database connection and reloads its objects.</summary>
+    /// <param name="value">The chosen connection name.</param>
+    private async Task SetDbConnectionAsync(string? value)
+    {
+        _dbConnection = value ?? string.Empty;
+        await LoadObjectsAsync();
+    }
+
+    /// <summary>Loads the database object list for the selected connection (best-effort).</summary>
+    private async Task LoadObjectsAsync()
+    {
+        _selectedObject = null;
+        _selectedParameters = null;
+        _objectsError = null;
+        if (string.IsNullOrEmpty(_dbConnection))
+        {
+            _objects = null;
+            return;
+        }
+
+        try
+        {
+            _objects = await Api.GetDbObjectsAsync(_dbConnection) ?? [];
+        }
+        catch (Exception ex)
+        {
+            _objectsError = ex.Message;
+            _objects = null;
+        }
+    }
+
+    /// <summary>Selects the clicked database object and loads its parameters into the inspector.</summary>
+    /// <param name="obj">The clicked object row.</param>
+    private async Task OnObjectRowClick(DbObjectDescriptor obj)
+    {
+        _selectedObject = obj;
+        _selectedParameters = null;
+        try
+        {
+            _selectedParameters = await Api.GetDbParametersAsync(_dbConnection, obj.Schema, obj.Name) ?? [];
+        }
+        catch (Exception ex)
+        {
+            _objectsError = ex.Message;
+            _selectedParameters = [];
+        }
+    }
+
+    /// <summary>Opens the editor pre-filled from a database object, then discovers its parameters.</summary>
+    /// <param name="obj">The source object.</param>
+    private async Task CreateFromObjectAsync(DbObjectDescriptor obj)
+    {
+        _editing = new EndpointEditModel
+        {
+            ConnectionName = _dbConnection,
+            Schema = obj.Schema,
+            ObjectName = obj.Name,
+            ObjectType = obj.ObjectType,
+            Route = obj.Name.ToLowerInvariant(),
+            HttpMethod = obj.ObjectType == DbObjectType.StoredProcedure ? "POST" : "GET",
+        };
+        await DiscoverParametersAsync();
+    }
+
+    // ----- List actions ---------------------------------------------------------------------------
+
+    private void NewEndpoint() => _editing = new EndpointEditModel();
+
+    private void Edit(EndpointDefinition endpoint) => _editing = EndpointEditModel.From(endpoint);
+
+    /// <summary>Opens the request log filtered to this endpoint.</summary>
+    /// <param name="endpoint">The endpoint whose logs to show.</param>
+    private void OpenLogs(EndpointDefinition endpoint) =>
+        Nav.NavigateTo($"logs?endpoint={endpoint.Id}&label={Uri.EscapeDataString(endpoint.Route)}");
+
+    private void CancelEdit() => _editing = null;
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        await Api.SaveEndpointAsync(_editing.ToDefinition());
+        _busy = false;
+        _editing = null;
+        await LoadAsync();
+    }
+
+    /// <summary>Confirms, then deletes an endpoint and reloads the list.</summary>
+    /// <param name="endpoint">The endpoint to delete.</param>
+    private async Task DeleteAsync(EndpointDefinition endpoint)
+    {
+        var confirmed = await Dialog.ConfirmAsync(
+            "Delete endpoint?",
+            $"Delete {endpoint.HttpMethod} /api/{endpoint.Route}? This cannot be undone.",
+            "Delete", "Cancel");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await Api.DeleteEndpointAsync(endpoint.Id);
+        await LoadAsync();
+    }
+
+    private void AddParameter() => _editing!.Parameters.Add(new ParamEditModel());
+
+    /// <summary>Reads the object's parameters from the database and replaces the parameter list.</summary>
+    private async Task DiscoverParametersAsync()
+    {
+        if (_editing is null || string.IsNullOrWhiteSpace(_editing.ConnectionName) || string.IsNullOrWhiteSpace(_editing.ObjectName))
+        {
+            _discoverError = "Set the connection and object name first.";
+            return;
+        }
+
+        _discovering = true;
+        _discoverError = null;
+        try
+        {
+            var discovered = await Api.GetDbParametersAsync(_editing.ConnectionName, _editing.Schema, _editing.ObjectName);
+            if (discovered is not null)
+            {
+                _editing.Parameters.Clear();
+                foreach (var descriptor in discovered)
+                {
+                    var model = new ParamEditModel
+                    {
+                        Name = descriptor.Name,
+                        Source = ParameterSource.Body,
+                        Direction = descriptor.Direction,
+                        DbType = descriptor.DbType,
+                        Size = descriptor.Size,
+                        Precision = descriptor.Precision,
+                        Scale = descriptor.Scale,
+                        TypeName = descriptor.TypeName,
+                    };
+                    if (descriptor.TableColumns is not null)
+                    {
+                        foreach (var column in descriptor.TableColumns)
+                        {
+                            model.Columns.Add(new ColumnEditModel { Name = column.Name, DbType = column.DbType, Size = column.Size });
+                        }
+                    }
+
+                    _editing.Parameters.Add(model);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _discoverError = ex.Message;
+        }
+
+        _discovering = false;
+    }
+
+    private async Task SyncAllAsync()
+    {
+        _syncBusy = true;
+        var results = await Api.SyncAllEndpointsAsync();
+        _notice = results is null ? "Nothing to sync." : $"Synced {results.Count} endpoint(s).";
+        _exportUrl = null;
+        _openApiUrl = null;
+        _syncBusy = false;
+        await LoadAsync();
+    }
+
+    private async Task SyncOneAsync(Guid id)
+    {
+        _syncBusy = true;
+        var result = await Api.SyncEndpointAsync(id);
+        _notice = result is null ? "Nothing to sync." : "Synced: " + ChangeSummary(result);
+        _exportUrl = null;
+        _openApiUrl = null;
+        _syncBusy = false;
+        await LoadAsync();
+    }
+
+    private static string ChangeSummary(EndpointSyncResult result)
+    {
+        if (!string.IsNullOrEmpty(result.Message))
+        {
+            return result.Message;
+        }
+
+        var parts = new List<string>();
+        if (result.Added.Count > 0) parts.Add("added " + string.Join(", ", result.Added));
+        if (result.Updated.Count > 0) parts.Add("updated " + string.Join(", ", result.Updated));
+        if (result.Removed.Count > 0) parts.Add("removed " + string.Join(", ", result.Removed));
+        return parts.Count == 0 ? "no changes" : string.Join("; ", parts);
+    }
+
+    private async Task BuildOpenApiAsync()
+    {
+        _openApiBusy = true;
+        var json = await Api.GetOpenApiAsync(FilterKeyId, string.IsNullOrEmpty(_filterScope) ? null : _filterScope);
+        _openApiUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+        _exportUrl = null;
+        _notice = IsFiltered ? "OpenAPI document ready (filtered)." : "OpenAPI document ready.";
+        _openApiBusy = false;
+    }
+
+    private void Export()
+    {
+        var json = JsonSerializer.Serialize(FilteredEndpoints, new JsonSerializerOptions { WriteIndented = true });
+        _exportUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+        _openApiUrl = null;
+        _notice = IsFiltered ? $"Export ready ({FilteredEndpoints.Count} filtered endpoint(s))." : "Export ready.";
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        _notice = null;
+        try
+        {
+            await using var stream = args.File.OpenReadStream(5 * 1024 * 1024);
+            var endpoints = await JsonSerializer.DeserializeAsync<List<EndpointDefinition>>(stream, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (endpoints is { Count: > 0 })
+            {
+                var imported = await Api.ImportEndpointsAsync(endpoints);
+                _notice = $"Imported {imported} endpoint(s).";
+                await LoadAsync();
+            }
+            else
+            {
+                _notice = "No endpoints found in the file.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _notice = "Import failed: " + ex.Message;
+        }
+    }
+
+    // ----- Test console ---------------------------------------------------------------------------
+
+    /// <summary>Opens the test drawer for an endpoint.</summary>
+    private void StartTest(EndpointDefinition endpoint)
+    {
+        _testing = endpoint;
+        _testResponse = null;
+        _testRaw = false;
+        _testValues.Clear();
+        _testRows.Clear();
+        _testInputParameters = endpoint.Parameters
+            .Where(p => p.Direction is Weir.Contracts.ParameterDirection.Input or Weir.Contracts.ParameterDirection.InputOutput && p.Source != ParameterSource.Const)
+            .ToList();
+        foreach (var parameter in _testInputParameters)
+        {
+            _testValues[parameter.Name] = parameter.DefaultValue?.ToString();
+        }
+    }
+
+    private void CloseTest() => _testing = null;
+
+    /// <summary>Toggles raw-JSON mode, seeding the raw body from the form values when enabled.</summary>
+    private void ToggleRaw(bool on)
+    {
+        _testRaw = on;
+        if (_testRaw)
+        {
+            _testRawBody = BuildTestBody();
+        }
+    }
+
+    /// <summary>The type/source hint shown under a test-console input.</summary>
+    private static string TestParamHint(EndpointParameter parameter) =>
+        parameter.DbType + (parameter.Source != ParameterSource.Body ? " - " + parameter.Source : "");
+
+    private string GetTestValue(string name) => _testValues.TryGetValue(name, out var value) ? value ?? string.Empty : string.Empty;
+
+    private void SetTestValue(string name, string? value) => _testValues[name] = value;
+
+    private bool GetTestBool(string name) => string.Equals(GetTestValue(name), "true", StringComparison.OrdinalIgnoreCase);
+
+    private void SetTestBool(string name, bool on) => SetTestValue(name, on ? "true" : "false");
+
+    private List<Dictionary<string, string?>> TestRows(EndpointParameter parameter)
+    {
+        if (!_testRows.TryGetValue(parameter.Name, out var rows))
+        {
+            rows = [];
+            _testRows[parameter.Name] = rows;
+        }
+
+        return rows;
+    }
+
+    private void AddTestRow(EndpointParameter parameter) => TestRows(parameter).Add(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+
+    private static string GetCell(Dictionary<string, string?> row, string column) => row.TryGetValue(column, out var value) ? value ?? string.Empty : string.Empty;
+
+    private static void SetCell(Dictionary<string, string?> row, string column, string? value) => row[column] = value;
+
+    private static string InputType(WeirDbType type) => type switch
+    {
+        WeirDbType.Byte or WeirDbType.Int16 or WeirDbType.Int32 or WeirDbType.Int64
+            or WeirDbType.Decimal or WeirDbType.Double or WeirDbType.Single => "number",
+        WeirDbType.Date => "date",
+        WeirDbType.DateTime or WeirDbType.DateTimeOffset => "datetime-local",
+        WeirDbType.Time => "time",
+        _ => "text",
+    };
+
+    /// <summary>Builds the JSON request body from the form values, coercing to JSON types.</summary>
+    private string BuildTestBody()
+    {
+        var obj = new JsonObject();
+        foreach (var parameter in _testInputParameters)
+        {
+            if (parameter.DbType == WeirDbType.Structured)
+            {
+                if (!_testRows.TryGetValue(parameter.Name, out var rows) || rows.Count == 0)
+                {
+                    continue;
+                }
+
+                var array = new JsonArray();
+                foreach (var row in rows)
+                {
+                    var rowObject = new JsonObject();
+                    foreach (var column in parameter.TableColumns ?? [])
+                    {
+                        rowObject[column.Name] = Coerce(column.DbType, GetCell(row, column.Name));
+                    }
+
+                    array.Add(rowObject);
+                }
+
+                obj[parameter.Name] = array;
+            }
+            else
+            {
+                var value = GetTestValue(parameter.Name);
+                if (string.IsNullOrEmpty(value))
+                {
+                    continue;
+                }
+
+                obj[parameter.Name] = Coerce(parameter.DbType, value);
+            }
+        }
+
+        return obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>Coerces a string field value to the JSON node matching a database type.</summary>
+    private static JsonNode? Coerce(WeirDbType type, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        switch (type)
+        {
+            case WeirDbType.Boolean:
+                return JsonValue.Create(bool.TryParse(value, out var b) && b);
+            case WeirDbType.Byte:
+            case WeirDbType.Int16:
+            case WeirDbType.Int32:
+            case WeirDbType.Int64:
+                return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l) ? JsonValue.Create(l) : JsonValue.Create(value);
+            case WeirDbType.Decimal:
+            case WeirDbType.Double:
+            case WeirDbType.Single:
+                return double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? JsonValue.Create(d) : JsonValue.Create(value);
+            case WeirDbType.Json:
+                try { return JsonNode.Parse(value); }
+                catch (JsonException) { return JsonValue.Create(value); }
+            default:
+                return JsonValue.Create(value);
+        }
+    }
+
+    private async Task SendTestAsync()
+    {
+        if (_testing is null)
+        {
+            return;
+        }
+
+        _testBusy = true;
+        var body = _testRaw ? _testRawBody : BuildTestBody();
+        var raw = await Api.InvokeEndpointAsync(_testing.Id, body);
+        _testResponse = PrettyJson(raw);
+        _testBusy = false;
+    }
+
+    private static string PrettyJson(string raw)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (JsonException)
+        {
+            return raw;
+        }
+    }
+
+    // ----- Editor helpers -------------------------------------------------------------------------
+
+    private void RemoveParameter(ParamEditModel parameter) => _editing!.Parameters.Remove(parameter);
+
+    private static void AddColumn(ParamEditModel parameter) => parameter.Columns.Add(new ColumnEditModel());
+
+    private static void RemoveColumn(ParamEditModel parameter, ColumnEditModel column) => parameter.Columns.Remove(column);
+
+    /// <summary>Adds or removes a required scope from the endpoint being edited.</summary>
+    private void ToggleScope(string name, bool on)
+    {
+        if (on)
+        {
+            _editing!.Scopes.Add(name);
+        }
+        else
+        {
+            _editing!.Scopes.Remove(name);
+        }
+    }
+
+    /// <summary>Adds or removes a parameter from the endpoint's cache vary-by set.</summary>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="on">True to vary the cache by this parameter.</param>
+    private void ToggleCacheVary(string name, bool on)
+    {
+        if (on)
+        {
+            _editing!.CacheVaryBy.Add(name);
+        }
+        else
+        {
+            _editing!.CacheVaryBy.Remove(name);
+        }
+    }
+
+    private static string ObjectTypeLabel(DbObjectType type) => type switch
+    {
+        DbObjectType.StoredProcedure => "Proc",
+        DbObjectType.TableValuedFunction => "Table fn",
+        DbObjectType.ScalarFunction => "Scalar fn",
+        _ => type.ToString(),
+    };
+
+    private static string TypeLabel(WeirDbType dbType, string? typeName, int? size) =>
+        typeName is not null ? typeName
+        : size is > 0 ? $"{dbType}({size})"
+        : dbType.ToString();
+
+    private static FlareColor MethodColor(string method) => (method ?? string.Empty).ToUpperInvariant() switch
+    {
+        "GET" => FlareColor.Info,
+        "POST" => FlareColor.Success,
+        "PUT" or "PATCH" => FlareColor.Warning,
+        "DELETE" => FlareColor.Error,
+        _ => FlareColor.OnSurfaceVariant,
+    };
+
+    /// <summary>Formats a connection name with its provider for the connection selector.</summary>
+    private string ProviderLabel(string name)
+    {
+        var connection = _connections?.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+        return connection is null ? name : $"{connection.Name} ({connection.Provider})";
+    }
+
+    // ----- Edit models ----------------------------------------------------------------------------
+
+    private sealed class EndpointEditModel
+    {
+        public Guid Id { get; set; }
+        public string Route { get; set; } = string.Empty;
+        public string HttpMethod { get; set; } = "POST";
+        public string ConnectionName { get; set; } = string.Empty;
+        public DbObjectType ObjectType { get; set; } = DbObjectType.StoredProcedure;
+        public string Schema { get; set; } = "dbo";
+        public string ObjectName { get; set; } = string.Empty;
+        public ResultMode ResultMode { get; set; } = ResultMode.MultiRow;
+        public int? CommandTimeoutSeconds { get; set; }
+        public bool Enabled { get; set; } = true;
+        public bool SuppressMessages { get; set; }
+        public bool LogEnabled { get; set; } = true;
+        public bool LogParameters { get; set; }
+        public bool LogResult { get; set; }
+        public int? SlowThresholdPercent { get; set; }
+        public string? Description { get; set; }
+        public bool CacheEnabled { get; set; }
+        public int CacheTtlSeconds { get; set; } = 60;
+        public HashSet<string> CacheVaryBy { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public bool CacheVaryByApiKey { get; set; }
+        public HashSet<string> Scopes { get; } = new(StringComparer.Ordinal);
+        public List<ParamEditModel> Parameters { get; } = [];
+
+        public static EndpointEditModel From(EndpointDefinition endpoint)
+        {
+            var model = new EndpointEditModel
+            {
+                Id = endpoint.Id,
+                Route = endpoint.Route,
+                HttpMethod = endpoint.HttpMethod,
+                ConnectionName = endpoint.ConnectionName,
+                ObjectType = endpoint.ObjectType,
+                Schema = endpoint.Schema,
+                ObjectName = endpoint.ObjectName,
+                ResultMode = endpoint.ResultMode,
+                CommandTimeoutSeconds = endpoint.CommandTimeoutSeconds,
+                Enabled = endpoint.Enabled,
+                SuppressMessages = endpoint.SuppressMessages,
+                LogEnabled = endpoint.Logging.Enabled,
+                LogParameters = endpoint.Logging.LogParameters,
+                LogResult = endpoint.Logging.LogResult,
+                SlowThresholdPercent = endpoint.Logging.SlowThresholdPercent,
+                Description = endpoint.Description,
+                CacheEnabled = endpoint.Cache.Enabled,
+                CacheTtlSeconds = endpoint.Cache.TtlSeconds,
+                CacheVaryByApiKey = endpoint.Cache.VaryByApiKey,
+            };
+
+            foreach (var scope in endpoint.RequiredScopes)
+            {
+                model.Scopes.Add(scope);
+            }
+
+            foreach (var varyBy in endpoint.Cache.VaryByParameters)
+            {
+                model.CacheVaryBy.Add(varyBy);
+            }
+
+            foreach (var parameter in endpoint.Parameters)
+            {
+                model.Parameters.Add(ParamEditModel.From(parameter));
+            }
+
+            return model;
+        }
+
+        public EndpointDefinition ToDefinition() => new()
+        {
+            Id = Id,
+            Route = Route.Trim(),
+            HttpMethod = HttpMethod,
+            ConnectionName = ConnectionName.Trim(),
+            ObjectType = ObjectType,
+            Schema = string.IsNullOrWhiteSpace(Schema) ? "dbo" : Schema.Trim(),
+            ObjectName = ObjectName.Trim(),
+            ResultMode = ResultMode,
+            CommandTimeoutSeconds = CommandTimeoutSeconds,
+            Enabled = Enabled,
+            SuppressMessages = SuppressMessages,
+            Logging = new EndpointLogging
+            {
+                Enabled = LogEnabled,
+                LogParameters = LogParameters,
+                LogResult = LogResult,
+                SlowThresholdPercent = SlowThresholdPercent,
+            },
+            Description = string.IsNullOrWhiteSpace(Description) ? null : Description,
+            Cache = new CachePolicy
+            {
+                Enabled = CacheEnabled,
+                TtlSeconds = CacheTtlSeconds,
+                // Only keep vary-by names that still match a defined parameter, so a renamed or removed
+                // parameter cannot leave a dangling cache-key name (which would disable caching).
+                VaryByParameters = CacheVaryBy.Where(name => Parameters.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))).ToList(),
+                VaryByApiKey = CacheVaryByApiKey,
+            },
+            RequiredScopes = Scopes.ToList(),
+            Parameters = Parameters.Select(parameter => parameter.ToParameter()).ToList(),
+        };
+    }
+
+    private sealed class ParamEditModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? DbParameterName { get; set; }
+        public ParameterSource Source { get; set; } = ParameterSource.Body;
+        public Weir.Contracts.ParameterDirection Direction { get; set; } = Weir.Contracts.ParameterDirection.Input;
+        public WeirDbType DbType { get; set; } = WeirDbType.String;
+        public bool Required { get; set; }
+        public int? Size { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
+        public string? TypeName { get; set; }
+        public object? DefaultValue { get; set; }
+        public string? ValidationRegex { get; set; }
+        public string? HeaderName { get; set; }
+        public string? ClaimType { get; set; }
+        public List<ColumnEditModel> Columns { get; } = [];
+
+        public static ParamEditModel From(EndpointParameter parameter)
+        {
+            var model = new ParamEditModel
+            {
+                Name = parameter.Name,
+                DbParameterName = parameter.DbParameterName,
+                Source = parameter.Source,
+                Direction = parameter.Direction,
+                DbType = parameter.DbType,
+                Required = parameter.Required,
+                Size = parameter.Size,
+                Precision = parameter.Precision,
+                Scale = parameter.Scale,
+                TypeName = parameter.TypeName,
+                DefaultValue = parameter.DefaultValue,
+                ValidationRegex = parameter.ValidationRegex,
+                HeaderName = parameter.HeaderName,
+                ClaimType = parameter.ClaimType,
+            };
+
+            if (parameter.TableColumns is not null)
+            {
+                foreach (var column in parameter.TableColumns)
+                {
+                    model.Columns.Add(ColumnEditModel.From(column));
+                }
+            }
+
+            return model;
+        }
+
+        public EndpointParameter ToParameter() => new()
+        {
+            Name = Name.Trim(),
+            DbParameterName = string.IsNullOrWhiteSpace(DbParameterName) ? null : DbParameterName.Trim(),
+            Source = Source,
+            Direction = Direction,
+            DbType = DbType,
+            Required = Required,
+            Size = Size,
+            Precision = Precision,
+            Scale = Scale,
+            TypeName = string.IsNullOrWhiteSpace(TypeName) ? null : TypeName.Trim(),
+            DefaultValue = DefaultValue,
+            ValidationRegex = ValidationRegex,
+            HeaderName = HeaderName,
+            ClaimType = ClaimType,
+            TableColumns = DbType == WeirDbType.Structured && Columns.Count > 0
+                ? Columns.Select((column, index) => column.ToColumn(index)).ToList()
+                : null,
+        };
+    }
+
+    private sealed class ColumnEditModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public WeirDbType DbType { get; set; } = WeirDbType.String;
+        public int? Size { get; set; }
+
+        public static ColumnEditModel From(TvpColumn column) =>
+            new() { Name = column.Name, DbType = column.DbType, Size = column.Size };
+
+        public TvpColumn ToColumn(int ordinal) =>
+            new() { Name = Name.Trim(), DbType = DbType, Size = Size, Ordinal = ordinal };
+    }
+}

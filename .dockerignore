@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/publish/
+**/.vs/
+**/.idea/
+**/.vscode/
+**/.git/
+**/*.user
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/appsettings.*.local.json
+**/secrets.json
+**/node_modules/

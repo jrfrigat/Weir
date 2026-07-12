@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Weir.Contracts</PackageId>
+    <Description>Weir shared contracts - DTOs and enums for the HTTP API and admin surface. Browser-safe; referenced by both the host and the Blazor WASM admin.</Description>
+  </PropertyGroup>
+
+  <!-- Pure contracts: no third-party dependencies, safe to run in the browser (WASM). -->
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+</Project>

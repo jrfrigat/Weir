@@ -1,0 +1,277 @@
+@page "/keys"
+@attribute [Authorize]
+@inject WeirApiClient Api
+@inject IJSRuntime JS
+@inject IDialogService Dialog
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="keys" Description="Keys authenticate data-plane callers. Scopes and procedure grants limit each.">
+        <Actions>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="OpenCreate">Create key</FlareButton>
+        </Actions>
+    </PageHeader>
+
+    @if (_created is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Success" Title="Key created - copy it now">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">This plaintext key is shown once and cannot be retrieved later.</FlareText>
+                <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small" Wrap="true">
+                    <FlareCode>@_created.PlainTextKey</FlareCode>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => CopyAsync(_created.PlainTextKey)">@(_copied ? "Copied" : "Copy")</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="() => { _created = null; _copied = false; }">Done</FlareButton>
+                </FlareStack>
+            </FlareStack>
+        </FlareAlert>
+    }
+
+    @if (_keys is null)
+    {
+        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+    }
+    else if (_keys.Count == 0)
+    {
+        <FlareEmptyState Title="No API keys yet" Description="Create one to let clients call the data plane.">
+            <Icon><FlareIcon Name="key" /></Icon>
+        </FlareEmptyState>
+    }
+    else
+    {
+        <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true">
+            <Columns>
+                <FlareColumn TItem="ApiKeyInfo" Title="Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="Key">
+                    <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.Prefix</FlareText></Template>
+                </FlareColumn>
+                <FlareColumn TItem="ApiKeyInfo" Title="Scopes">
+                    <Template><FlareText Element="span" Mono="true" Color="FlareColor.Primary">@string.Join(", ", context.Scopes)</FlareText></Template>
+                </FlareColumn>
+                <FlareColumn TItem="ApiKeyInfo" Title="Procedure access" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="Created" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="Last used" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="Status">
+                    <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? "active" : "revoked")" /></Template>
+                </FlareColumn>
+                <FlareColumn TItem="ApiKeyInfo" Title="" Align="ColumnAlign.End">
+                    <Template>
+                        @if (context.Enabled)
+                        {
+                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeAsync(context))">Revoke</FlareButton>
+                        }
+                    </Template>
+                </FlareColumn>
+            </Columns>
+        </FlareDataGrid>
+    }
+</FlareStack>
+
+<FlareDialog @bind-Visible="_showCreate" Title="Create API key" Size="DialogSize.Md" ShowCloseButton="true" BeforeClose="ConfirmDiscardAsync">
+    <ChildContent>
+        <FlareStack Gap="FlareSpacing.Medium">
+            <FlareField Label="Name" @bind-Value="_newName" Placeholder="e.g. checkout-service" />
+            <div>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Scopes</FlareText>
+                @if (_scopes is null || _scopes.Count == 0)
+                {
+                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No scopes defined.</FlareText>
+                }
+                else
+                {
+                    <FlareStack Row Wrap="true" Gap="FlareSpacing.Small">
+                        @foreach (var scope in _scopes)
+                        {
+                            var selected = _selectedScopes.Contains(scope.Name);
+                            <FlareChip Size="ChipSize.Sm" Label="@scope.Name"
+                                       Variant="@(selected ? ChipVariant.Filled : ChipVariant.Outlined)"
+                                       Color="@(selected ? FlareColor.Primary : FlareColor.Default)"
+                                       OnClick="@(() => ToggleScope(scope.Name, !selected))" />
+                        }
+                    </FlareStack>
+                }
+            </div>
+            <div>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Procedure access</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">Leave empty to allow every procedure (subject to scopes). Use * for "any".</FlareText>
+                <FlareStack Gap="FlareSpacing.XSmall" Style="margin-top:.5rem;">
+                    @foreach (var grant in _grants)
+                    {
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                            <FlareSelect TValue="string" @bind-Value="grant.Connection" Items="@GrantConnectionOptions" />
+                            <FlareField TValue="string" @bind-Value="grant.Schema" Placeholder="schema or *" />
+                            <FlareField TValue="string" @bind-Value="grant.ObjectName" Placeholder="object or *" />
+                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => _grants.Remove(grant))">Remove</FlareButton>
+                        </FlareStack>
+                    }
+                    <FlareStack Row><FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="AddGrant">Add grant</FlareButton></FlareStack>
+                </FlareStack>
+            </div>
+        </FlareStack>
+    </ChildContent>
+    <Actions>
+        <FlareButton Variant="ButtonVariant.Text" OnClick="() => _showCreate = false">Cancel</FlareButton>
+        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync" Loading="_busy">Create key</FlareButton>
+    </Actions>
+</FlareDialog>
+
+@code {
+    private List<ApiKeyInfo>? _keys;
+    private List<Scope>? _scopes;
+    private List<ConnectionInfo>? _connections;
+    private readonly HashSet<string> _selectedScopes = new(StringComparer.Ordinal);
+    private readonly List<GrantEdit> _grants = [];
+    private bool _showCreate;
+    private bool _busy;
+    private bool _copied;
+    private string _newName = string.Empty;
+    private ApiKeyCreated? _created;
+
+    /// <summary>Loads keys, the available scopes and connections.</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _scopes = await Api.GetScopesAsync();
+        _connections = await Api.GetConnectionsAsync();
+    }
+
+    /// <summary>Connection options for a grant selector: the "any" wildcard plus every known connection.</summary>
+    private IEnumerable<string> GrantConnectionOptions => new[] { "*" }.Concat(_connections?.Select(c => c.Name) ?? []);
+
+    /// <summary>Opens the create-key modal with a fresh form.</summary>
+    private void OpenCreate()
+    {
+        _newName = string.Empty;
+        _selectedScopes.Clear();
+        _grants.Clear();
+        _showCreate = true;
+    }
+
+    /// <summary>Copies the plaintext key to the clipboard.</summary>
+    /// <param name="key">The plaintext key.</param>
+    private async Task CopyAsync(string key)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", key);
+            _copied = true;
+        }
+        catch (JSException)
+        {
+            // Clipboard unavailable; the key is still selectable on screen.
+        }
+    }
+
+    /// <summary>Adds an empty grant row (defaults to allow-any).</summary>
+    private void AddGrant() => _grants.Add(new GrantEdit());
+
+    /// <summary>Builds a short summary of a key's grants for the list.</summary>
+    private static string GrantsSummary(IReadOnlyList<ApiKeyGrant> grants) =>
+        grants.Count == 0
+            ? "all"
+            : string.Join(", ", grants.Select(g => $"{g.Connection}/{g.Schema}/{g.ObjectName}"));
+
+    /// <summary>Reloads the key list.</summary>
+    private async Task LoadAsync() => _keys = await Api.GetKeysAsync();
+
+    /// <summary>Toggles a scope selection for the new key.</summary>
+    private void ToggleScope(string name, bool on)
+    {
+        if (on)
+        {
+            _selectedScopes.Add(name);
+        }
+        else
+        {
+            _selectedScopes.Remove(name);
+        }
+    }
+
+    /// <summary>Creates a key and captures its plaintext for one-time display.</summary>
+    private async Task CreateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newName))
+        {
+            return;
+        }
+
+        _busy = true;
+        _created = await Api.CreateKeyAsync(new ApiKeyCreate
+        {
+            Name = _newName,
+            Scopes = _selectedScopes.ToList(),
+            Grants = _grants.Select(g => g.ToGrant()).ToList(),
+        });
+        _busy = false;
+        _copied = false;
+        _showCreate = false;
+        _newName = string.Empty;
+        _selectedScopes.Clear();
+        _grants.Clear();
+        await LoadAsync();
+    }
+
+    /// <summary>Whether the create-key form has any content worth confirming before discarding.</summary>
+    /// <returns>True if a name, scope or grant has been entered.</returns>
+    private bool FormHasContent() =>
+        !string.IsNullOrWhiteSpace(_newName) || _selectedScopes.Count > 0 || _grants.Count > 0;
+
+    /// <summary>
+    /// Guards accidental dismissal (Escape / scrim / close button) of a partially-filled create form;
+    /// the Cancel and Create buttons close the dialog directly and are not routed through this guard.
+    /// </summary>
+    /// <param name="reason">Why the dialog is closing.</param>
+    /// <returns>True to allow the close, false to keep the dialog open.</returns>
+    private async ValueTask<bool> ConfirmDiscardAsync(DialogCloseReason reason)
+    {
+        if (!FormHasContent())
+        {
+            return true;
+        }
+
+        var confirmed = await Dialog.ConfirmAsync(
+            "Discard key?", "This key has not been created yet. Discard your changes?", "Discard", "Keep editing");
+        return confirmed == true;
+    }
+
+    /// <summary>Confirms, then revokes a key and reloads. Revoking immediately breaks any caller using it.</summary>
+    /// <param name="key">The key to revoke.</param>
+    private async Task RevokeAsync(ApiKeyInfo key)
+    {
+        var confirmed = await Dialog.ConfirmAsync(
+            "Revoke key?",
+            $"Revoke \"{key.Name}\"? Any client using it will immediately be denied. This cannot be undone.",
+            "Revoke", "Cancel");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await Api.RevokeKeyAsync(key.Id);
+        await LoadAsync();
+    }
+
+    /// <summary>Mutable editor model for one resource grant.</summary>
+    private sealed class GrantEdit
+    {
+        /// <summary>Connection pattern (server + database), or blank / <c>*</c> for any.</summary>
+        public string Connection { get; set; } = "*";
+
+        /// <summary>Schema pattern, or blank / <c>*</c> for any.</summary>
+        public string Schema { get; set; } = "*";
+
+        /// <summary>Object pattern, or blank / <c>*</c> for any.</summary>
+        public string ObjectName { get; set; } = "*";
+
+        /// <summary>Converts to a contract grant, treating blank fields as the "any" wildcard.</summary>
+        /// <returns>The resource grant.</returns>
+        public ApiKeyGrant ToGrant() => new()
+        {
+            Connection = Normalize(Connection),
+            Schema = Normalize(Schema),
+            ObjectName = Normalize(ObjectName),
+        };
+
+        /// <summary>Maps a blank value to the wildcard and trims otherwise.</summary>
+        private static string Normalize(string value) =>
+            string.IsNullOrWhiteSpace(value) ? "*" : value.Trim();
+    }
+}

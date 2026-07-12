@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Weir.Abstractions/Weir.Abstractions.csproj" />
+    <Project Path="src/Weir.Admin/Weir.Admin.csproj" />
+    <Project Path="src/Weir.Contracts/Weir.Contracts.csproj" />
+    <Project Path="src/Weir.ControlPlane.PostgreSql/Weir.ControlPlane.PostgreSql.csproj" />
+    <Project Path="src/Weir.ControlPlane.Sqlite/Weir.ControlPlane.Sqlite.csproj" />
+    <Project Path="src/Weir.Core/Weir.Core.csproj" />
+    <Project Path="src/Weir.Diagnostics/Weir.Diagnostics.csproj" />
+    <Project Path="src/Weir.Host/Weir.Host.csproj" />
+  </Folder>
+  <Folder Name="/src/connectors/">
+    <Project Path="src/connectors/Weir.Connectors.PostgreSql/Weir.Connectors.PostgreSql.csproj" />
+    <Project Path="src/connectors/Weir.Connectors.SqlServer/Weir.Connectors.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/connectors/Weir.Connectors.MySql/Weir.Connectors.MySql.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Weir.Tests/Weir.Tests.csproj" />
+  </Folder>
+</Solution>

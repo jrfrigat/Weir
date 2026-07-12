@@ -1,0 +1,50 @@
+<Project>
+
+  <!--
+    Solution-wide MSBuild defaults. Auto-imported at the top of every project's evaluation,
+    so TargetFramework and language settings defined here are visible to the SDK targets.
+    Individual projects override only what they must (e.g. a WASM project's SDK).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!--
+      NuGet audit findings (NU1901-NU1904) stay visible as warnings but do not break the build:
+      they depend on an external advisory DB and can flip a green build red with no code change.
+      Track them with the "dotnet list package" vulnerable report and remediate by pinning fixes.
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      CS1591 : missing XML doc comments are encouraged but not build-breaking.
+      CA1720 : provider-agnostic DbType enums intentionally use type-like names (String, Guid, ...).
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1720</NoWarn>
+    <Deterministic>true</Deterministic>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Weir</Product>
+    <Company>FrigaT</Company>
+    <Authors>FrigaT</Authors>
+    <Copyright>Copyright (c) 2026 FrigaT</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+
+  <!-- Package / release metadata (overridable per project; version can be driven by MinVer later). -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jrfrigat/weir</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jrfrigat/weir</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>mssql;sql-server;postgresql;stored-procedure;api-gateway;http-gateway;dapper;json;aspnetcore;dotnet</PackageTags>
+  </PropertyGroup>
+
+</Project>

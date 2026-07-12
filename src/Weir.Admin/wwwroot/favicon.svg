@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Weir">
+  <!-- Weir mark: databases (the hollow rings on top) flow down through the "W" and merge onto the
+       gateway rail (the stacked bars at the bottom) - the gateway routing many databases as one HTTP
+       surface. Command Center palette: cyan #4fd6c9 -> accent #4ea1ff on the dark #131416 surface. -->
+  <defs>
+    <linearGradient id="weirEdge" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4fd6c9"/>
+      <stop offset="1" stop-color="#4ea1ff"/>
+    </linearGradient>
+
+    <mask id="ringCutout">
+      <rect width="32" height="32" fill="white"/>
+      <g fill="black">
+        <circle cx="8.5" cy="10.8" r="2.5"/>
+        <circle cx="16" cy="10.8" r="2.5"/>
+        <circle cx="23.5" cy="10.8" r="2.5"/>
+      </g>
+      <g fill="black">
+        <rect x="10" y="18" width="20" height="5" />
+      </g>
+    </mask>
+
+    <!-- ИСПРАВЛЕНО: Трапеция увеличена, чтобы горизонтальные линии стали длиннее -->
+    <mask id="horizCutout">
+      <rect width="32" height="32" fill="black"/>
+      <polygon points="10.8,17.5 21.2,17.5 19.3,21 12.7,21" fill="white"/>
+    </mask> 
+  </defs>
+
+  <rect width="32" height="32" rx="7" fill="#131416"/>
+  <rect x="0.7" y="0.7" width="30.6" height="30.6" rx="6.4" fill="none" stroke="#26282b" stroke-width="1.2"/>
+
+  <!-- W + converge to the gateway -->
+  <g fill="none" stroke="url(#weirEdge)" mask="url(#ringCutout)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 10.8 L12.8 19 L16 12.8 L19.2 19 L23.5 10.8"/>
+  </g>
+
+  <!-- Горизонтальные линии (удлинены до границ 9.5 и 22.5, чтобы не обрезались раньше времени) -->
+  <g fill="none" stroke="url(#weirEdge)" stroke-width="1.0" mask="url(#horizCutout)">
+    <path d="M9.5 18.7 L22.5 18.7"/>
+    <path d="M9.5 20.0 L22.5 20.0"/>
+  </g>
+
+  <!-- database rings (top) -->
+  <g fill="none" stroke="#4fd6c9" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8.5" cy="10.8" r="1.5"/>
+    <circle cx="16" cy="10.8" r="1.5"/>
+    <circle cx="23.5" cy="10.8" r="1.5"/>
+  </g>
+</svg>

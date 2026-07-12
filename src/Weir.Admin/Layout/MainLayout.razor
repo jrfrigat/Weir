@@ -1,0 +1,89 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject TokenStore Tokens
+@inject WeirAuthStateProvider Auth
+@inject WeirApiClient Api
+@inject NavigationManager Navigation
+
+@* Command Center shell, composed from Flare: a top app bar with route tabs over a scrolling content
+   region. A single fixed theme (Visual Studio 2026 geometry, Command Center palette) - no switcher.
+   The signed-in user's name on the right is a menu: Account / Sign out. *@
+<FlareLayout>
+    @* Match the Command Center design's 50px nav bar. Flare 0.1.9 makes the height a first-class param and
+       gives the bar a bottom border by default; the only thing left is lifting its surface above the canvas,
+       via the dedicated --flare-layout-appbar-bg token. *@
+    <FlareLayoutAppBar Height="50px" Style="--flare-layout-appbar-bg:var(--flare-color-surface-container-low);">
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Medium" Style="width:100%;min-width:0;">
+            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                <WeirMark Size="1.6rem" />
+                <FlareText Typo="TypographyScale.TitleMedium" Weight="FontWeight.Bold" Mono="true">weir</FlareText>
+            </FlareStack>
+            <FlareLinkTabs>
+                <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="overview" />
+                <FlareLinkTab Href="/endpoints" Label="endpoints" />
+                <FlareLinkTab Href="/scopes" Label="scopes" />
+                <FlareLinkTab Href="/keys" Label="keys" />
+                <FlareLinkTab Href="/admins" Label="admins" />
+                <FlareLinkTab Href="/logs" Label="logs" />
+                <FlareLinkTab Href="/audit" Label="audit" />
+                <FlareLinkTab Href="/settings" Label="settings" />
+            </FlareLinkTabs>
+            <FlareSpacer />
+            @* Source-repository link. Sits on the right, just before the account menu. *@
+            <FlareIconButton Href="https://github.com/jrfrigat/weir" Target="_blank"
+                             AriaLabel="Weir source on GitHub" Size="ButtonSize.Sm">
+                <GitHubIcon Size="1.15rem" />
+            </FlareIconButton>
+            <AuthorizeView>
+                <Authorized>
+                    <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="Account menu">
+                        <Activator>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
+                                <ChildContent>@context.User.Identity?.Name</ChildContent>
+                                <TrailingIcon><FlareIcon Name="expand_more" Size="1.05rem" /></TrailingIcon>
+                            </FlareButton>
+                        </Activator>
+                        <ChildContent>
+                            <FlareMenuItem Icon="account_circle" Href="/account">Account</FlareMenuItem>
+                            <FlareMenuItem Icon="logout" OnClick="LogoutAsync">Sign out</FlareMenuItem>
+                        </ChildContent>
+                    </FlareMenu>
+                </Authorized>
+            </AuthorizeView>
+        </FlareStack>
+    </FlareLayoutAppBar>
+    <FlareLayoutContent>
+        <ErrorBoundary @ref="_errorBoundary">
+            <ChildContent>@Body</ChildContent>
+            <ErrorContent>
+                <FlareAlert Severity="AlertSeverity.Error" Title="Something went wrong">
+                    An unexpected error occurred on this page. Try reloading, or navigate to another screen.
+                </FlareAlert>
+            </ErrorContent>
+        </ErrorBoundary>
+    </FlareLayoutContent>
+</FlareLayout>
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+
+    /// <summary>Recovers the error boundary on navigation so a per-page error clears when the user leaves it.</summary>
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    /// <summary>Handles route changes by clearing any caught error.</summary>
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        _errorBoundary?.Recover();
+
+    /// <summary>Revokes the refresh token, clears both tokens, resets auth state and returns to login.</summary>
+    private async Task LogoutAsync()
+    {
+        var refreshToken = await Tokens.GetRefreshAsync();
+        await Api.LogoutAsync(refreshToken);
+        await Tokens.ClearAllAsync();
+        Auth.NotifyLogout();
+        Navigation.NavigateTo("login");
+    }
+
+    /// <summary>Unsubscribes from navigation events.</summary>
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

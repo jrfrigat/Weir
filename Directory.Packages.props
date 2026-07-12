@@ -1,0 +1,73 @@
+<Project>
+
+  <!--
+    Central Package Management: every third-party version lives here; project files carry
+    only <PackageReference Include="..."/> with no Version. Versions are pinned as each
+    package is first referenced so restore stays reproducible.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Data access">
+    <PackageVersion Include="Dapper" Version="2.1.79" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
+    <!-- Override the transitive (vulnerable, NU1903) SQLitePCLRaw 2.1.11 with the patched 3.0.x line. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Microsoft.Extensions">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup Label="Telemetry / observability">
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Logging">
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Auth / API">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup Label="Distributed">
+    <PackageVersion Include="StackExchange.Redis" Version="3.0.17" />
+  </ItemGroup>
+
+  <ItemGroup Label="Blazor WASM admin">
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
+    <PackageVersion Include="Flare.Blazor" Version="0.1.9" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.1.9" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.1.9" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+  </ItemGroup>
+
+</Project>

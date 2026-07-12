@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+:root{
+ --bg:#1b1b1c;--panel:#232324;--elev:#2a2a2b;--titlebar:#2d2d2e;
+ --border:#3a3a3c;--border-soft:#2c2c2e;--hover:#2a2d2e;--sel:#0d3a5f;
+ --tx:#e7e7e8;--tx-dim:#a3a3a8;--tx-faint:#6d6d73;
+ --accent:#4ea1ff;--accent-deep:#0e639c;--accent-hover:#1177bb;
+ --green:#7ec97e;--red:#f07a6a;--amber:#d6a53a;--cyan:#4fd6c9;
+ --mono:ui-monospace,"Cascadia Code",Consolas,"SFMono-Regular",monospace;
+ --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e7e5e0;font-family:var(--sans)}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-hover)}
+@keyframes wpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.dv-turn{padding:40px 44px 34px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}
+.dv-tid{font:600 10px var(--mono);padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 var(--sans);color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:11px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px var(--mono);padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:9px;font:400 11.5px/1.3 var(--sans);color:rgba(0,0,0,.55);max-width:640px}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.7 var(--sans);color:rgba(0,0,0,.55)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Weir Admin · Dashboard — three UX directions (VS 2026 dark)</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a — TOOL WINDOW ============ -->
+<div class="dv-opt" id="1a">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span><b>Tool Window.</b> Straight-down-the-middle VS: solution-explorer sidebar, document tabs, dense grid of tiles. Feels native to the IDE it themes after.</span></div>
+  <div style="width:1360px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.3);color:var(--tx);display:flex;flex-direction:column">
+
+    <!-- title bar -->
+    <div style="height:36px;flex:none;background:var(--titlebar);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div style="width:16px;height:16px;border-radius:3px;background:linear-gradient(135deg,var(--accent),var(--cyan))"></div>
+        <span style="font-weight:600;font-size:12.5px;letter-spacing:.01em">Weir</span>
+        <span style="font-size:12px;color:var(--tx-faint)">Admin</span>
+      </div>
+      <span style="color:var(--tx-faint);font-size:11px">·</span>
+      <span style="font-size:11.5px;color:var(--tx-dim)">Overview / Dashboard</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+        <span style="font:11px var(--mono);color:var(--tx-faint)">prod</span>
+        <span style="width:22px;height:22px;border-radius:50%;background:#3a3a3c;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--tx-dim)">AV</span>
+      </div>
+    </div>
+
+    <div style="display:flex;min-height:790px">
+      <!-- sidebar -->
+      <div style="width:212px;flex:none;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 0">
+        <div style="padding:2px 14px 12px;font:600 10px var(--sans);letter-spacing:.14em;color:var(--tx-faint)">WEIR ADMIN</div>
+        <div style="padding:6px 14px 4px;font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint)">MONITOR</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 11px;border-left:2px solid var(--accent);background:rgba(78,161,255,.12);color:var(--tx);font-size:12.5px;cursor:default"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="5" height="5"/><rect x="8" y="1" width="5" height="5"/><rect x="1" y="8" width="5" height="5"/><rect x="8" y="8" width="5" height="5"/></svg>Dashboard</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 13px;border-left:2px solid transparent;color:var(--tx-dim);font-size:12.5px;cursor:default" style-hover="color:var(--tx);background:var(--hover)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3h10M2 7h10M2 11h7"/></svg>Audit log</div>
+        <div style="padding:12px 14px 4px;font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint)">CONFIGURE</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 13px;border-left:2px solid transparent;color:var(--tx-dim);font-size:12.5px;cursor:default" style-hover="color:var(--tx);background:var(--hover)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="3.2" cy="3.2" r="2"/><circle cx="10.8" cy="10.8" r="2"/><path d="M5.2 3.2h3.6a2 2 0 0 1 2 2v3.6"/></svg>Endpoints</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 13px;border-left:2px solid transparent;color:var(--tx-dim);font-size:12.5px;cursor:default" style-hover="color:var(--tx);background:var(--hover)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 1.2l5 1.8v3.6c0 3-2 5-5 6-3-1-5-3-5-6V3z"/></svg>Scopes</div>
+        <div style="padding:12px 14px 4px;font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint)">SECURITY</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 13px;border-left:2px solid transparent;color:var(--tx-dim);font-size:12.5px;cursor:default" style-hover="color:var(--tx);background:var(--hover)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="4.2" cy="9.8" r="2.6"/><path d="M6.1 8L12 2.1M10 4l1.8 1.8M9 5l1.8 1.8"/></svg>API keys</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:6px 12px 6px 13px;border-left:2px solid transparent;color:var(--tx-dim);font-size:12.5px;cursor:default" style-hover="color:var(--tx);background:var(--hover)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5" cy="5" r="2.4"/><path d="M1.4 12.6c0-2.2 1.6-3.5 3.6-3.5s3.6 1.3 3.6 3.5"/><path d="M9.6 3a2.2 2.2 0 0 1 0 4M12.6 12.6c0-1.6-.8-2.6-2-3.1"/></svg>Admins</div>
+        <div style="margin-top:auto;border-top:1px solid var(--border);padding-top:10px;display:flex;align-items:center;gap:9px;margin:auto 0 0;padding:10px 14px 2px;color:var(--tx-dim);font-size:12px"><span style="width:20px;height:20px;border-radius:50%;background:#3a3a3c;display:flex;align-items:center;justify-content:center;font-size:9px">AV</span>admin.vance</div>
+      </div>
+
+      <!-- main -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)">
+        <!-- doc tabs -->
+        <div style="height:32px;flex:none;background:var(--titlebar);border-bottom:1px solid var(--border);display:flex;align-items:stretch">
+          <div style="display:flex;align-items:center;gap:7px;padding:0 12px;background:var(--bg);border-right:1px solid var(--border);border-top:2px solid var(--accent);font-size:12px">Dashboard<span style="color:var(--tx-faint);font-size:13px">×</span></div>
+          <div style="display:flex;align-items:center;gap:7px;padding:0 12px;border-right:1px solid var(--border);color:var(--tx-faint);font-size:12px">Endpoints</div>
+        </div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:16px">
+          <!-- toolbar -->
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 15px var(--sans)">Dashboard</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font:600 9.5px var(--mono);letter-spacing:.08em;color:var(--green);background:rgba(126,201,126,.1);border:1px solid rgba(126,201,126,.25);padding:2px 7px;border-radius:10px"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:wpulse 1.8s infinite"></span>LIVE</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--tx-faint)">refreshed 2s ago · every 3s</span>
+          </div>
+
+          <!-- connections -->
+          <div>
+            <div style="font:600 10px var(--sans);letter-spacing:.1em;color:var(--tx-faint);margin-bottom:8px">DATA CONNECTIONS</div>
+            <div style="display:flex;gap:12px">
+              <sc-for list="{{ connections }}" as="c" hint-placeholder-count="3">
+                <div style="flex:1;min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:11px 13px;display:flex;flex-direction:column;gap:7px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(126,201,126,.16)"></span>
+                    <span style="font-size:12.5px;font-weight:600">{{ c.name }}</span>
+                    <span style="margin-left:auto;font:11px var(--mono);color:var(--green)">{{ c.latency }}ms</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--tx-faint)">{{ c.provider }}</div>
+                  <div style="font:11px var(--mono);color:var(--tx-dim)">{{ c.host }} · {{ c.db }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- service tiles -->
+          <div>
+            <div style="font:600 10px var(--sans);letter-spacing:.1em;color:var(--tx-faint);margin-bottom:8px">SERVICE</div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+              <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="10">
+                <div style="background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--tx-faint)">{{ t.label }}</span>
+                  <span style="font:600 19px/1 var(--sans);color:{{ t.vc }}">{{ t.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- charts -->
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:12px 14px">
+              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px"><span style="font-size:12px;font-weight:600">Throughput</span><span style="font:11px var(--mono);color:var(--tx-faint)">req/s · 5m</span><span style="margin-left:auto;font:600 13px var(--mono);color:var(--accent)">1,284</span></div>
+              <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:88px;display:block"><defs><linearGradient id="gTa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ea1ff" stop-opacity=".3"/><stop offset="1" stop-color="#4ea1ff" stop-opacity="0"/></linearGradient></defs><polygon points="{{ thr.area }}" fill="url(#gTa)"/><polyline points="{{ thr.line }}" fill="none" stroke="#4ea1ff" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:12px 14px">
+              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px"><span style="font-size:12px;font-weight:600">Latency</span><span style="font:11px var(--mono);color:var(--tx-faint)">p50 · 5m</span><span style="margin-left:auto;font:600 13px var(--mono);color:var(--green)">1.9ms</span></div>
+              <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:88px;display:block"><defs><linearGradient id="gLa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ec97e" stop-opacity=".28"/><stop offset="1" stop-color="#7ec97e" stop-opacity="0"/></linearGradient></defs><polygon points="{{ lat.area }}" fill="url(#gLa)"/><polyline points="{{ lat.line }}" fill="none" stroke="#7ec97e" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+
+          <!-- endpoints table -->
+          <div style="background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-weight:600">Endpoints</span><span style="font:11px var(--mono);color:var(--tx-faint)">8 active</span></div>
+            <table style="border-collapse:collapse;width:100%">
+              <thead><tr>
+                <th style="padding:7px 10px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)"></th>
+                <th style="padding:7px 10px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Endpoint</th>
+                <th style="padding:7px 10px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Connection</th>
+                <th style="padding:7px 10px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Object</th>
+                <th style="padding:7px 10px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Count</th>
+                <th style="padding:7px 10px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Err%</th>
+                <th style="padding:7px 10px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">p95</th>
+                <th style="padding:7px 10px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Cache</th>
+                <th style="padding:7px 10px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Last</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ endpoints }}" as="e" hint-placeholder-count="8">
+                  <tr style-hover="background:var(--hover)">
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft)"><span style="width:7px;height:7px;border-radius:50%;display:inline-block;background:{{ e.dot }}"></span></td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft)"><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;min-width:46px;text-align:center;font:600 9px var(--mono);letter-spacing:.03em;padding:2px 5px;border-radius:3px;color:{{ e.mc }};background:rgba(255,255,255,.05);border:1px solid var(--border)">{{ e.method }}</span><span style="font:11.5px var(--mono);color:var(--tx)">{{ e.route }}</span></div></td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);font-size:11px;color:var(--tx-dim)">{{ e.conn }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);font:11px var(--mono);color:var(--tx-dim)">{{ e.object }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.count }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.err }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.p95 }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);text-align:right;font:11px var(--mono);color:var(--green)">{{ e.cache }}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid var(--border-soft);text-align:right;font-size:11px;color:var(--tx-faint)">{{ e.last }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b — REFINED CONSOLE ============ -->
+<div class="dv-opt" id="1b">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span><b>Refined console.</b> Same VS palette, more air. Labeled sidebar, rounded cards, health hero, KPI cards with inline sparklines. Reads modern without leaving the theme.</span></div>
+  <div style="width:1360px;background:#161617;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.3);color:var(--tx);display:flex;min-height:830px">
+
+    <!-- sidebar -->
+    <div style="width:238px;flex:none;background:#1d1d1e;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 14px">
+      <div style="display:flex;align-items:center;gap:9px;padding:0 4px 16px">
+        <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#0b1620">W</div>
+        <div style="line-height:1.1"><div style="font-weight:600;font-size:13.5px">Weir</div><div style="font-size:10px;color:var(--tx-faint)">Gateway admin</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:#252527;border:1px solid var(--border);border-radius:7px;padding:6px 9px;margin-bottom:14px"><svg width="13" height="13" fill="none" stroke="var(--tx-faint)" stroke-width="1.5"><circle cx="5.5" cy="5.5" r="4"/><path d="M8.5 8.5L12 12"/></svg><span style="font-size:11.5px;color:var(--tx-faint)">Search…</span><span style="margin-left:auto;font:9.5px var(--mono);color:var(--tx-faint);border:1px solid var(--border);border-radius:3px;padding:0 4px">⌘K</span></div>
+      <div style="font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint);padding:2px 8px 6px">MONITOR</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;background:rgba(78,161,255,.14);color:var(--tx);font-size:13px;font-weight:500;margin-bottom:2px"><svg width="15" height="15" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="1" y="1" width="5.5" height="5.5" rx="1"/><rect x="8.5" y="1" width="5.5" height="5.5" rx="1"/><rect x="1" y="8.5" width="5.5" height="5.5" rx="1"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1"/></svg>Dashboard</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--tx-dim);font-size:13px;margin-bottom:2px" style-hover="background:var(--hover);color:var(--tx)"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h11M2 7.5h11M2 11.5h7"/></svg>Audit log</div>
+      <div style="font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint);padding:12px 8px 6px">CONFIGURE</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--tx-dim);font-size:13px;margin-bottom:2px" style-hover="background:var(--hover);color:var(--tx)"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3.5" cy="3.5" r="2.2"/><circle cx="11.5" cy="11.5" r="2.2"/><path d="M5.7 3.5h4a2 2 0 0 1 2 2v4"/></svg>Endpoints</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--tx-dim);font-size:13px;margin-bottom:2px" style-hover="background:var(--hover);color:var(--tx)"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.5 1.3l5 1.9v3.9c0 3.2-2.1 5.4-5 6.4-2.9-1-5-3.2-5-6.4V3.2z"/></svg>Scopes</div>
+      <div style="font:600 9.5px var(--sans);letter-spacing:.1em;color:var(--tx-faint);padding:12px 8px 6px">SECURITY</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--tx-dim);font-size:13px;margin-bottom:2px" style-hover="background:var(--hover);color:var(--tx)"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4.5" cy="10.5" r="2.8"/><path d="M6.5 8.5L13 2M10.7 4.3l1.9 1.9M9.7 5.3l1.9 1.9"/></svg>API keys</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--tx-dim);font-size:13px" style-hover="background:var(--hover);color:var(--tx)"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.3" cy="5.3" r="2.6"/><path d="M1.5 13.5c0-2.4 1.7-3.8 3.8-3.8s3.8 1.4 3.8 3.8"/><path d="M10.2 3.2a2.4 2.4 0 0 1 0 4.3M13.5 13.5c0-1.7-.9-2.8-2.2-3.4"/></svg>Admins</div>
+      <div style="margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px;border-top:1px solid var(--border)"><span style="width:26px;height:26px;border-radius:50%;background:#3a3a3c;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--tx-dim)">AV</span><div style="line-height:1.2"><div style="font-size:12px">admin.vance</div><div style="font-size:10px;color:var(--tx-faint)">Admin · Account</div></div></div>
+    </div>
+
+    <!-- main -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="height:56px;flex:none;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:12px">
+        <div><div style="font-weight:600;font-size:15px">Dashboard</div></div>
+        <span style="display:inline-flex;align-items:center;gap:5px;font:600 9.5px var(--mono);letter-spacing:.08em;color:var(--green);background:rgba(126,201,126,.1);border:1px solid rgba(126,201,126,.25);padding:3px 8px;border-radius:11px"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:wpulse 1.8s infinite"></span>LIVE</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:var(--tx-faint)">refreshed 2s ago</span><span style="font:11px var(--mono);color:var(--tx-dim);border:1px solid var(--border);border-radius:6px;padding:5px 9px">prod ▾</span></div>
+      </div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+
+        <!-- health hero + connections -->
+        <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><span style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(126,201,126,.15)"></span><span style="font-size:14px;font-weight:600">All systems operational</span><span style="font-size:12px;color:var(--tx-faint)">3 connections healthy · uptime 14d 6h</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+            <sc-for list="{{ connections }}" as="c" hint-placeholder-count="3">
+              <div style="background:#242426;border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(126,201,126,.16)"></span><span style="font-size:13px;font-weight:600">{{ c.name }}</span><span style="margin-left:auto;font:11.5px var(--mono);color:var(--green)">{{ c.latency }}ms</span></div>
+                <div style="font:11px var(--mono);color:var(--tx-dim)">{{ c.host }}</div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--tx-faint)"><span>{{ c.provider }}</span><span>{{ c.db }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;color:var(--tx-faint);margin-bottom:4px">Requests / sec</div>
+            <div style="font:600 24px/1 var(--sans);color:var(--tx)">1,284</div>
+            <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:34px;margin-top:8px;display:block"><polyline points="{{ thr.line }}" fill="none" stroke="#4ea1ff" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;color:var(--tx-faint);margin-bottom:4px">Error rate</div>
+            <div style="font:600 24px/1 var(--sans);color:var(--tx)">0.08%</div>
+            <div style="margin-top:10px;font-size:11px;color:var(--tx-dim)">3,914 errors · 48.2M total</div>
+            <div style="margin-top:9px;height:5px;border-radius:3px;background:#2c2c2e;overflow:hidden"><div style="width:8%;height:100%;background:var(--amber)"></div></div>
+          </div>
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;color:var(--tx-faint);margin-bottom:4px">Cache hit ratio</div>
+            <div style="font:600 24px/1 var(--sans);color:var(--green)">87.3%</div>
+            <div style="margin-top:10px;font-size:11px;color:var(--tx-dim)">37 requests in-flight</div>
+            <div style="margin-top:9px;height:5px;border-radius:3px;background:#2c2c2e;overflow:hidden"><div style="width:87%;height:100%;background:var(--green)"></div></div>
+          </div>
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;color:var(--tx-faint);margin-bottom:8px">Latency percentiles</div>
+            <div style="display:flex;justify-content:space-between"><div><div style="font:600 16px var(--sans)">1.9<span style="font-size:10px;color:var(--tx-faint)">ms</span></div><div style="font-size:10px;color:var(--tx-faint)">p50</div></div><div><div style="font:600 16px var(--sans)">12.4<span style="font-size:10px;color:var(--tx-faint)">ms</span></div><div style="font-size:10px;color:var(--tx-faint)">p95</div></div><div><div style="font:600 16px var(--sans)">41<span style="font-size:10px;color:var(--tx-faint)">ms</span></div><div style="font-size:10px;color:var(--tx-faint)">p99</div></div></div>
+          </div>
+        </div>
+
+        <!-- charts -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px"><span style="font-size:13px;font-weight:600">Throughput</span><span style="margin-left:auto;font:11px var(--mono);color:var(--tx-faint)">req/s · last 5m</span></div>
+            <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:96px;display:block"><defs><linearGradient id="gTb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ea1ff" stop-opacity=".3"/><stop offset="1" stop-color="#4ea1ff" stop-opacity="0"/></linearGradient></defs><polygon points="{{ thr.area }}" fill="url(#gTb)"/><polyline points="{{ thr.line }}" fill="none" stroke="#4ea1ff" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px"><span style="font-size:13px;font-weight:600">Latency</span><span style="margin-left:auto;font:11px var(--mono);color:var(--tx-faint)">p50 · last 5m</span></div>
+            <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:96px;display:block"><defs><linearGradient id="gLb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ec97e" stop-opacity=".28"/><stop offset="1" stop-color="#7ec97e" stop-opacity="0"/></linearGradient></defs><polygon points="{{ lat.area }}" fill="url(#gLb)"/><polyline points="{{ lat.line }}" fill="none" stroke="#7ec97e" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+
+        <!-- endpoints -->
+        <div style="background:#1d1d1e;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)"><span style="font-size:13px;font-weight:600">Endpoints</span><span style="font:11px var(--mono);color:var(--tx-faint)">8 active</span><a href="#" style="margin-left:auto;font-size:11.5px">View all →</a></div>
+          <table style="border-collapse:collapse;width:100%">
+            <thead><tr>
+              <th style="padding:9px 16px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Endpoint</th>
+              <th style="padding:9px 16px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Connection</th>
+              <th style="padding:9px 16px;text-align:left;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Object</th>
+              <th style="padding:9px 16px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Req</th>
+              <th style="padding:9px 16px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Err%</th>
+              <th style="padding:9px 16px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">p95</th>
+              <th style="padding:9px 16px;text-align:right;font:600 9.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--tx-faint);border-bottom:1px solid var(--border)">Cache</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ endpoints }}" as="e" hint-placeholder-count="8">
+                <tr style-hover="background:var(--hover)">
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft)"><div style="display:flex;align-items:center;gap:9px"><span style="display:inline-block;min-width:48px;text-align:center;font:600 9px var(--mono);letter-spacing:.03em;padding:3px 6px;border-radius:4px;color:{{ e.mc }};background:rgba(255,255,255,.05)">{{ e.method }}</span><span style="font:12px var(--mono);color:var(--tx)">{{ e.route }}</span></div></td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);font-size:12px;color:var(--tx-dim)">{{ e.conn }}</td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);font:11.5px var(--mono);color:var(--tx-dim)">{{ e.object }}</td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;font:11.5px var(--mono);color:var(--tx-dim)">{{ e.count }}</td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;font:11.5px var(--mono);color:var(--tx-dim)">{{ e.err }}</td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;font:11.5px var(--mono);color:var(--tx-dim)">{{ e.p95 }}</td>
+                  <td style="padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;font:11.5px var(--mono);color:var(--green)">{{ e.cache }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1c — OPS COMMAND CENTER ============ -->
+<div class="dv-opt" id="1c">
+  <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span><b>Ops command center.</b> A monitoring-wall take: top-nav tabs, big live status ribbon, monospace readouts, dominant charts, connection LED strip. Novel — for ops watching it all day.</span></div>
+  <div style="width:1360px;background:#0f1011;border:1px solid #2a2b2d;border-radius:10px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.35);color:var(--tx);display:flex;flex-direction:column;min-height:820px">
+
+    <!-- top nav -->
+    <div style="height:50px;flex:none;background:#141517;border-bottom:1px solid #26282b;display:flex;align-items:center;padding:0 18px;gap:20px">
+      <div style="display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:5px;background:linear-gradient(135deg,var(--cyan),var(--accent));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#08131a">W</div><span style="font:700 14px var(--mono);letter-spacing:.02em">weir</span></div>
+      <div style="display:flex;gap:2px;height:100%">
+        <div style="display:flex;align-items:center;padding:0 14px;font-size:12.5px;color:var(--tx);border-bottom:2px solid var(--cyan);font-weight:600">Overview</div>
+        <div style="display:flex;align-items:center;padding:0 14px;font-size:12.5px;color:var(--tx-dim);border-bottom:2px solid transparent" style-hover="color:var(--tx)">Endpoints</div>
+        <div style="display:flex;align-items:center;padding:0 14px;font-size:12.5px;color:var(--tx-dim);border-bottom:2px solid transparent" style-hover="color:var(--tx)">Security</div>
+        <div style="display:flex;align-items:center;padding:0 14px;font-size:12.5px;color:var(--tx-dim);border-bottom:2px solid transparent" style-hover="color:var(--tx)">Access</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:14px"><span style="font:11px var(--mono);color:var(--tx-faint)">env: prod</span><span style="width:24px;height:24px;border-radius:50%;background:#2a2b2d;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--tx-dim)">AV</span></div>
+    </div>
+
+    <!-- status ribbon -->
+    <div style="background:linear-gradient(180deg,#16181a,#131416);border-bottom:1px solid #26282b;padding:16px 20px;display:flex;align-items:center;gap:26px">
+      <div style="display:flex;align-items:center;gap:11px"><span style="width:12px;height:12px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:wpulse 1.8s infinite"></span><div><div style="font:700 15px var(--mono);color:var(--cyan);letter-spacing:.04em">OPERATIONAL</div><div style="font-size:10.5px;color:var(--tx-faint);letter-spacing:.05em">all systems nominal</div></div></div>
+      <div style="width:1px;height:38px;background:#26282b"></div>
+      <div><div style="font:700 26px/1 var(--mono);color:var(--tx)">1,284<span style="font-size:12px;color:var(--tx-faint)"> req/s</span></div><div style="font-size:10.5px;color:var(--tx-faint);letter-spacing:.05em;margin-top:2px">throughput</div></div>
+      <div><div style="font:700 26px/1 var(--mono);color:var(--tx)">48.2<span style="font-size:12px;color:var(--tx-faint)">M</span></div><div style="font-size:10.5px;color:var(--tx-faint);letter-spacing:.05em;margin-top:2px">total requests</div></div>
+      <div><div style="font:700 26px/1 var(--mono);color:var(--tx)">37</div><div style="font-size:10.5px;color:var(--tx-faint);letter-spacing:.05em;margin-top:2px">in-flight</div></div>
+      <div style="margin-left:auto;text-align:right"><div style="font:700 18px/1 var(--mono);color:var(--tx-dim)">14d 06:22</div><div style="font-size:10.5px;color:var(--tx-faint);letter-spacing:.05em;margin-top:3px">uptime · 3,914 errors (0.08%)</div></div>
+    </div>
+
+    <!-- connection LED strip -->
+    <div style="display:flex;gap:0;border-bottom:1px solid #26282b">
+      <sc-for list="{{ connections }}" as="c" hint-placeholder-count="3">
+        <div style="flex:1;padding:11px 18px;border-right:1px solid #26282b;display:flex;align-items:center;gap:11px">
+          <span style="width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)"></span>
+          <div style="flex:1;min-width:0"><div style="font:600 12.5px var(--mono);color:var(--tx)">{{ c.name }}</div><div style="font-size:10.5px;color:var(--tx-faint)">{{ c.host }} · {{ c.provider }}</div></div>
+          <div style="text-align:right"><div style="font:700 13px var(--mono);color:var(--green)">{{ c.latency }}ms</div><div style="font-size:9.5px;color:var(--tx-faint);letter-spacing:.06em">PROBE</div></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- main grid -->
+    <div style="display:flex;gap:1px;background:#26282b;flex:1">
+      <!-- left readout -->
+      <div style="width:300px;flex:none;background:#0f1011;padding:16px 18px;display:flex;flex-direction:column;gap:2px">
+        <div style="font:600 10px var(--mono);letter-spacing:.14em;color:var(--tx-faint);margin-bottom:10px">// SERVICE METRICS</div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">p50 latency</span><span style="font:700 13px var(--mono);color:var(--tx)">1.9ms</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">p95 latency</span><span style="font:700 13px var(--mono);color:var(--tx)">12.4ms</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">p99 latency</span><span style="font:700 13px var(--mono);color:var(--amber)">41ms</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">error rate</span><span style="font:700 13px var(--mono);color:var(--tx)">0.08%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">cache hit</span><span style="font:700 13px var(--mono);color:var(--green)">87.3%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e2022"><span style="font:12px var(--mono);color:var(--tx-dim)">connections</span><span style="font:700 13px var(--mono);color:var(--tx)">3 / 3</span></div>
+        <div style="margin-top:auto;padding-top:14px"><div style="font:600 10px var(--mono);letter-spacing:.14em;color:var(--tx-faint);margin-bottom:8px">// CACHE</div><div style="height:8px;border-radius:4px;background:#1e2022;overflow:hidden"><div style="width:87%;height:100%;background:linear-gradient(90deg,var(--green),var(--cyan))"></div></div><div style="font-size:10.5px;color:var(--tx-faint);margin-top:6px;font-family:var(--mono)">87.3% hit · 12.7% miss</div></div>
+      </div>
+
+      <!-- charts column -->
+      <div style="flex:1;min-width:0;background:#0f1011;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+        <div style="flex:1;background:#131416;border:1px solid #1e2022;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span style="font:600 12px var(--mono);color:var(--tx)">THROUGHPUT</span><span style="font:10.5px var(--mono);color:var(--tx-faint)">req/s · 5m</span><span style="margin-left:auto;font:700 15px var(--mono);color:var(--cyan)">1,284</span></div>
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;flex:1;min-height:120px;display:block"><defs><linearGradient id="gTc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fd6c9" stop-opacity=".28"/><stop offset="1" stop-color="#4fd6c9" stop-opacity="0"/></linearGradient></defs><polygon points="{{ thr.area }}" fill="url(#gTc)"/><polyline points="{{ thr.line }}" fill="none" stroke="#4fd6c9" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+        </div>
+        <div style="flex:1;background:#131416;border:1px solid #1e2022;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span style="font:600 12px var(--mono);color:var(--tx)">LATENCY p50</span><span style="font:10.5px var(--mono);color:var(--tx-faint)">ms · 5m</span><span style="margin-left:auto;font:700 15px var(--mono);color:var(--green)">1.9ms</span></div>
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;flex:1;min-height:120px;display:block"><defs><linearGradient id="gLc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ec97e" stop-opacity=".26"/><stop offset="1" stop-color="#7ec97e" stop-opacity="0"/></linearGradient></defs><polygon points="{{ lat.area }}" fill="url(#gLc)"/><polyline points="{{ lat.line }}" fill="none" stroke="#7ec97e" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- endpoints feed -->
+    <div style="background:#0f1011;border-top:1px solid #26282b;padding:14px 18px">
+      <div style="font:600 10px var(--mono);letter-spacing:.14em;color:var(--tx-faint);margin-bottom:10px">// ENDPOINTS · LIVE</div>
+      <table style="border-collapse:collapse;width:100%">
+        <tbody>
+          <sc-for list="{{ endpoints }}" as="e" hint-placeholder-count="8">
+            <tr style-hover="background:#16181a">
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;width:1%"><span style="width:7px;height:7px;border-radius:50%;display:inline-block;background:{{ e.dot }};box-shadow:0 0 6px {{ e.dot }}"></span></td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;width:1%"><span style="display:inline-block;min-width:52px;text-align:center;font:700 9px var(--mono);letter-spacing:.04em;color:{{ e.mc }}">{{ e.method }}</span></td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;font:12px var(--mono);color:var(--tx)">{{ e.route }}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;font:11px var(--mono);color:var(--tx-faint)">{{ e.object }}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.count }}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.err }}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;text-align:right;font:11px var(--mono);color:var(--tx-dim)">{{ e.p95 }}ms</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;text-align:right;font:11px var(--mono);color:var(--green)">{{ e.cache }}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #1e2022;text-align:right;font:11px var(--mono);color:var(--tx-faint)">{{ e.last }}</td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "build out the rest of the screens in <a class="dv-oid" href="#1b">1b</a>" · "mix <a class="dv-oid" href="#1a">1a</a>'s sidebar with <a class="dv-oid" href="#1c">1c</a>'s charts" · "show a broken-connection / error state" · "make <a class="dv-oid" href="#1b">1b</a> denser"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const mc = { GET: '#4ea1ff', POST: '#7ec97e', PUT: '#d6a53a', DELETE: '#f07a6a' };
+    const connections = [
+      { name: 'MSSQL-PROD', provider: 'SQL Server 2022', host: 'sql-prod-01.corp', db: 'WeirDB', latency: '2.1', healthy: true },
+      { name: 'MSSQL-REPORTS', provider: 'SQL Server 2022', host: 'sql-rpt-02.corp', db: 'Reporting', latency: '4.7', healthy: true },
+      { name: 'MSSQL-LEGACY', provider: 'SQL Server 2019', host: 'sql-leg-03.corp', db: 'LegacyApp', latency: '8.3', healthy: true },
+    ];
+    const tiles = [
+      { label: 'Requests / sec', value: '1,284', vc: '#4ea1ff' },
+      { label: 'Total requests', value: '48.2M', vc: '#e7e7e8' },
+      { label: 'Errors', value: '3,914', vc: '#d6a53a' },
+      { label: 'Error rate', value: '0.08%', vc: '#e7e7e8' },
+      { label: 'In-flight', value: '37', vc: '#e7e7e8' },
+      { label: 'p50', value: '1.9ms', vc: '#e7e7e8' },
+      { label: 'p95', value: '12.4ms', vc: '#e7e7e8' },
+      { label: 'p99', value: '41ms', vc: '#e7e7e8' },
+      { label: 'Cache hit', value: '87.3%', vc: '#7ec97e' },
+      { label: 'Uptime', value: '14d 6h', vc: '#e7e7e8' },
+    ];
+    const raw = [
+      { method: 'GET', route: '/api/customers', conn: 'MSSQL-PROD', object: 'dbo.usp_GetCustomers', type: 'Proc', params: 3, count: '1.24M', err: '0.02%', p95: '9.1', cache: '94%', last: '2s ago', enabled: true },
+      { method: 'GET', route: '/api/orders/{id}', conn: 'MSSQL-PROD', object: 'dbo.usp_GetOrderById', type: 'Proc', params: 1, count: '980K', err: '0.01%', p95: '6.4', cache: '96%', last: '1s ago', enabled: true },
+      { method: 'POST', route: '/api/orders', conn: 'MSSQL-PROD', object: 'dbo.usp_CreateOrder', type: 'Proc', params: 7, count: '214K', err: '0.11%', p95: '19', cache: '—', last: '3s ago', enabled: true },
+      { method: 'GET', route: '/api/inventory', conn: 'MSSQL-PROD', object: 'dbo.fn_InventorySnapshot', type: 'Function', params: 2, count: '612K', err: '0.00%', p95: '11', cache: '88%', last: '2s ago', enabled: true },
+      { method: 'GET', route: '/api/reports/sales', conn: 'MSSQL-REPORTS', object: 'dbo.usp_SalesSummary', type: 'Proc', params: 4, count: '88K', err: '0.05%', p95: '61', cache: '72%', last: '6s ago', enabled: true },
+      { method: 'PUT', route: '/api/customers/{id}', conn: 'MSSQL-PROD', object: 'dbo.usp_UpdateCustomer', type: 'Proc', params: 9, count: '156K', err: '0.09%', p95: '17', cache: '—', last: '4s ago', enabled: true },
+      { method: 'GET', route: '/api/products/search', conn: 'MSSQL-PROD', object: 'dbo.usp_SearchProducts', type: 'Proc', params: 5, count: '742K', err: '0.03%', p95: '24', cache: '81%', last: '1s ago', enabled: true },
+      { method: 'DELETE', route: '/api/sessions/{id}', conn: 'MSSQL-LEGACY', object: 'dbo.usp_RevokeSession', type: 'Proc', params: 1, count: '41K', err: '0.00%', p95: '13', cache: '—', last: '12s ago', enabled: false },
+    ];
+    const endpoints = raw.map(e => ({ ...e, mc: mc[e.method], dot: e.enabled ? '#7ec97e' : '#6d6d73' }));
+
+    const mkSpark = (vals) => {
+      const w = 100, h = 30, pad = 2;
+      const min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1;
+      const step = (w - pad * 2) / (vals.length - 1);
+      const pts = vals.map((v, i) => [pad + i * step, h - pad - ((v - min) / rng) * (h - pad * 2)]);
+      const line = pts.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+      const area = '0,' + h + ' ' + line + ' ' + w + ',' + h;
+      return { line, area };
+    };
+    const thr = mkSpark([980, 1040, 1010, 1120, 1080, 1200, 1160, 1240, 1210, 1300, 1260, 1180, 1220, 1284, 1250, 1310, 1284]);
+    const lat = mkSpark([3.1, 2.8, 3.4, 2.6, 3.0, 2.4, 2.9, 2.2, 2.7, 2.1, 2.5, 3.2, 2.6, 1.9, 2.3, 2.0, 1.9]);
+
+    return { connections, tiles, endpoints, thr, lat };
+  }
+}
+</script>
+</body>
+</html>

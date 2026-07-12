@@ -1,0 +1,107 @@
+@page "/login"
+@layout LoginLayout
+@inject WeirApiClient Api
+@inject TokenStore Tokens
+@inject WeirAuthStateProvider Auth
+@inject NavigationManager Navigation
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;">
+    <FlareCard Variant="CardVariant.Elevated" Style="width:100%;max-width:22rem;">
+        <FlareStack Gap="FlareSpacing.Small">
+            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                <WeirMark Size="1.9rem" />
+                <FlareText Element="h1" Typo="TypographyScale.HeadlineSmall" Mono="true">weir</FlareText>
+            </FlareStack>
+            <FlareText Typo="TypographyScale.BodyMedium" Color="FlareColor.OnSurfaceVariant">Sign in to the gateway console.</FlareText>
+
+            <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+                <FlareStack Gap="FlareSpacing.Small">
+                    <FlareField Label="Login" @bind-Value="_model.Username" autocomplete="username" />
+                    <FlarePasswordField Label="Password" @bind-Value="_model.Password" autocomplete="current-password" />
+                    <FlareButton Type="ButtonType.Submit" Variant="ButtonVariant.Filled" Color="FlareColor.Primary" FullWidth="true" Loading="_busy">Sign in</FlareButton>
+                </FlareStack>
+            </EditForm>
+
+            @if (_error is not null)
+            {
+                <FlareAlert Severity="AlertSeverity.Error">@_error</FlareAlert>
+            }
+        </FlareStack>
+    </FlareCard>
+</div>
+
+@code {
+    private readonly LoginModel _model = new();
+    private bool _busy;
+    private string? _error;
+
+    /// <summary>Optional return path supplied by the auth redirect.</summary>
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    /// <summary>Submits the credentials, stores the token and navigates onward.</summary>
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            var response = await Api.LoginAsync(new LoginRequest { Username = _model.Username, Password = _model.Password });
+            if (response is null)
+            {
+                _error = "Invalid username or password.";
+                return;
+            }
+
+            await Tokens.SetAsync(response.Token);
+            await Tokens.SetRefreshAsync(response.RefreshToken);
+            Auth.NotifyLogin();
+            Navigation.NavigateTo(SafeReturnUrl());
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Could not reach the server. Please try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the post-login target, rejecting anything that is not a same-origin relative path so a
+    /// crafted <c>returnUrl</c> cannot redirect the admin off-site (open-redirect protection).
+    /// </summary>
+    /// <returns>A safe local path, or the app root.</returns>
+    private string SafeReturnUrl()
+    {
+        if (string.IsNullOrEmpty(ReturnUrl))
+        {
+            return string.Empty;
+        }
+
+        var target = Uri.UnescapeDataString(ReturnUrl);
+
+        // Must be a rooted, single-slash local path. Reject absolute URLs ("http://", "//host") and
+        // any value the base-relative round-trip does not preserve.
+        if (!target.StartsWith('/') || target.StartsWith("//", StringComparison.Ordinal) ||
+            Uri.TryCreate(target, UriKind.Absolute, out _))
+        {
+            return string.Empty;
+        }
+
+        return target;
+    }
+
+    /// <summary>The login form model.</summary>
+    private sealed class LoginModel
+    {
+        /// <summary>Entered username.</summary>
+        public string Username { get; set; } = string.Empty;
+
+        /// <summary>Entered password.</summary>
+        public string Password { get; set; } = string.Empty;
+    }
+}

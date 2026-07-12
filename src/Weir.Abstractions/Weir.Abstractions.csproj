@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Weir.Abstractions</PackageId>
+    <Description>Weir server-side ports - IDbConnector, IControlPlaneStore, telemetry and cache interfaces. Concrete drivers and stores implement these in separate packages.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Weir.Contracts\Weir.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Needed by the plugin entry point (IWeirPlugin) to register services and read configuration. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+  </ItemGroup>
+
+</Project>

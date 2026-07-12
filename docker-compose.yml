@@ -1,0 +1,25 @@
+# Base template for the Weir host. It connects to an EXTERNAL SQL Server that you provide.
+# Machine-specific settings (the target connection string, admin credentials, JWT signing key)
+# live in docker-compose.override.yml, which Docker Compose merges automatically on
+# `docker compose up`. Keep this base file free of secrets and host-specific values.
+services:
+  weir:
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+    image: weir:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Control-plane metadata (endpoints, keys, scopes, admins, audit), persisted on a volume.
+      Weir__ControlPlane__ConnectionString: "Data Source=/data/weir-control.db"
+      # The target data connection provider. The connection string and secrets are set in
+      # docker-compose.override.yml.
+      Weir__DataConnections__default__Provider: SqlServer
+    volumes:
+      - weir-data:/data
+
+volumes:
+  weir-data:

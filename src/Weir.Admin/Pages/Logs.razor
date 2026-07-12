@@ -1,0 +1,296 @@
+@page "/logs"
+@attribute [Authorize]
+@using System.Globalization
+@using System.Text.Json
+@inject WeirApiClient Api
+@inject NavigationManager Nav
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="logs" Description="Data-plane request history - timing, results and slow calls">
+        <Actions>
+            @if (_endpointLabel is not null)
+            {
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Label="@($"endpoint: {_endpointLabel}")" />
+                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearEndpoint">Clear</FlareButton>
+            }
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="RefreshAsync" Loading="_loading">Refresh</FlareButton>
+        </Actions>
+    </PageHeader>
+
+    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Medium" Wrap="true">
+        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// FILTER</FlareText>
+        <FlareSwitch Value="_slowOnly" ValueChanged="OnSlowOnlyChanged" Label="Slow only" />
+        <FlareSwitch Value="_errorsOnly" ValueChanged="OnErrorsOnlyChanged" Label="Errors only" />
+        @if (_entries is { Count: > 0 })
+        {
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@_entries.Count loaded</FlareText>
+        }
+    </FlareStack>
+
+    @if (_entries is null)
+    {
+        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+    }
+    else if (_entries.Count == 0)
+    {
+        <FlareEmptyState Title="No requests logged yet" Description="Calls appear here once the data plane serves them (request logging is enabled in Settings).">
+            <Icon><FlareIcon Name="receipt_long" /></Icon>
+        </FlareEmptyState>
+    }
+    else
+    {
+        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => OpenDetail(e))">
+            <Columns>
+                <FlareColumn TItem="RequestLogEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" />
+                <FlareColumn TItem="RequestLogEntry" Title="Method">
+                    <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
+                </FlareColumn>
+                <FlareColumn TItem="RequestLogEntry" Title="Route" Field="@(e => (object?)e.Route)">
+                    <Template><FlareText Element="span" Mono="true">/@context.Route</FlareText></Template>
+                </FlareColumn>
+                <FlareColumn TItem="RequestLogEntry" Title="Object" Field="@(e => (object?)e.ObjectName)" />
+                <FlareColumn TItem="RequestLogEntry" Title="Status" Align="ColumnAlign.End">
+                    <Template><FlareText Element="span" Mono="true" Color="@StatusColor(context.StatusCode)">@(context.StatusCode?.ToString() ?? "-")</FlareText></Template>
+                </FlareColumn>
+                <FlareColumn TItem="RequestLogEntry" Title="Duration" Align="ColumnAlign.End">
+                    <Template>
+                        <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
+                            @if (context.Slow)
+                            {
+                                <FlareTooltip Content="@SlowHint(context)" Arrow="true"><FlareIcon Name="warning" Size="0.85rem" Color="FlareColor.Warning" /></FlareTooltip>
+                            }
+                            <FlareText Element="span" Mono="true" Color="@(context.Slow ? FlareColor.Warning : FlareColor.OnSurface)">@Ms(context.DurationMs)</FlareText>
+                        </FlareStack>
+                    </Template>
+                </FlareColumn>
+                <FlareColumn TItem="RequestLogEntry" Title="DB" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" />
+                <FlareColumn TItem="RequestLogEntry" Title="Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? "cache" : e.RowsReturned?.ToString() ?? "-"))" />
+                <FlareColumn TItem="RequestLogEntry" Title="Caller" Field="@(e => (object?)e.ApiKeyPrefix)">
+                    <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.ApiKeyPrefix</FlareText></Template>
+                </FlareColumn>
+            </Columns>
+        </FlareDataGrid>
+
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+            @if (_hasMore)
+            {
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">Load older</FlareButton>
+            }
+            @if (_loadingMore)
+            {
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+            }
+        </FlareStack>
+    }
+</FlareStack>
+
+@* ===== Detail drawer ===== *@
+<FlareDrawer Open="@(_selected is not null)" OpenChanged="@(open => { if (!open) _selected = null; })" Anchor="DrawerAnchor.Right" Width="42rem" Variant="DrawerVariant.Temporary">
+    <Header>
+        @if (_selected is not null)
+        {
+            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                <FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(_selected.HttpMethod)">@_selected.HttpMethod</FlareText>
+                <FlareText Typo="TypographyScale.TitleMedium" Mono="true">/@_selected.Route</FlareText>
+            </FlareStack>
+        }
+    </Header>
+    <ChildContent>
+        @if (_selected is not null)
+        {
+            <FlareStack Gap="FlareSpacing.Medium">
+                <FlareDescriptionList>
+                    <FlareDescriptionItem Label="Time"><FlareText Mono="true">@_selected.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="Object"><FlareText Mono="true">@_selected.ObjectName</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="Connection"><FlareText Mono="true">@_selected.ConnectionName</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="Status"><FlareText Mono="true" Color="@StatusColor(_selected.StatusCode)">@(_selected.StatusCode?.ToString() ?? "-") (@_selected.Outcome)</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="Duration"><FlareText Mono="true" Color="@(_selected.Slow ? FlareColor.Warning : FlareColor.OnSurface)">@Ms(_selected.DurationMs)@(_selected.Slow ? " (slow)" : "")</FlareText></FlareDescriptionItem>
+                    @if (_selected.DbDurationMs is { } db)
+                    {
+                        <FlareDescriptionItem Label="Database time"><FlareText Mono="true">@Ms(db)</FlareText></FlareDescriptionItem>
+                    }
+                    @if (_selected.AverageMs is { } avg)
+                    {
+                        <FlareDescriptionItem Label="Endpoint average"><FlareText Mono="true">@Ms(avg)</FlareText></FlareDescriptionItem>
+                    }
+                    <FlareDescriptionItem Label="Rows"><FlareText Mono="true">@(_selected.CacheHit ? "served from cache" : _selected.RowsReturned?.ToString() ?? "-")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="Caller"><FlareText Mono="true">@_selected.ApiKeyPrefix</FlareText></FlareDescriptionItem>
+                </FlareDescriptionList>
+
+                @if (!string.IsNullOrEmpty(_selected.Error))
+                {
+                    <FlareAlert Severity="AlertSeverity.Error" Title="Error">@_selected.Error</FlareAlert>
+                }
+
+                @if (!string.IsNullOrEmpty(_selected.Parameters))
+                {
+                    <FlareDivider Text="Parameters" TextAlign="DividerTextAlign.Left" />
+                    <FlareCodeBlock Value="@Pretty(_selected.Parameters)" Language="json" ReadOnly="true" />
+                }
+
+                @if (!string.IsNullOrEmpty(_selected.Result))
+                {
+                    <FlareDivider Text="Result" TextAlign="DividerTextAlign.Left" />
+                    <FlareCodeBlock Value="@Pretty(_selected.Result)" Language="json" ReadOnly="true" />
+                }
+
+                @if (string.IsNullOrEmpty(_selected.Parameters) && string.IsNullOrEmpty(_selected.Result))
+                {
+                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
+                        Parameter and result capture is off for this endpoint. Enable it per endpoint in the endpoint editor's Logging section.
+                    </FlareText>
+                }
+            </FlareStack>
+        }
+    </ChildContent>
+</FlareDrawer>
+
+@code {
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+    private const int PageSize = 100;
+
+    private List<RequestLogEntry>? _entries;
+    private RequestLogEntry? _selected;
+    private Guid? _endpointId;
+    private string? _endpointLabel;
+    private bool _slowOnly;
+    private bool _errorsOnly;
+    private bool _loading;
+    private bool _loadingMore;
+    private bool _hasMore;
+
+    private string? _route;
+
+    /// <summary>Optional endpoint id from the query string, to pre-filter the log to one endpoint.</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "endpoint")]
+    public Guid? EndpointParam { get; set; }
+
+    /// <summary>Optional route from the query string, to pre-filter the log (used by the dashboard drill-in).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "route")]
+    public string? RouteParam { get; set; }
+
+    /// <summary>Optional human-readable endpoint label from the query string (for the filter chip).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "label")]
+    public string? LabelParam { get; set; }
+
+    /// <summary>Reads the optional endpoint / route filter from the query string and loads the first page.</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        if (EndpointParam is { } id)
+        {
+            _endpointId = id;
+            _endpointLabel = string.IsNullOrEmpty(LabelParam) ? id.ToString()[..8] : LabelParam;
+        }
+        else if (!string.IsNullOrEmpty(RouteParam))
+        {
+            _route = RouteParam;
+            _endpointLabel = string.IsNullOrEmpty(LabelParam) ? RouteParam : LabelParam;
+        }
+
+        await RefreshAsync();
+    }
+
+    /// <summary>Loads the newest page for the current filter.</summary>
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        _selected = null;
+        try
+        {
+            _entries = await Api.GetRequestLogAsync(_endpointId, _route, _slowOnly, _errorsOnly, PageSize) ?? [];
+            _hasMore = _entries.Count == PageSize;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Fetches the next older page using the last entry's id as the keyset cursor.</summary>
+    private async Task LoadOlderAsync()
+    {
+        if (_entries is null || _entries.Count == 0)
+        {
+            return;
+        }
+
+        _loadingMore = true;
+        try
+        {
+            var older = await Api.GetRequestLogAsync(_endpointId, _route, _slowOnly, _errorsOnly, PageSize, _entries[^1].Id);
+            if (older is { Count: > 0 })
+            {
+                _entries.AddRange(older);
+            }
+
+            _hasMore = older is { Count: PageSize };
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private async Task OnSlowOnlyChanged(bool value)
+    {
+        _slowOnly = value;
+        await RefreshAsync();
+    }
+
+    private async Task OnErrorsOnlyChanged(bool value)
+    {
+        _errorsOnly = value;
+        await RefreshAsync();
+    }
+
+    /// <summary>Removes the per-endpoint filter and reloads the full log.</summary>
+    private async Task ClearEndpoint()
+    {
+        _endpointId = null;
+        _route = null;
+        _endpointLabel = null;
+        Nav.NavigateTo("logs");
+        await RefreshAsync();
+    }
+
+    private void OpenDetail(RequestLogEntry entry) => _selected = entry;
+
+    /// <summary>Formats a millisecond duration with up to one decimal.</summary>
+    private static string Ms(double ms) => ms.ToString("0.#", Invariant) + "ms";
+
+    /// <summary>Tooltip explaining why a call was flagged slow.</summary>
+    private static string SlowHint(RequestLogEntry entry) =>
+        entry.AverageMs is { } avg
+            ? $"Slower than usual: {Ms(entry.DurationMs)} vs {Ms(avg)} average"
+            : "Slower than usual for this endpoint";
+
+    /// <summary>Pretty-prints a captured JSON string, falling back to the raw text.</summary>
+    private static string Pretty(string raw)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (JsonException)
+        {
+            return raw;
+        }
+    }
+
+    /// <summary>Colours an HTTP method label like the endpoint list does.</summary>
+    private static FlareColor MethodColor(string method) => (method ?? string.Empty).ToUpperInvariant() switch
+    {
+        "GET" => FlareColor.Info,
+        "POST" => FlareColor.Success,
+        "PUT" or "PATCH" => FlareColor.Warning,
+        "DELETE" => FlareColor.Error,
+        _ => FlareColor.OnSurfaceVariant,
+    };
+
+    /// <summary>Colours a status code: red for failures, muted otherwise.</summary>
+    private static FlareColor StatusColor(int? status) =>
+        status >= 500 ? FlareColor.Error
+        : status >= 400 ? FlareColor.Warning
+        : FlareColor.OnSurfaceVariant;
+}

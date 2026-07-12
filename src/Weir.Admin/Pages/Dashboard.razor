@@ -1,0 +1,333 @@
+@page "/"
+@attribute [Authorize]
+@using System.Globalization
+@using Microsoft.AspNetCore.SignalR.Client
+@inject WeirApiClient Api
+@inject NavigationManager Nav
+@inject TokenStore Tokens
+@implements IAsyncDisposable
+
+@{
+    var healthy = _connections?.Count(c => c.Healthy) ?? 0;
+    var total = _connections?.Count ?? 0;
+    var allOk = total > 0 && healthy == total;
+}
+
+<FlareStack Gap="FlareSpacing.XSmall">
+
+    <FlareText Element="h1" Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// OVERVIEW @(_hub is not null ? "- LIVE" : "")</FlareText>
+
+    @* Status ribbon *@
+    <FlareCard Variant="CardVariant.Filled">
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Large" Wrap="true">
+            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                <FlareIcon Name="@(total == 0 ? "pending" : allOk ? "monitor_heart" : "error")" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
+                <div>
+                    <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? "STARTING" : allOk ? "OPERATIONAL" : "DEGRADED")</FlareText>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? "checking connections" : allOk ? "all systems nominal" : $"{total - healthy} of {total} connections down")</FlareText>
+                </div>
+            </FlareStack>
+            <FlareDivider Vertical="true" Style="height:38px;" />
+            <div>
+                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">throughput req/s</FlareText>
+            </div>
+            <div>
+                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Compact(_overview?.TotalRequests ?? 0)</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">total requests</FlareText>
+            </div>
+            <div>
+                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@(_overview?.ActiveRequests ?? 0)</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">in-flight</FlareText>
+            </div>
+            <FlareSpacer />
+            <div style="text-align:right">
+                <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="FlareColor.OnSurfaceVariant">@FormatClock(_overview?.Uptime ?? TimeSpan.Zero)</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">uptime - @Num(_overview?.TotalErrors ?? 0) errors (@Pct2(_overview?.ErrorRate ?? 0))</FlareText>
+            </div>
+        </FlareStack>
+    </FlareCard>
+
+    @* Connection LED strip *@
+    @if (_connections is { Count: > 0 })
+    {
+        <FlareStack Row Wrap="true" Gap="FlareSpacing.Small">
+            @foreach (var connection in _connections)
+            {
+                <FlareCard Variant="CardVariant.Outlined" Compact="true" Style="flex:1 1 16rem;min-width:15rem;">
+                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                        <FlareIcon Name="@(connection.Healthy ? "check_circle" : "error")" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)" Size="1rem" />
+                        <div style="flex:1;min-width:0">
+                            <FlareText Mono="true" Typo="TypographyScale.LabelLarge">@connection.Name</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? (connection.Provider ?? "connected") : (connection.Error ?? "unreachable"))</FlareText>
+                        </div>
+                        <div style="text-align:right">
+                            <FlareText Mono="true" Typo="TypographyScale.LabelLarge" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)">@connection.LatencyMs.ToString("0.0", Invariant)ms</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? "probe" : "down")</FlareText>
+                        </div>
+                    </FlareStack>
+                </FlareCard>
+            }
+        </FlareStack>
+    }
+
+    @* Readout + charts: a fixed 300px metrics rail (matching the design comp) beside charts that fill
+       the rest of the row (StretchLast). *@
+    <FlareStack Row StretchLast Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Start">
+        <FlareCard Variant="CardVariant.Outlined" Style="width:300px;flex:none;box-sizing:border-box;">
+            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// SERVICE METRICS</FlareText>
+            <FlareDescriptionList>
+                <FlareDescriptionItem Label="p50 latency"><FlareText Mono="true">@Lat(_overview?.P50LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="p95 latency"><FlareText Mono="true">@Lat(_overview?.P95LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="p99 latency"><FlareText Mono="true" Color="FlareColor.Warning">@Lat(_overview?.P99LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="error rate"><FlareText Mono="true">@Pct2(_overview?.ErrorRate ?? 0)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="cache hit"><FlareText Mono="true" Color="FlareColor.Success">@Pct1(_overview?.CacheHitRatio ?? 0)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="connections"><FlareText Mono="true">@healthy / @total</FlareText></FlareDescriptionItem>
+            </FlareDescriptionList>
+            <FlareStack Gap="FlareSpacing.XSmall" Style="margin-top:0.75rem;">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// CACHE</FlareText>
+                <FlareProgress Variant="ProgressVariant.Linear" Value="@((_overview?.CacheHitRatio ?? 0) * 100)" Color="FlareColor.Success" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@Pct1(_overview?.CacheHitRatio ?? 0) hit - @Pct1(1 - (_overview?.CacheHitRatio ?? 0)) miss</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareStack Gap="FlareSpacing.Small" Style="min-width:0;">
+            <FlareCard Variant="CardVariant.Outlined">
+                <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
+                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">THROUGHPUT</FlareText>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">req/s - 5m</FlareText>
+                    <FlareSpacer />
+                    <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
+                </FlareStack>
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth Height="150" Data="_thrData" Style="padding:6px 0;" />
+            </FlareCard>
+            <FlareCard Variant="CardVariant.Outlined">
+                <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
+                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">LATENCY p50</FlareText>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">ms - 5m</FlareText>
+                    <FlareSpacer />
+                    <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
+                </FlareStack>
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth Height="150" Data="_latData" Style="padding:6px 0;" />
+            </FlareCard>
+        </FlareStack>
+    </FlareStack>
+
+    @* Endpoints live feed *@
+    <FlareStack Gap="FlareSpacing.XSmall">
+        <FlareStack Row Align="FlareAlignItems.Baseline" Justify="FlareJustifyContent.SpaceBetween">
+            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// ENDPOINTS - LIVE</FlareText>
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(_endpoints?.Count ?? 0) active - click a row for its logs</FlareText>
+        </FlareStack>
+        @if (_endpoints is null || _endpoints.Count == 0)
+        {
+            <FlareText Color="FlareColor.OnSurfaceVariant">No calls recorded yet.</FlareText>
+        }
+        else
+        {
+            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => OpenLogs(e))">
+                <Columns>
+                    <FlareColumn TItem="EndpointMetrics" Title="Route" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Title="Object" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Title="Count" Field="@(e => (object?)e.Count)" Sortable="true" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="Err%" Align="ColumnAlign.End">
+                        <Template>
+                            <FlareText Element="span" Mono="true" Color="@(context.ErrorRate > 0 ? FlareColor.Error : FlareColor.OnSurfaceVariant)">@Pct2(context.ErrorRate)</FlareText>
+                        </Template>
+                    </FlareColumn>
+                    <FlareColumn TItem="EndpointMetrics" Title="p95" Field="@(e => (object?)e.P95LatencyMs.ToString("0", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="Cache" Field="@(e => (object?)e.CacheHitRatio.ToString("0%", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="Last" Field="@(e => (object?)(e.LastCalledAt.HasValue ? e.LastCalledAt.Value.ToLocalTime().ToString("HH:mm:ss") : "-"))" Align="ColumnAlign.End" />
+                </Columns>
+            </FlareDataGrid>
+        }
+    </FlareStack>
+</FlareStack>
+
+@code {
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+
+    private MetricsOverview? _overview;
+    private List<EndpointMetrics>? _endpoints;
+    private ChartData? _thrData;
+    private ChartData? _latData;
+    private List<ConnectionHealth>? _connections;
+    private HubConnection? _hub;
+    private Timer? _timer;
+    private bool _disposed;
+
+    /// <summary>Loads an initial snapshot for a fast first paint, then subscribes to the real-time hub.</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _ = LoadConnectionsAsync();
+        await ConnectHubAsync();
+    }
+
+    /// <summary>
+    /// Connects to the dashboard hub and applies pushed snapshots. If the hub cannot be reached (or the
+    /// connection is later lost for good), falls back to periodic HTTP polling so the dashboard stays live.
+    /// </summary>
+    private async Task ConnectHubAsync()
+    {
+        try
+        {
+            var token = await Tokens.GetAsync();
+            _hub = new HubConnectionBuilder()
+                .WithUrl(Nav.ToAbsoluteUri("hubs/dashboard"), options =>
+                    options.AccessTokenProvider = () => Task.FromResult(token))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hub.On<DashboardSnapshot>("snapshot", snapshot =>
+            {
+                _overview = snapshot.Overview;
+                _endpoints = snapshot.Endpoints.ToList();
+                _thrData = ToChart(snapshot.Throughput, "req/s", "var(--flare-color-primary)");
+                _latData = ToChart(snapshot.Latency, "ms", "var(--flare-color-success)");
+                return InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<List<ConnectionHealth>>("health", health =>
+            {
+                _connections = health;
+                return InvokeAsync(StateHasChanged);
+            });
+
+            // If automatic reconnection ultimately fails, keep the dashboard alive by polling.
+            _hub.Closed += _ =>
+            {
+                StartPollingFallback();
+                return Task.CompletedTask;
+            };
+
+            await _hub.StartAsync();
+        }
+        catch (Exception)
+        {
+            StartPollingFallback();
+        }
+    }
+
+    /// <summary>Starts the 3-second polling timer used when the real-time hub is unavailable.</summary>
+    private void StartPollingFallback()
+    {
+        if (_disposed || _timer is not null)
+        {
+            return;
+        }
+
+        _timer = new Timer(_ =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _ = InvokeAsync(RefreshAsync);
+            _ = InvokeAsync(LoadConnectionsAsync);
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    /// <summary>Navigates to the request log filtered to the clicked endpoint's route.</summary>
+    /// <param name="endpoint">The endpoint row that was clicked.</param>
+    private void OpenLogs(EndpointMetrics endpoint) =>
+        Nav.NavigateTo($"logs?route={Uri.EscapeDataString(endpoint.Route)}&label={Uri.EscapeDataString(endpoint.Route)}");
+
+    /// <summary>Loads connection health out of band (a down connection can take seconds to probe).</summary>
+    private async Task LoadConnectionsAsync()
+    {
+        try
+        {
+            _connections = await Api.GetConnectionHealthAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (HttpRequestException)
+        {
+            // Transient; leave connections unknown.
+        }
+    }
+
+    /// <summary>Fetches the latest overview, endpoint metrics and time series.</summary>
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _overview = await Api.GetOverviewAsync();
+            _endpoints = await Api.GetEndpointMetricsAsync();
+            _thrData = ToChart(await Api.GetTimeSeriesAsync("requests", null, 300, 15), "req/s", "var(--flare-color-primary)");
+            _latData = ToChart(await Api.GetTimeSeriesAsync("latency", null, 300, 15), "ms", "var(--flare-color-success)");
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // Transient fetch failure (or the session expired); keep the last values.
+        }
+    }
+
+    /// <summary>Builds single-series chart data (rendered as a sparkline) from a metric time series.</summary>
+    /// <param name="series">The metric series, or null.</param>
+    /// <param name="label">Series label (used by the chart's accessible data table).</param>
+    /// <param name="color">CSS color for the line and its area fill.</param>
+    /// <returns>Chart data with one series of the metric's values.</returns>
+    private static ChartData ToChart(TimeSeries? series, string label, string color)
+    {
+        var values = series?.Points.Select(p => p.Value).ToList() ?? [];
+        return new ChartData([new ChartSeries(label, values, color)]);
+    }
+
+    /// <summary>Formats an integer-ish value with thousands separators (e.g. 1,284).</summary>
+    private static string Num(double value) => value.ToString("#,##0", Invariant);
+
+    /// <summary>Formats a count compactly (48.2M, 742K, 214).</summary>
+    private static string Compact(long value)
+    {
+        if (value >= 1_000_000_000)
+        {
+            return (value / 1_000_000_000d).ToString("0.#", Invariant) + "B";
+        }
+
+        if (value >= 1_000_000)
+        {
+            return (value / 1_000_000d).ToString("0.#", Invariant) + "M";
+        }
+
+        if (value >= 1_000)
+        {
+            return (value / 1_000d).ToString("0.#", Invariant) + "K";
+        }
+
+        return value.ToString("#,##0", Invariant);
+    }
+
+    /// <summary>Formats a latency in ms with up to one decimal (1.9ms, 12.4ms, 41ms).</summary>
+    private static string Lat(double? ms) => (ms ?? 0).ToString("0.#", Invariant) + "ms";
+
+    /// <summary>Formats a fraction as a percentage with one decimal.</summary>
+    private static string Pct1(double ratio) => ratio.ToString("0.0%", Invariant);
+
+    /// <summary>Formats a fraction as a percentage with two decimals (0.08%).</summary>
+    private static string Pct2(double ratio) => ratio.ToString("0.00%", Invariant);
+
+    /// <summary>Formats uptime as "Nd HH:MM".</summary>
+    /// <param name="uptime">The process uptime.</param>
+    /// <returns>A compact clock string.</returns>
+    private static string FormatClock(TimeSpan uptime) =>
+        uptime.TotalDays >= 1
+            ? $"{(int)uptime.TotalDays}d {uptime.Hours:00}:{uptime.Minutes:00}"
+            : $"{uptime.Hours:00}:{uptime.Minutes:00}:{uptime.Seconds:00}";
+
+    /// <summary>Stops the hub and the fallback timer, guarding any in-flight tick from a disposed component.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _timer?.Dispose();
+        if (_hub is not null)
+        {
+            await _hub.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,27 @@
+<CascadingAuthenticationState>
+    <FlareThemeProvider>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        <RedirectToLogin />
+                    </NotAuthorized>
+                    <Authorizing>
+                        <div class="weir-boot">Loading...</div>
+                    </Authorizing>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <p role="alert">Page not found.</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+        @* Hosts Flare's imperative dialogs (IDialogService), e.g. the discard-changes confirm. *@
+        <FlareDialogProvider />
+        @* Hosts Flare's snackbars (ISnackbarService); the PWA update notice appears here as a toast. *@
+        <FlareSnackbarProvider Position="SnackbarPosition.BottomRight" />
+        <PwaUpdater />
+    </FlareThemeProvider>
+</CascadingAuthenticationState>

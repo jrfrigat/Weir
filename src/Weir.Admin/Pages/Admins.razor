@@ -1,0 +1,181 @@
+@page "/admins"
+@attribute [Authorize]
+@inject WeirApiClient Api
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="admins" Description="Local accounts that can sign in to this console">
+        <Actions>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = !_showAdd">New admin</FlareButton>
+        </Actions>
+    </PageHeader>
+
+    @if (_showAdd)
+    {
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
+                <FlareField Label="Username" @bind-Value="_username" autocomplete="off" />
+                <FlarePasswordField Label="Password" @bind-Value="_password" autocomplete="new-password" />
+                <FlareSelect TValue="string" Label="Role" @bind-Value="_role" Items="_roles" ItemLabel="RoleLabel" />
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync">Create</FlareButton>
+                @if (_createMessage is not null)
+                {
+                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_createMessage</FlareText>
+                }
+            </FlareStack>
+        </FlareCard>
+    }
+
+    @if (_admins is null)
+    {
+        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+    }
+    else if (_admins.Count == 0)
+    {
+        <FlareEmptyState Title="No admin accounts" Description="Create an admin account above.">
+            <Icon><FlareIcon Name="group" /></Icon>
+        </FlareEmptyState>
+    }
+    else
+    {
+        <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true">
+            <Columns>
+                <FlareColumn TItem="AdminUserInfo" Title="Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
+                    <Template>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                            <FlareAvatar Size="AvatarSize.Sm">@Initials(context.Username)</FlareAvatar>
+                            <FlareText Element="span" Mono="true">@context.Username</FlareText>
+                        </FlareStack>
+                    </Template>
+                </FlareColumn>
+                <FlareColumn TItem="AdminUserInfo" Title="Role">
+                    <Template>
+                        <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Role == AdminRoles.Admin ? FlareColor.Primary : FlareColor.Default)" Label="@context.Role" />
+                    </Template>
+                </FlareColumn>
+                <FlareColumn TItem="AdminUserInfo" Title="Status">
+                    <Template>
+                        <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Error)" Label="@(context.Enabled ? "enabled" : "disabled")" />
+                    </Template>
+                </FlareColumn>
+                <FlareColumn TItem="AdminUserInfo" Title="Last login" Field="@(a => (object?)(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Title="Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Title="" Align="ColumnAlign.End">
+                    <Template>
+                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">Reset password</FlareButton>
+                    </Template>
+                </FlareColumn>
+            </Columns>
+        </FlareDataGrid>
+
+        @if (_resettingId is not null)
+        {
+            <FlareCard Variant="CardVariant.Outlined" Style="max-width:34rem;">
+                <FlareStack Gap="FlareSpacing.Small">
+                    <FlareText Typo="TypographyScale.TitleSmall">Reset password</FlareText>
+                    <FlarePasswordField Label="New password" @bind-Value="_resetPassword" autocomplete="new-password" />
+                    <FlareStack Row Gap="FlareSpacing.Small">
+                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => ResetAsync(_resettingId!.Value))" Loading="_resetBusy">Save</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Text" OnClick="@(() => { _resettingId = null; })">Cancel</FlareButton>
+                    </FlareStack>
+                    @if (_resetMessage is not null)
+                    {
+                        <FlareAlert Severity="AlertSeverity.Error">@_resetMessage</FlareAlert>
+                    }
+                </FlareStack>
+            </FlareCard>
+        }
+
+        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
+            Only accounts with the Admin role can add admins or reset passwords. You can change your own password on the <FlareLink Href="/account">Account</FlareLink> page.
+        </FlareText>
+    }
+</FlareStack>
+
+@code {
+    private static readonly string[] _roles = [AdminRoles.Admin, AdminRoles.Viewer];
+
+    private List<AdminUserInfo>? _admins;
+    private bool _showAdd;
+    private string _username = string.Empty;
+    private string _password = string.Empty;
+    private string _role = AdminRoles.Admin;
+    private string? _createMessage;
+    private Guid? _resettingId;
+    private string _resetPassword = string.Empty;
+    private bool _resetBusy;
+    private string? _resetMessage;
+
+    /// <summary>Loads the admin list.</summary>
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    /// <summary>Reloads the admin list.</summary>
+    private async Task LoadAsync() => _admins = await Api.GetAdminsAsync();
+
+    /// <summary>Human-readable label for a role value in the selector.</summary>
+    private static string RoleLabel(string role) => role == AdminRoles.Admin ? "Admin (full access)" : "Viewer (read-only)";
+
+    /// <summary>Creates an admin account and reloads.</summary>
+    private async Task CreateAsync()
+    {
+        _createMessage = null;
+        if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
+        {
+            _createMessage = "Enter a username and password.";
+            return;
+        }
+
+        await Api.CreateAdminAsync(new CreateAdminRequest { Username = _username, Password = _password, Role = _role });
+        _username = string.Empty;
+        _password = string.Empty;
+        _role = AdminRoles.Admin;
+        _showAdd = false;
+        await LoadAsync();
+    }
+
+    /// <summary>Opens the inline password-reset panel for an admin.</summary>
+    private void StartReset(Guid id)
+    {
+        _resettingId = id;
+        _resetPassword = string.Empty;
+        _resetMessage = null;
+    }
+
+    /// <summary>Resets an admin's password.</summary>
+    private async Task ResetAsync(Guid id)
+    {
+        _resetMessage = null;
+        if (string.IsNullOrWhiteSpace(_resetPassword))
+        {
+            _resetMessage = "Enter a new password.";
+            return;
+        }
+
+        _resetBusy = true;
+        var ok = await Api.ResetAdminPasswordAsync(id, _resetPassword);
+        _resetBusy = false;
+
+        if (ok)
+        {
+            _resettingId = null;
+            _resetPassword = string.Empty;
+        }
+        else
+        {
+            _resetMessage = "Failed (Admin role required).";
+        }
+    }
+
+    /// <summary>Two-letter uppercase initials from a username, for the avatar.</summary>
+    /// <param name="name">The username.</param>
+    /// <returns>Up to two uppercase letters, or "?" when unavailable.</returns>
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "?";
+        }
+
+        var letters = new string(name.Where(char.IsLetter).ToArray());
+        return letters.Length == 0 ? "?" : letters[..Math.Min(2, letters.Length)].ToUpperInvariant();
+    }
+}

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <PackageId>Weir.Host</PackageId>
+    <Description>Weir ASP.NET Core host - dynamic data-plane routing, API-key authentication, admin API, health checks and telemetry wiring.</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="StackExchange.Redis" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Weir.Core\Weir.Core.csproj" />
+    <ProjectReference Include="..\Weir.Diagnostics\Weir.Diagnostics.csproj" />
+    <ProjectReference Include="..\Weir.ControlPlane.Sqlite\Weir.ControlPlane.Sqlite.csproj" />
+    <ProjectReference Include="..\Weir.ControlPlane.PostgreSql\Weir.ControlPlane.PostgreSql.csproj" />
+    <ProjectReference Include="..\connectors\Weir.Connectors.SqlServer\Weir.Connectors.SqlServer.csproj" />
+    <ProjectReference Include="..\connectors\Weir.Connectors.PostgreSql\Weir.Connectors.PostgreSql.csproj" />
+    <ProjectReference Include="..\Weir.Admin\Weir.Admin.csproj" />
+  </ItemGroup>
+
+</Project>

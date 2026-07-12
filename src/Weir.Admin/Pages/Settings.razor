@@ -1,0 +1,268 @@
+@page "/settings"
+@attribute [Authorize]
+@inject WeirApiClient Api
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="settings" Description="Runtime system settings, applied without a restart unless noted" />
+
+    @if (_loadFailed)
+    {
+        <FlareAlert Severity="AlertSeverity.Error" Title="Could not load settings">The settings service did not respond. Try reloading.</FlareAlert>
+    }
+    else if (_loading)
+    {
+        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+    }
+    else
+    {
+        @if (_status is not null)
+        {
+            <FlareAlert Severity="@(_statusError ? AlertSeverity.Error : AlertSeverity.Success)">@_status</FlareAlert>
+        }
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// DATA PLANE LIMITS</FlareText>
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                    <FlareNumericField TValue="int" Label="Max rows" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="Request timeout (s)" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="Max TVP rows" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Zero means unlimited. A response beyond the row cap is truncated and not cached.</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// RATE LIMITING</FlareText>
+                <FlareNumericField TValue="int" Label="Default per-key limit (per minute)" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Applied to API keys that set no limit of their own. Zero leaves them unthrottled.</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// CONNECTION RESILIENCE</FlareText>
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                    <FlareNumericField TValue="int" Label="Max concurrent per connection" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="Circuit breaker threshold" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="Circuit breaker reset (s)" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" Style="max-width:14rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">A bulkhead per data connection rejects excess concurrency with HTTP 503 (zero = unlimited). After the threshold of consecutive failures the breaker opens and short-circuits with 503 until the reset window elapses (zero threshold disables it).</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// AUDIT</FlareText>
+                <FlareNumericField TValue="int" Label="Audit retention (days)" Size="FieldSize.Sm" @bind-Value="_auditRetentionDays" Style="max-width:16rem;" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Audit entries older than this are pruned in the background. Zero keeps history forever.</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// REQUEST LOG</FlareText>
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true" Align="FlareAlignItems.Center">
+                    <FlareSwitch Value="_requestLogEnabled" ValueChanged="@(v => _requestLogEnabled = v)" Label="Enable request log" />
+                    <FlareNumericField TValue="int" Label="Slow threshold (%)" Size="FieldSize.Sm" @bind-Value="_slowThresholdPercent" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="Retention (days)" Size="FieldSize.Sm" @bind-Value="_requestLogRetentionDays" Style="max-width:12rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Records every data-plane call (timing, rows, cache). A call is flagged slow when it exceeds an endpoint's rolling average by this percentage (an endpoint can override it). Parameter and result capture stays opt-in per endpoint. Zero retention keeps history forever.</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center">
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Disabled="_saving">Save settings</FlareButton>
+            @if (_saving)
+            {
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Saving...</FlareText>
+            }
+        </FlareStack>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// BACKUP / EXPORT</FlareText>
+                <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center" Wrap="true">
+                    <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="ExportAsync" Disabled="_exporting">Generate export</FlareButton>
+                    @if (_exporting)
+                    {
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Preparing...</FlareText>
+                    }
+                    @if (_exportUrl is not null)
+                    {
+                        @* Plain anchor: a data: URL download, matching the endpoints/OpenAPI export pattern. *@
+                        <a href="@_exportUrl" download="weir-control-plane.json" style="color:var(--flare-color-primary)">download weir-control-plane.json</a>
+                    }
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">A portable, secret-free snapshot of endpoints, scopes, settings and non-secret key/admin inventory. Excludes hashes; use a database backup for full disaster recovery. Admin role required.</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Filled">
+            <FlareStack Gap="FlareSpacing.XSmall">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// LOGGING (RESTART REQUIRED)</FlareText>
+                <FlareDescriptionList>
+                    <FlareDescriptionItem Label="Max request body (bytes)"><FlareText Mono="true">@_maxRequestBodyBytes.ToString("#,##0")</FlareText></FlareDescriptionItem>
+                    @if (_logging is not null)
+                    {
+                        <FlareDescriptionItem Label="File logging"><FlareText Mono="true">@(_logging.FileEnabled ? "on" : "off")</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="Directory"><FlareText Mono="true">@_logging.Directory</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="Rolling"><FlareText Mono="true">@_logging.RollingInterval</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="Retained files"><FlareText Mono="true">@(_logging.RetainedFileCountLimit?.ToString() ?? "all")</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="Format"><FlareText Mono="true">@_logging.Format</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="Level"><FlareText Mono="true">@_logging.MinimumLevel</FlareText></FlareDescriptionItem>
+                    }
+                </FlareDescriptionList>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Applied at startup from configuration (Weir:Logging); change it in config and restart to take effect.</FlareText>
+            </FlareStack>
+        </FlareCard>
+    }
+</FlareStack>
+
+@code {
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _saving;
+    private string? _status;
+    private bool _statusError;
+
+    private int _maxRows;
+    private int _requestTimeoutSeconds;
+    private int _maxTvpRows;
+    private int _defaultRateLimit;
+    private int _auditRetentionDays;
+    private int _maxConcurrentPerConnection;
+    private int _circuitBreakerThreshold;
+    private int _circuitBreakerResetSeconds;
+    private bool _requestLogEnabled;
+    private int _slowThresholdPercent;
+    private int _requestLogRetentionDays;
+    private long _maxRequestBodyBytes;
+    private WeirLoggingInfo? _logging;
+    private bool _exporting;
+    private string? _exportUrl;
+
+    /// <summary>Loads the current settings into the editable fields.</summary>
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    /// <summary>Fetches the settings view and populates the form, flagging a load failure.</summary>
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        try
+        {
+            var view = await Api.GetSettingsAsync();
+            if (view is null)
+            {
+                _loadFailed = true;
+                return;
+            }
+
+            _maxRows = view.Settings.MaxRows;
+            _requestTimeoutSeconds = view.Settings.RequestTimeoutSeconds;
+            _maxTvpRows = view.Settings.MaxTvpRows;
+            _defaultRateLimit = view.Settings.DefaultApiKeyRateLimitPerMinute;
+            _auditRetentionDays = view.Settings.AuditRetentionDays;
+            _maxConcurrentPerConnection = view.Settings.MaxConcurrentRequestsPerConnection;
+            _circuitBreakerThreshold = view.Settings.CircuitBreakerFailureThreshold;
+            _circuitBreakerResetSeconds = view.Settings.CircuitBreakerResetSeconds;
+            _requestLogEnabled = view.Settings.RequestLogEnabled;
+            _slowThresholdPercent = view.Settings.SlowRequestThresholdPercent;
+            _requestLogRetentionDays = view.Settings.RequestLogRetentionDays;
+            _maxRequestBodyBytes = view.MaxRequestBodyBytes;
+            _logging = view.Logging;
+        }
+        catch (HttpRequestException)
+        {
+            _loadFailed = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Fetches the control-plane export and prepares a download link (data: URL).</summary>
+    private async Task ExportAsync()
+    {
+        _exporting = true;
+        _exportUrl = null;
+        _status = null;
+        try
+        {
+            var json = await Api.GetControlPlaneExportAsync();
+            if (json is null)
+            {
+                _status = "The export was rejected. Only full admins can export the control plane.";
+                _statusError = true;
+                return;
+            }
+
+            _exportUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+        }
+        catch (HttpRequestException)
+        {
+            _status = "The export service did not respond.";
+            _statusError = true;
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    /// <summary>Validates and persists the edited settings, surfacing success or the failure reason.</summary>
+    private async Task SaveAsync()
+    {
+        if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
+            _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
+            _slowThresholdPercent < 0 || _requestLogRetentionDays < 0)
+        {
+            _status = "Values must not be negative.";
+            _statusError = true;
+            return;
+        }
+
+        _saving = true;
+        _status = null;
+        try
+        {
+            var applied = await Api.UpdateSettingsAsync(new WeirSystemSettings
+            {
+                MaxRows = _maxRows,
+                RequestTimeoutSeconds = _requestTimeoutSeconds,
+                MaxTvpRows = _maxTvpRows,
+                DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
+                AuditRetentionDays = _auditRetentionDays,
+                MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
+                CircuitBreakerFailureThreshold = _circuitBreakerThreshold,
+                CircuitBreakerResetSeconds = _circuitBreakerResetSeconds,
+                RequestLogEnabled = _requestLogEnabled,
+                SlowRequestThresholdPercent = _slowThresholdPercent,
+                RequestLogRetentionDays = _requestLogRetentionDays,
+            });
+
+            if (applied is null)
+            {
+                _status = "The update was rejected. Only full admins can change settings.";
+                _statusError = true;
+            }
+            else
+            {
+                _status = "Settings saved and applied.";
+                _statusError = false;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _status = "The settings service did not respond.";
+            _statusError = true;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

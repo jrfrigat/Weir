@@ -1,0 +1,131 @@
+@page "/audit"
+@attribute [Authorize]
+@inject WeirApiClient Api
+
+<FlareStack Gap="FlareSpacing.Medium">
+    <PageHeader Title="audit" Description="Recent audit entries - newest first" />
+
+    @if (_entries is null)
+    {
+        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+    }
+    else if (_entries.Count == 0)
+    {
+        <FlareEmptyState Title="No audit entries">
+            <Icon><FlareIcon Name="history" /></Icon>
+        </FlareEmptyState>
+    }
+    else
+    {
+        <FlareDataGrid Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50">
+            <ToolbarContent>
+                <FlareDataGridQuickFilter Placeholder="Filter..." />
+            </ToolbarContent>
+            <Columns>
+                <FlareColumn TItem="AuditEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
+                <FlareColumn TItem="AuditEntry" Title="Category" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
+                    <Template>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                            <FlareIcon Name="fiber_manual_record" Size="0.7rem" Color="@KindColor(context.Category)" />
+                            <FlareText Element="span" Mono="true">@context.Category</FlareText>
+                        </FlareStack>
+                    </Template>
+                </FlareColumn>
+                <FlareColumn TItem="AuditEntry" Title="Actor" Field="@(e => (object?)e.Actor)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Title="Detail" Field="@(e => (object?)(string.IsNullOrEmpty(e.Detail) ? e.Route : e.Detail))" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Title="Outcome" Filterable="true">
+                    <Template>
+                        <FlareText Element="span" Mono="true" Color="@OutcomeColor(context.Outcome)">@context.Outcome</FlareText>
+                    </Template>
+                </FlareColumn>
+            </Columns>
+        </FlareDataGrid>
+
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+            @if (_hasMore)
+            {
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">Load older</FlareButton>
+            }
+            @if (_loadingMore)
+            {
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+            }
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@_entries.Count loaded</FlareText>
+        </FlareStack>
+    }
+</FlareStack>
+
+@code {
+    private const int PageSize = 200;
+    private List<AuditEntry>? _entries;
+    private bool _hasMore;
+    private bool _loadingMore;
+
+    /// <summary>Loads the most recent audit entries (first keyset page).</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        _entries = await Api.GetAuditAsync(PageSize);
+        _hasMore = _entries is { Count: PageSize };
+    }
+
+    /// <summary>Fetches the next older page using the last entry's id as the keyset cursor.</summary>
+    private async Task LoadOlderAsync()
+    {
+        if (_entries is null || _entries.Count == 0)
+        {
+            return;
+        }
+
+        _loadingMore = true;
+        try
+        {
+            var cursor = _entries[^1].Id;
+            var older = await Api.GetAuditAsync(PageSize, cursor);
+            if (older is { Count: > 0 })
+            {
+                _entries.AddRange(older);
+            }
+
+            _hasMore = older is { Count: PageSize };
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    /// <summary>Maps an audit category to a kind-marker colour role.</summary>
+    /// <param name="category">The audit category.</param>
+    /// <returns>A Flare colour role.</returns>
+    private static FlareColor KindColor(string? category)
+    {
+        var c = (category ?? string.Empty).ToLowerInvariant();
+        if (c.Contains("login") || c.Contains("auth") || c.Contains("sign"))
+        {
+            return FlareColor.Info;
+        }
+
+        if (c.Contains("key"))
+        {
+            return FlareColor.Warning;
+        }
+
+        if (c.Contains("endpoint") || c.Contains("scope") || c.Contains("sync"))
+        {
+            return FlareColor.Success;
+        }
+
+        return FlareColor.OnSurfaceVariant;
+    }
+
+    /// <summary>Colours an outcome red when it denotes a failure, muted otherwise.</summary>
+    /// <param name="outcome">The outcome text.</param>
+    /// <returns>A Flare colour role.</returns>
+    private static FlareColor OutcomeColor(string? outcome)
+    {
+        var o = (outcome ?? string.Empty).ToLowerInvariant();
+        return o.Contains("den") || o.Contains("fail") || o.Contains("error") || o.Contains("403") || o.Contains("401")
+            ? FlareColor.Error
+            : FlareColor.OnSurfaceVariant;
+    }
+}

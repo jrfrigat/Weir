@@ -1,0 +1,28 @@
+/* Self-hosted Material Symbols Rounded (the icon font Flare components use for sort / filter /
+   chevron / pager glyphs). Bundling it locally keeps the admin self-contained: no external font
+   CDN, works offline / air-gapped, and stays within a "font-src 'self'" Content-Security-Policy. */
+@font-face {
+    font-family: 'Material Symbols Rounded';
+    font-style: normal;
+    font-weight: 100 700;
+    src: url(../fonts/material-symbols-rounded.woff2) format('woff2');
+    font-display: block;
+}
+
+.material-symbols-rounded,
+.material-symbols-outlined,
+.material-symbols-sharp {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 1.25rem;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}

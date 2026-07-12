@@ -1,0 +1,195 @@
+[
+  {
+    "route": "products",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "GetProducts",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "List all products (multi-row).",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": []
+  },
+  {
+    "route": "products/by-id",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "GetProductById",
+    "resultMode": 1,
+    "enabled": true,
+    "description": "Get one product by id (single row). Query: id.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "id", "dbParameterName": "ProductId", "source": 1, "direction": 0, "dbType": 5, "required": true }
+    ]
+  },
+  {
+    "route": "products/search",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "SearchProducts",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "Search products (optional query params namePattern, maxPrice).",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "namePattern", "dbParameterName": "NamePattern", "source": 1, "direction": 0, "dbType": 0, "required": false, "size": 100 },
+      { "name": "maxPrice", "dbParameterName": "MaxPrice", "source": 1, "direction": 0, "dbType": 7, "required": false, "precision": 10, "scale": 2 }
+    ]
+  },
+  {
+    "route": "products/price",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 2,
+    "schema": "sales",
+    "objectName": "GetProductPrice",
+    "resultMode": 2,
+    "enabled": true,
+    "description": "Scalar function: current price of a product. Query: id.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "id", "dbParameterName": "ProductId", "source": 1, "direction": 0, "dbType": 5, "required": true }
+    ]
+  },
+  {
+    "route": "customers/orders",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 1,
+    "schema": "sales",
+    "objectName": "GetOrdersByCustomer",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "Table-valued function: all orders for a customer. Query: id.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "id", "dbParameterName": "CustomerId", "source": 1, "direction": 0, "dbType": 5, "required": true }
+    ]
+  },
+  {
+    "route": "orders",
+    "httpMethod": "POST",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "CreateOrder",
+    "resultMode": 3,
+    "enabled": true,
+    "description": "Create an order from a table-valued parameter; returns orderId and total as output params and the item count as the return value.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "customerId", "dbParameterName": "CustomerId", "source": 0, "direction": 0, "dbType": 5, "required": true },
+      {
+        "name": "items",
+        "dbParameterName": "Items",
+        "source": 0,
+        "direction": 0,
+        "dbType": 18,
+        "required": true,
+        "typeName": "sales.OrderItemType",
+        "tableColumns": [
+          { "name": "ProductId", "dbType": 5, "ordinal": 0 },
+          { "name": "Quantity", "dbType": 5, "ordinal": 1 }
+        ]
+      },
+      { "name": "orderId", "dbParameterName": "OrderId", "source": 0, "direction": 1, "dbType": 5 },
+      { "name": "total", "dbParameterName": "Total", "source": 0, "direction": 1, "dbType": 7, "precision": 12, "scale": 2 }
+    ]
+  },
+  {
+    "route": "orders/detail",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "GetOrderWithItems",
+    "resultMode": 4,
+    "enabled": true,
+    "description": "Order header plus its line items (two result sets). Query: orderId.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "orderId", "dbParameterName": "OrderId", "source": 1, "direction": 0, "dbType": 5, "required": true }
+    ]
+  },
+  {
+    "route": "customers/stats",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "GetCustomerStats",
+    "resultMode": 3,
+    "enabled": true,
+    "description": "Customer order count and total spent via output parameters (no result set). Query: customerId.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "customerId", "dbParameterName": "CustomerId", "source": 1, "direction": 0, "dbType": 5, "required": true },
+      { "name": "orderCount", "dbParameterName": "OrderCount", "source": 0, "direction": 1, "dbType": 5 },
+      { "name": "totalSpent", "dbParameterName": "TotalSpent", "source": 0, "direction": 1, "dbType": 7, "precision": 12, "scale": 2 }
+    ]
+  },
+  {
+    "route": "inventory/adjust",
+    "httpMethod": "POST",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "AdjustInventory",
+    "resultMode": 3,
+    "enabled": true,
+    "description": "Adjust a product's stock; returns the new stock as an output parameter. THROWs on a bad request.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "productId", "dbParameterName": "ProductId", "source": 0, "direction": 0, "dbType": 5, "required": true },
+      { "name": "delta", "dbParameterName": "Delta", "source": 0, "direction": 0, "dbType": 5, "required": true },
+      { "name": "stock", "dbParameterName": "Stock", "source": 0, "direction": 1, "dbType": 5 }
+    ]
+  },
+  {
+    "route": "stock/accumulate",
+    "httpMethod": "POST",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "AccumulateStock",
+    "resultMode": 3,
+    "enabled": true,
+    "description": "Input-output parameter demo: adds a product's stock to a running total passed in and out.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "productId", "dbParameterName": "ProductId", "source": 0, "direction": 0, "dbType": 5, "required": true },
+      { "name": "running", "dbParameterName": "Running", "source": 0, "direction": 2, "dbType": 5, "required": false }
+    ]
+  },
+  {
+    "route": "ping",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "Ping",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "Emits PRINT / info messages (captured in the response messages) and a small result set.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": []
+  }
+]

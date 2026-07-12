@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Weir - your database business logic, as a service">
+  <defs>
+    <linearGradient id="weirFlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6fe3ff"/>
+      <stop offset="1" stop-color="#0a84ff"/>
+    </linearGradient>
+    <linearGradient id="weirBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#122a41"/>
+      <stop offset="1" stop-color="#0a1523"/>
+    </linearGradient>
+    <linearGradient id="weirCanvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1a2b"/>
+      <stop offset="1" stop-color="#0a1320"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="640" fill="url(#weirCanvas)"/>
+
+  <!-- faint background flow -->
+  <g fill="none" stroke="url(#weirFlow)" stroke-linecap="round" opacity="0.10">
+    <path d="M-40 210 q 160 -90 320 0 t 320 0 t 320 0 t 320 0 t 320 0" stroke-width="10"/>
+    <path d="M-40 430 q 160 -90 320 0 t 320 0 t 320 0 t 320 0 t 320 0" stroke-width="10"/>
+  </g>
+
+  <!-- logo mark -->
+  <g transform="translate(560,96) scale(1.25)">
+    <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#weirBg)" stroke="#1f3f5a" stroke-width="1.5"/>
+    <g opacity="0.22" stroke="#7fdcff" stroke-width="3" stroke-linecap="round">
+      <line x1="42" y1="40" x2="42" y2="90"/>
+      <line x1="62" y1="36" x2="62" y2="94"/>
+      <line x1="82" y1="40" x2="82" y2="90"/>
+    </g>
+    <g fill="none" stroke="url(#weirFlow)" stroke-linecap="round">
+      <path d="M22 50 q 20 -13 40 0 t 40 0" stroke-width="6" opacity="0.55"/>
+      <path d="M22 64 q 20 -16 40 0 t 40 0" stroke-width="8"/>
+      <path d="M22 78 q 20 -13 40 0 t 40 0" stroke-width="6" opacity="0.55"/>
+    </g>
+  </g>
+
+  <text x="640" y="420" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="132" font-weight="700" fill="url(#weirFlow)">Weir</text>
+  <text x="640" y="474" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="30" font-weight="400" fill="#aeb9c6">Your database business logic, as a service</text>
+  <text x="640" y="566" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="23" font-weight="400" fill="#6d7d8c">High-performance HTTP gateway  |  .NET 10  |  Admin UI built on Flare</text>
+</svg>

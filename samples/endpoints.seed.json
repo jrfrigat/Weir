@@ -1,0 +1,78 @@
+[
+  {
+    "route": "widgets",
+    "httpMethod": "GET",
+    "connectionName": "default",
+    "objectType": 0,
+    "schema": "dbo",
+    "objectName": "GetWidgets",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "List all widgets.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": []
+  },
+  {
+    "route": "widgets/by-id",
+    "httpMethod": "GET",
+    "connectionName": "default",
+    "objectType": 0,
+    "schema": "dbo",
+    "objectName": "GetWidgetById",
+    "resultMode": 1,
+    "enabled": true,
+    "description": "Get one widget by id (query parameter id).",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "id", "dbParameterName": "Id", "source": 1, "direction": 0, "dbType": 5, "required": true }
+    ]
+  },
+  {
+    "route": "widgets",
+    "httpMethod": "POST",
+    "connectionName": "default",
+    "objectType": 0,
+    "schema": "dbo",
+    "objectName": "CreateWidget",
+    "resultMode": 3,
+    "enabled": true,
+    "description": "Create a widget; returns the new id as the output parameter newId.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "name", "dbParameterName": "Name", "source": 0, "direction": 0, "dbType": 0, "required": true, "size": 100 },
+      { "name": "price", "dbParameterName": "Price", "source": 0, "direction": 0, "dbType": 7, "required": true, "precision": 10, "scale": 2 },
+      { "name": "newId", "dbParameterName": "NewId", "source": 0, "direction": 1, "dbType": 5 }
+    ]
+  },
+  {
+    "route": "widgets/import",
+    "httpMethod": "POST",
+    "connectionName": "default",
+    "objectType": 0,
+    "schema": "dbo",
+    "objectName": "ImportWidgets",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "Bulk-insert widgets from a table-valued parameter.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "requiredScopes": [],
+    "parameters": [
+      {
+        "name": "items",
+        "dbParameterName": "Items",
+        "source": 0,
+        "direction": 0,
+        "dbType": 18,
+        "required": true,
+        "typeName": "dbo.WidgetImportType",
+        "tableColumns": [
+          { "name": "Name", "dbType": 0, "size": 100, "ordinal": 0 },
+          { "name": "Price", "dbType": 7, "precision": 10, "scale": 2, "ordinal": 1 }
+        ]
+      }
+    ]
+  }
+]

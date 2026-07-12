@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" width="760" height="200" role="img" aria-label="Weir - your database business logic, as a service">
+  <defs>
+    <linearGradient id="weirEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4fd6c9"/>
+      <stop offset="1" stop-color="#4ea1ff"/>
+    </linearGradient>
+    <linearGradient id="weirPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16181a"/>
+      <stop offset="1" stop-color="#0f1011"/>
+    </linearGradient>
+    <!-- Diagonal edge gradient for the mark, in the logo box's user space (the group is translated, so
+         0..128 here maps onto the 128px badge) - one continuous cyan -> accent sweep across the whole W. -->
+    <linearGradient id="weirMarkEdge" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4fd6c9"/>
+      <stop offset="1" stop-color="#4ea1ff"/>
+    </linearGradient>
+    <mask id="bannerRingCut">
+      <rect x="0" y="0" width="128" height="128" fill="white"/>
+      <g fill="black">
+        <circle cx="34" cy="43.2" r="10"/>
+        <circle cx="64" cy="43.2" r="10"/>
+        <circle cx="94" cy="43.2" r="10"/>
+      </g>
+      <rect x="40" y="72" width="80" height="20" fill="black"/>
+    </mask>
+    <mask id="bannerBarCut">
+      <rect x="0" y="0" width="128" height="128" fill="black"/>
+      <polygon points="43.2,70 84.8,70 77.2,84 50.8,84" fill="white"/>
+    </mask>
+  </defs>
+
+  <rect x="0" y="0" width="760" height="200" rx="20" fill="url(#weirPanel)"/>
+
+  <!-- logo mark: the Weir favicon - databases (the hollow rings on top) flow down through the "W" and
+       merge onto the gateway rail (the stacked bars at the bottom), the gateway routing many databases
+       as one HTTP surface. Matches src/Weir.Admin/wwwroot/favicon.svg, scaled into the 128px badge. -->
+  <g transform="translate(36,36)">
+    <rect x="0" y="0" width="128" height="128" rx="28" fill="#131416"/>
+    <rect x="2.8" y="2.8" width="122.4" height="122.4" rx="25.6" fill="none" stroke="#26282b" stroke-width="4.8"/>
+    <g fill="none" stroke="url(#weirMarkEdge)" mask="url(#bannerRingCut)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M34 43.2 L51.2 76 L64 51.2 L76.8 76 L94 43.2"/>
+    </g>
+    <g fill="none" stroke="url(#weirMarkEdge)" stroke-width="4" mask="url(#bannerBarCut)" stroke-linecap="round">
+      <path d="M38 74.8 L90 74.8"/>
+      <path d="M38 80 L90 80"/>
+    </g>
+    <g fill="none" stroke="#4fd6c9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="34" cy="43.2" r="6"/>
+      <circle cx="64" cy="43.2" r="6"/>
+      <circle cx="94" cy="43.2" r="6"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="210" y="112" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="76" font-weight="700" fill="url(#weirEdge)">Weir</text>
+  <text x="214" y="146" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="21" font-weight="400" fill="#a3a3a8">Your database business logic, as a service</text>
+  <text x="214" y="173" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="15" font-weight="400" fill="#6d6d73">High-performance HTTP gateway on .NET 10</text>
+</svg>

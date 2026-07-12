@@ -1,0 +1,26 @@
+@* Shared page header: a mono title, an optional muted description, and optional right-aligned
+   actions. Used on every admin screen so the heading row lines up identically across pages - same
+   height, typography and action placement - instead of each page rolling its own layout. *@
+<FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small" Wrap="true" Style="min-height:2rem;">
+    <FlareText Element="h1" Typo="TypographyScale.TitleLarge" Mono="true" Weight="FontWeight.Bold" Style="letter-spacing:.02em;margin:0;">@Title</FlareText>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@Description</FlareText>
+    }
+    @if (Actions is not null)
+    {
+        <FlareSpacer />
+        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall" Wrap="true">@Actions</FlareStack>
+    }
+</FlareStack>
+
+@code {
+    /// <summary>The page title, shown lowercase-mono to match the top-nav tab labels.</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>Optional one-line description shown beside the title in muted text.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Optional right-aligned action controls (buttons, filters) for the header row.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

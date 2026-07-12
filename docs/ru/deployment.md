@@ -1,0 +1,121 @@
+# Weir - Деплой
+
+> [English](../en/deployment.md) - [Конфигурация](configuration.md) - [Начало работы](getting-started.md)
+
+Weir - единый деплой: один хост ASP.NET Core, отдающий JSON API и Blazor WASM PWA-админку с одного
+origin. Таргет - .NET 10.
+
+## Docker-образ
+
+Многоступенчатый `build/Dockerfile` собирает всё приложение на образе SDK .NET 10 и запускает на
+рантайме `aspnet:10.0`. Шаг publish также встраивает WASM-админку как статические ассеты.
+
+### Опубликованный образ (GHCR)
+
+Каждый релиз (запушенный тег `v*`) публикует образ хоста в GitHub Container Registry с тегами версии
+и `latest`. Вытяните его вместо сборки:
+
+```sh
+docker pull ghcr.io/jrfrigat/weir:latest        # или закреплённый ghcr.io/jrfrigat/weir:X.Y.Z
+docker run -p 8080:8080 \
+  -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
+  -e Weir__Admin__Username=admin -e Weir__Admin__Password=надёжный-пароль \
+  -e Weir__Jwt__SigningKey=стабильный-секрет \
+  ghcr.io/jrfrigat/weir:latest
+```
+
+В продакшене закрепляйте тег версии; `latest` - подвижная цель. Чтобы собрать образ самостоятельно:
+
+```sh
+docker build -f build/Dockerfile -t weir:latest .
+docker run -p 8080:8080 \
+  -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
+  -e Weir__Admin__Username=admin -e Weir__Admin__Password=надёжный-пароль \
+  -e Weir__Jwt__SigningKey=стабильный-секрет \
+  weir:latest
+# Откройте http://localhost:8080
+```
+
+Контейнер слушает порт 8080. Смонтируйте volume для SQLite control-plane, если хотите, чтобы его
+метаданные (эндпоинты, ключи, скоупы, админы, аудит, настройки) сохранялись при пересоздании
+контейнера, и направьте `Weir__ControlPlane__ConnectionString` на него, например
+`Data Source=/data/weir-control.db` с volume, смонтированным в `/data`.
+
+Weir пишет rolling-файлы логов в `Weir:Logging:Directory` (по умолчанию `logs`, относительно content
+root). Смонтируйте туда volume или задайте директорию на смонтированный путь, если хотите, чтобы логи
+переживали пересоздание контейнера; иначе отправляйте их в лог-пайплайн платформы через консольный sink.
+
+## docker-compose
+
+`docker-compose.yml` - это шаблон, который запускает хост Weir и подключается к **внешнему** SQL
+Server, который вы предоставляете. Машинно-специфичные настройки - целевая строка подключения,
+учётные данные админа и ключ подписи JWT - живут в `docker-compose.override.yml`, который Compose
+мерджит автоматически. Этот override-файл в .gitignore; впишите в него свои значения.
+
+```sh
+docker compose up -d --build
+# Windows: run-docker-compose.bat
+# Откройте http://localhost:8080
+```
+
+SQLite control-plane сохраняется в volume `weir-data`.
+
+> `Trusted_Connection=True` (Windows Integrated Authentication) не работает изнутри Linux-контейнера -
+> у контейнера нет Windows-идентичности. Чтобы достучаться до SQL Server из контейнера, используйте
+> SQL-аутентификацию (`User Id` / `Password`) в строке подключения, либо запускайте хост напрямую на
+> Windows через `dotnet run --project src/Weir.Host`, где Trusted_Connection работает как есть.
+
+## Конфигурация
+
+Передавайте настройки через переменные окружения (см. [Конфигурацию](configuration.md)). Как минимум
+задайте целевую `Weir:DataConnections:{name}:ConnectionString`, надёжный `Weir:Admin:Password` и
+стабильный `Weir:Jwt:SigningKey`.
+
+## За reverse-proxy / TLS
+
+Разворачивайте Weir за reverse-proxy, терминирующим TLS. Админка и admin API делят origin хоста,
+поэтому настройка CORS не нужна. Оставьте `Weir:Security:RequireHttps` выключенным, когда TLS
+терминирует прокси (значение по умолчанию). HSTS и hardening-заголовки Weir отправляет сам.
+
+## Health-пробы
+
+- `/health/live` - liveness (процесс жив; без проверки зависимостей). Годится для liveness-пробы
+  Kubernetes - блип нижестоящей БД не перезапустит под.
+- `/health/ready` - readiness (доступен control plane, проверены подключения к данным).
+- `/health` - агрегат, для людей и простых сетапов.
+
+## Высокая доступность
+
+Запускайте несколько инстансов за балансировщиком:
+
+- Направьте все инстансы на один общий control plane (`Weir:ControlPlane:Provider=Postgres`). SQLite
+  control plane - одноузловой; не запускайте несколько инстансов на пофайловых SQLite.
+- Задайте `Weir:HighAvailability=true` на всех инстансах. Это утверждение, что развёртывание
+  многоинстансовое: хост тогда отказывается стартовать на SQLite control plane (который дал бы каждому
+  узлу расходящуюся приватную копию метаданных) и требует общий PostgreSQL control plane.
+- Задайте стабильный `Weir:Jwt:SigningKey` на всех инстансах (обязателен в Production), чтобы токен,
+  выданный одним инстансом, принимался другими. Хранилище refresh-токенов - в общем control plane,
+  поэтому сессия продлевается и отзывается согласованно между инстансами.
+- Задайте `Weir:ControlPlane:ReloadSeconds` (например `30`), чтобы изменения метаданных на одном
+  инстансе доходили до остальных.
+- Задайте `Weir:RateLimit:RedisConnectionString`, чтобы per-API-key лимит был общим для инстансов. Без
+  него in-memory лимитер применяет лимит на инстанс, поэтому эффективный лимит - N x заданного значения
+  в развёртывании из N инстансов.
+- Кеш ответов - на инстанс (in-memory); промах кеша на одном инстансе независим от других. Это влияет
+  только на cache hit ratio, не на корректность (каждый инстанс всё равно соблюдает TTL).
+
+### Cross-instance метрики
+
+Встроенный дашборд метрик (админ **Dashboard** поверх in-memory агрегатора) показывает метрики того
+единственного инстанса, который обслужил запрос; он намеренно без инфраструктуры и не агрегируется между
+инстансами. Для общего по флоту вида экспортируйте OpenTelemetry в бэкенд метрик: каждый инстанс отдаёт
+один и тот же meter `Weir` (и, для PostgreSQL, meter пула `Npgsql`), поэтому задайте
+`OTEL_EXPORTER_OTLP_ENDPOINT` и пусть Prometheus / OTLP-бэкенд агрегирует между инстансами (суммирует
+счётчики, объединяет гистограммы для настоящих перцентилей по флоту). В HA-развёртывании этот внешний
+бэкенд - источник истины для cross-instance метрик; per-instance дашборд - удобство для одного узла.
+
+## Заметки
+
+- При старте выполняются миграции control-plane, создаётся админ (если настроен и его ещё нет) и
+  загружается каталог эндпоинтов. Целевая БД не обязана быть доступна при старте; подключения к
+  данным используются лениво при вызовах эндпоинтов.
