@@ -80,10 +80,11 @@ All notable changes to this project are documented here. The format is based on
   top) flow down through the W and merge onto a gateway rail (the stacked bars at the bottom), in the
   Command Center palette (cyan `#4fd6c9` to accent `#4ea1ff` on the dark `#131416` surface), replacing
   the previous water-weir art and its unrelated blue palette. The favicon (`favicon.svg`) is the source
-  of truth; the installed-app icons (192 / 512 / maskable / apple-touch) and the README banner were
-  regenerated to match it, and the app bar and login card now render the same mark as an inline SVG
-  (`WeirMark`) sized for on-surface display, replacing the borrowed Material `hub` glyph. The manifest
-  and `theme-color` stay aligned to the app background.
+  of truth; the installed-app icons (192 / 512 / maskable / apple-touch), the README banner, the brand
+  logo (`assets/logo.svg`) and the GitHub social-preview image (`assets/social-preview.svg` / `.png`)
+  were all regenerated to match it, and the app bar and login card now render the same mark as an inline
+  SVG (`WeirMark`) sized for on-surface display, replacing the borrowed Material `hub` glyph. The
+  manifest and `theme-color` stay aligned to the app background.
 - Overlay drawers (Edit endpoint, the test console, the request-log detail) now inset their content
   horizontally to match the header, like a FluentUI2 / Visual Studio 2026 panel. Flare's default left
   the drawer content edge-to-edge (`padding: spacing-4 0`), so fields ran into the panel edge.
@@ -148,6 +149,10 @@ All notable changes to this project are documented here. The format is based on
   section (pull `ghcr.io/jrfrigat/weir` or add the library packages), the Deployment doc documents the
   published GHCR image, and CONTRIBUTING documents the tag-driven release pipeline and exactly what ships
   to NuGet versus the container image. All bilingual (English and Russian) where applicable.
+- The release workflow now publishes NuGet packages via **Trusted Publishing** (OIDC), exchanging a
+  GitHub token for a short-lived NuGet key through `NuGet/login` instead of storing a long-lived
+  `NUGET_API_KEY` secret (it reads the account name from a `NUGET_USER` repository variable). It also
+  creates the GitHub Release from the tag (auto-generated notes plus the packed `.nupkg` files).
 - Data-plane request log. Every call is recorded off the hot path (route, method, object, connection,
   timing, database time, rows, cache hit, status and caller), viewable on a new admin **Logs** screen
   with keyset paging and slow-only / errors-only filters. A call is flagged **slow** when it exceeds its

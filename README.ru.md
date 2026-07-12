@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="Weir - высокопроизводительный HTTP-шлюз; бизнес-логика базы данных как сервис" width="760">
 </p>
 
-<p align="center"><a href="README.md">English</a> | Russkiy</p>
+<p align="center">🌐 <a href="README.md">English</a> · <b>Русский</b></p>
 
 <p align="center">
   <a href="https://github.com/jrfrigat/weir/actions/workflows/ci.yml"><img src="https://github.com/jrfrigat/weir/actions/workflows/ci.yml/badge.svg" alt="CI"></a>

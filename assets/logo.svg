@@ -1,28 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Weir logo">
+  <!-- Weir mark: databases (the hollow rings on top) flow down through the "W" and merge onto the
+       gateway rail (the stacked bars at the bottom). Matches src/Weir.Admin/wwwroot/favicon.svg,
+       scaled into a 128px badge. Command Center palette: cyan #4fd6c9 -> accent #4ea1ff on #131416. -->
   <defs>
-    <linearGradient id="weirFlow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6fe3ff"/>
-      <stop offset="1" stop-color="#0a84ff"/>
+    <linearGradient id="weirEdge" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4fd6c9"/>
+      <stop offset="1" stop-color="#4ea1ff"/>
     </linearGradient>
-    <linearGradient id="weirBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#122a41"/>
-      <stop offset="1" stop-color="#0a1523"/>
-    </linearGradient>
+    <mask id="ringCut">
+      <rect x="0" y="0" width="128" height="128" fill="white"/>
+      <g fill="black">
+        <circle cx="34" cy="43.2" r="10"/>
+        <circle cx="64" cy="43.2" r="10"/>
+        <circle cx="94" cy="43.2" r="10"/>
+      </g>
+      <rect x="40" y="72" width="80" height="20" fill="black"/>
+    </mask>
+    <mask id="barCut">
+      <rect x="0" y="0" width="128" height="128" fill="black"/>
+      <polygon points="43.2,70 84.8,70 77.2,84 50.8,84" fill="white"/>
+    </mask>
   </defs>
 
-  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#weirBg)" stroke="#1f3f5a" stroke-width="1.5"/>
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="#131416"/>
+  <rect x="2.8" y="2.8" width="122.4" height="122.4" rx="25.6" fill="none" stroke="#26282b" stroke-width="4.8"/>
 
-  <!-- weir gate posts (subtle) -->
-  <g opacity="0.22" stroke="#7fdcff" stroke-width="3" stroke-linecap="round">
-    <line x1="42" y1="40" x2="42" y2="90"/>
-    <line x1="62" y1="36" x2="62" y2="94"/>
-    <line x1="82" y1="40" x2="82" y2="90"/>
+  <g fill="none" stroke="url(#weirEdge)" mask="url(#ringCut)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 43.2 L51.2 76 L64 51.2 L76.8 76 L94 43.2"/>
   </g>
-
-  <!-- flowing streams passing through the gate -->
-  <g fill="none" stroke="url(#weirFlow)" stroke-linecap="round">
-    <path d="M22 50 q 20 -13 40 0 t 40 0" stroke-width="6" opacity="0.55"/>
-    <path d="M22 64 q 20 -16 40 0 t 40 0" stroke-width="8"/>
-    <path d="M22 78 q 20 -13 40 0 t 40 0" stroke-width="6" opacity="0.55"/>
+  <g fill="none" stroke="url(#weirEdge)" stroke-width="4" mask="url(#barCut)" stroke-linecap="round">
+    <path d="M38 74.8 L90 74.8"/>
+    <path d="M38 80 L90 80"/>
+  </g>
+  <g fill="none" stroke="#4fd6c9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="34" cy="43.2" r="6"/>
+    <circle cx="64" cy="43.2" r="6"/>
+    <circle cx="94" cy="43.2" r="6"/>
   </g>
 </svg>
