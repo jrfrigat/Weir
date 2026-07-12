@@ -66,6 +66,12 @@ jobs:
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
+      # GHCR requires a lowercase repository path, but github.repository preserves the repo's case
+      # (e.g. jrfrigat/Weir). Lowercase it for the image tags.
+      - name: Compute lowercase image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to the container registry
         uses: docker/login-action@v3
         with:
@@ -80,8 +86,8 @@ jobs:
           file: build/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.value }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ steps.image.outputs.name }}:${{ steps.version.outputs.value }}
+            ${{ steps.image.outputs.name }}:latest
 
       - name: Create GitHub Release
         env:
