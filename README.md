@@ -155,8 +155,7 @@ docker compose up -d --build   # Windows: run-docker-compose.bat
 
 ## Acknowledgements
 
-The admin PWA is built on [Flare](https://github.com/jrfrigat/Flare) - a theme-agnostic Blazor
-component library (Visual Studio 2026 theme).
+The admin PWA is built on [Flare](https://github.com/jrfrigat/Flare)
 
 ## License
 

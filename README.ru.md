@@ -157,8 +157,7 @@ docker compose up -d --build   # Windows: run-docker-compose.bat
 
 ## Благодарности
 
-PWA-админка построена на [Flare](https://github.com/jrfrigat/Flare) - theme-agnostic
-Blazor-библиотеке компонентов (тема Visual Studio 2026).
+PWA-админка построена на [Flare](https://github.com/jrfrigat/Flare)
 
 ## Лицензия
 
