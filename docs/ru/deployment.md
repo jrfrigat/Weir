@@ -88,7 +88,7 @@ SQLite control-plane сохраняется в volume `weir-data`.
 
 Запускайте несколько инстансов за балансировщиком:
 
-- Направьте все инстансы на один общий control plane (`Weir:ControlPlane:Provider=Postgres`). SQLite
+- Направьте все инстансы на один общий control plane (`Weir:ControlPlane:Provider=Postgres` или `SqlServer`). SQLite
   control plane - одноузловой; не запускайте несколько инстансов на пофайловых SQLite.
 - Задайте `Weir:HighAvailability=true` на всех инстансах. Это утверждение, что развёртывание
   многоинстансовое: хост тогда отказывается стартовать на SQLite control plane (который дал бы каждому

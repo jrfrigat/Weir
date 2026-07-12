@@ -16,12 +16,14 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Weir.Core\Weir.Core.csproj" />
     <ProjectReference Include="..\..\src\Weir.ControlPlane.Sqlite\Weir.ControlPlane.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Weir.ControlPlane.PostgreSql\Weir.ControlPlane.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\Weir.ControlPlane.SqlServer\Weir.ControlPlane.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\Weir.Diagnostics\Weir.Diagnostics.csproj" />
     <ProjectReference Include="..\..\src\connectors\Weir.Connectors.PostgreSql\Weir.Connectors.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Weir.Host\Weir.Host.csproj" />

@@ -142,6 +142,13 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- A **SQL Server control-plane provider** (`Weir.ControlPlane.SqlServer`, `Provider=SqlServer`), the third
+  `IControlPlaneStore` backend alongside SQLite and PostgreSQL. It mirrors the PostgreSQL provider in
+  T-SQL (bounded `nvarchar` keys, `bit`/`IDENTITY`, `UPDATE ...; IF @@ROWCOUNT = 0 INSERT` upserts,
+  `OFFSET/FETCH` pagination) and serializes migrations across instances with `sp_getapplock`, so - like
+  PostgreSQL - it is valid for high-availability deployments (the host does not reject it under
+  `Weir:HighAvailability`). Verified end-to-end against a live SQL Server and covered by a
+  Testcontainers.MsSql integration test.
 - A "view source" GitHub link in the admin app bar, on the right just before the account menu, opening
   `github.com/jrfrigat/weir` in a new tab. Rendered as authored brand art (`GitHubIcon`), since Material
   Symbols carries no brand glyphs.

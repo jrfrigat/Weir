@@ -7,6 +7,8 @@ x64/
 x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
+artifacts/
+TestResults/
 *.user
 *.suo
 *.userprefs
@@ -25,9 +27,8 @@ publish/
 appsettings.*.local.json
 secrets.json
 .env
+*.env
 docker-compose.override.yml
-# Local Claude Code config (launch.json carries a machine-specific dev connection string).
-.claude/
 *.db
 *.db-shm
 *.db-wal
@@ -36,6 +37,19 @@ weir-control.db*
 ## Serilog file logs
 logs/
 *.log
+
+## AI tooling (Claude Code / ruflo / MCP) - local dev config, kept out of the repo.
+## Note: .claude/launch.json holds a machine-specific dev connection string (a secret).
+CLAUDE.md
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
+ruvector.db
+*.jsonl
+
+## Node (any tooling)
+node_modules/
 
 ## OS
 .DS_Store

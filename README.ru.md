@@ -51,6 +51,7 @@ src/
   Weir.Diagnostics/          Телеметрия: ActivitySource, Meter, in-memory агрегатор метрик
   Weir.ControlPlane.Sqlite/  Стор control-plane по умолчанию (плюс idempotent-миграции)
   Weir.ControlPlane.PostgreSql/  Общий стор control-plane для развёртываний с высокой доступностью
+  Weir.ControlPlane.SqlServer/   Общий стор control-plane на SQL Server (тоже для HA)
   connectors/
     Weir.Connectors.SqlServer/    IDbConnector для SQL Server (Microsoft.Data.SqlClient + Dapper)
     Weir.Connectors.PostgreSql/   IDbConnector для PostgreSQL (Npgsql)
@@ -126,7 +127,8 @@ docker run -p 8080:8080 \
 **NuGet-библиотеки** - нужны, только если вы собираете собственный хост или свой data-plane коннектор
 (большинству достаточно просто запустить образ). Публикуются на NuGet.org: `Weir.Contracts`,
 `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`,
-`Weir.ControlPlane.PostgreSql`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql`.
+`Weir.ControlPlane.PostgreSql`, `Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`,
+`Weir.Connectors.PostgreSql`.
 
 ```sh
 dotnet add package Weir.Abstractions   # реализуйте IDbConnector / IControlPlaneStore поверх портов

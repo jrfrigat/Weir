@@ -13,7 +13,7 @@ becomes `Weir__DataConnections__default__ConnectionString`.
 
 | Key | Default | Meaning |
 | :-- | :-- | :-- |
-| Provider | `Sqlite` | Control-plane store. `Sqlite` (single node) or `Postgres` (shared, for high availability). |
+| Provider | `Sqlite` | Control-plane store. `Sqlite` (single node), or `Postgres` / `SqlServer` (a shared server database, for high availability). |
 | ConnectionString | `Data Source=weir-control.db` | Connection string for Weir's own metadata store. For `Postgres`, an Npgsql connection string is required. |
 | ReloadSeconds | `0` | How often each instance reloads the endpoint catalog from the store. Set to e.g. `30` in a multi-instance (HA) deployment so metadata changes made on one instance reach the others; `0` disables it (single node). |
 

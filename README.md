@@ -50,6 +50,7 @@ src/
   Weir.Diagnostics/          Telemetry: ActivitySource, Meter, in-memory metrics aggregator
   Weir.ControlPlane.Sqlite/  Default control-plane store (plus idempotent migrations)
   Weir.ControlPlane.PostgreSql/  Shared control-plane store for high-availability deployments
+  Weir.ControlPlane.SqlServer/   Shared control-plane store on SQL Server (also HA-capable)
   connectors/
     Weir.Connectors.SqlServer/    IDbConnector for SQL Server (Microsoft.Data.SqlClient + Dapper)
     Weir.Connectors.PostgreSql/   IDbConnector for PostgreSQL (Npgsql)
@@ -124,7 +125,7 @@ See [Deployment](docs/en/deployment.md) for volumes, compose and high-availabili
 **NuGet libraries** - reference these only if you build a custom host or your own data-plane connector
 (most users just run the image). Published to NuGet.org: `Weir.Contracts`, `Weir.Abstractions`,
 `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`,
-`Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql`.
+`Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql`.
 
 ```sh
 dotnet add package Weir.Abstractions   # implement IDbConnector / IControlPlaneStore against the ports

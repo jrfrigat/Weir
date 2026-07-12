@@ -88,7 +88,7 @@ does TLS (its default). Weir sends HSTS and hardening headers itself.
 
 Run several instances behind a load balancer:
 
-- Point every instance at one shared control plane (`Weir:ControlPlane:Provider=Postgres`). The SQLite
+- Point every instance at one shared control plane (`Weir:ControlPlane:Provider=Postgres` or `SqlServer`). The SQLite
   control plane is single-node; do not run several instances against per-node SQLite files.
 - Set `Weir:HighAvailability=true` on every instance. This is an assertion that the deployment is
   multi-instance: the host then refuses to start on the SQLite control plane (which would give each node

@@ -9,8 +9,8 @@ your own data-plane connector; most users just run the container image (`ghcr.io
 `docker.io/frigat/weir`).
 
 Library packages: `Weir.Contracts`, `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`,
-`Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.Connectors.SqlServer`,
-`Weir.Connectors.PostgreSql`.
+`Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.ControlPlane.SqlServer`,
+`Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql`.
 
 - Source, documentation and issues: https://github.com/jrfrigat/weir
 - License: MIT

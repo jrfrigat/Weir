@@ -60,7 +60,7 @@ Two GitHub Actions workflows drive the pipeline:
 
   | Artifact | What | Where |
   | :-- | :-- | :-- |
-  | **NuGet packages** | The 8 reusable libraries: `Weir.Contracts`, `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql` | NuGet.org, via Trusted Publishing (OIDC) |
+  | **NuGet packages** | The 9 reusable libraries: `Weir.Contracts`, `Weir.Abstractions`, `Weir.Core`, `Weir.Diagnostics`, `Weir.ControlPlane.Sqlite`, `Weir.ControlPlane.PostgreSql`, `Weir.ControlPlane.SqlServer`, `Weir.Connectors.SqlServer`, `Weir.Connectors.PostgreSql` | NuGet.org, via Trusted Publishing (OIDC) |
   | **Container image** | The runnable app: `Weir.Host` with the Blazor WASM admin bundled as static assets | `ghcr.io/jrfrigat/weir:X.Y.Z` and `:latest` |
   | **GitHub Release** | The tag's release page, with auto-generated notes and the `.nupkg` files attached | `github.com/jrfrigat/weir/releases` |
 

@@ -22,6 +22,7 @@ using Weir.Connectors.PostgreSql;
 using Weir.Connectors.SqlServer;
 using Weir.Contracts;
 using Weir.ControlPlane.PostgreSql;
+using Weir.ControlPlane.SqlServer;
 using Weir.ControlPlane.Sqlite;
 using Weir.Core;
 using Weir.Diagnostics;
@@ -53,8 +54,9 @@ if (dataPlaneLimits.MaxRequestBodyBytes > 0)
     builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = dataPlaneLimits.MaxRequestBodyBytes);
 }
 
-// The control-plane store is selectable: SQLite (default, single-node) or PostgreSQL (shared,
-// for high-availability deployments where several instances run against one control database).
+// The control-plane store is selectable: SQLite (default, single-node), or a shared server database
+// (PostgreSQL or SQL Server) for high-availability deployments where several instances run against one
+// control database.
 var controlPlaneSection = builder.Configuration.GetSection("Weir:ControlPlane");
 var controlPlaneProvider = controlPlaneSection.GetValue<string>("Provider") ?? "Sqlite";
 var highAvailability = builder.Configuration.GetValue<bool>("Weir:HighAvailability");
@@ -62,6 +64,13 @@ if (string.Equals(controlPlaneProvider, "Postgres", StringComparison.OrdinalIgno
     string.Equals(controlPlaneProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddWeirControlPlanePostgres(options => controlPlaneSection.Bind(options));
+}
+else if (string.Equals(controlPlaneProvider, "SqlServer", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(controlPlaneProvider, "MsSql", StringComparison.OrdinalIgnoreCase))
+{
+    // SQL Server is a shared server database, so - like PostgreSQL - it is valid for HA (several
+    // instances against one control database); no single-node guard needed.
+    builder.Services.AddWeirControlPlaneSqlServer(options => controlPlaneSection.Bind(options));
 }
 else
 {

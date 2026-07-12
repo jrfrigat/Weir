@@ -12,7 +12,10 @@ COPY Directory.Build.props Directory.Packages.props global.json Weir.slnx ./
 COPY src ./src
 
 RUN dotnet restore src/Weir.Host/Weir.Host.csproj
-RUN dotnet publish src/Weir.Host/Weir.Host.csproj -c Release -o /app --no-restore
+# The build context has no .git, so MinVer and SourceLink would warn (and warnings are errors here).
+# The host image is not a NuGet package, so skip both; its assembly version is irrelevant to the image.
+RUN dotnet publish src/Weir.Host/Weir.Host.csproj -c Release -o /app --no-restore \
+    -p:MinVerSkip=true -p:EnableSourceLink=false -p:IncludeSymbols=false
 
 # ---- runtime ----
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

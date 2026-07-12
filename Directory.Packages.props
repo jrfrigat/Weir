@@ -10,6 +10,14 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
+  <!-- Build/versioning/pack tooling injected into every project. GlobalPackageReference implies
+       PrivateAssets=all, so these never flow to consumers. MinVer derives the package version from the
+       git tag; Microsoft.SourceLink.GitHub embeds repo + commit metadata for source-debuggable packages. -->
+  <ItemGroup>
+    <GlobalPackageReference Include="MinVer" Version="7.0.0" />
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
+  </ItemGroup>
+
   <ItemGroup Label="Data access">
     <PackageVersion Include="Dapper" Version="2.1.79" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />

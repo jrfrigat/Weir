@@ -37,9 +37,10 @@
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 
-  <!-- Package / release metadata (overridable per project; version can be driven by MinVer later). -->
+  <!-- Package / release metadata. The version is derived from the git tag by MinVer (tag v1.2.3 ->
+       1.2.3; commits after a tag get a -preview suffix), so no VersionPrefix is set here. SourceLink +
+       snupkg symbols make the published packages source-debuggable. -->
   <PropertyGroup>
-    <VersionPrefix>0.1.0</VersionPrefix>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/jrfrigat/weir</PackageProjectUrl>
     <RepositoryUrl>https://github.com/jrfrigat/weir</RepositoryUrl>
@@ -47,6 +48,14 @@
     <PackageTags>mssql;sql-server;postgresql;stored-procedure;api-gateway;http-gateway;dapper;json;aspnetcore;dotnet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
+    <!-- SourceLink + symbols: embed repo/commit info and ship snupkg symbol packages. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- MinVer: derive the version from the "v" git tag. -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
   </PropertyGroup>
 
   <!-- Shared NuGet package README and icon, embedded into every packable project (the packages carry

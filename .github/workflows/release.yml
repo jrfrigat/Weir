@@ -23,12 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # MinVer needs the full history + tags to derive the version
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
+      # The package version is derived from the tag by MinVer. This value is only for the container
+      # image tags below (which want the bare version), and matches MinVer on a tagged build.
       - name: Resolve version from tag
         id: version
         run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
@@ -37,7 +41,7 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.value }}
+        run: dotnet build -c Release --no-restore
 
       - name: Test
         # The runner provides Docker, so enable the opt-in Testcontainers integration tests.
@@ -48,7 +52,7 @@ jobs:
       # Only IsPackable=true projects produce packages (the eight libraries); the host, admin, tests and
       # the sample connector are IsPackable=false, so pack skips them.
       - name: Pack
-        run: dotnet pack Weir.slnx -c Release --no-build -p:Version=${{ steps.version.outputs.value }} -o artifacts
+        run: dotnet pack Weir.slnx -c Release --no-build -o artifacts
 
       # Trusted Publishing: exchange the GitHub OIDC token for a short-lived NuGet API key. Requires a
       # Trusted Publisher policy on nuget.org for this repository + workflow, plus the nuget.org account
