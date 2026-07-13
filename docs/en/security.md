@@ -123,11 +123,34 @@ or `error`). Sync only reconciles endpoints that already exist; it does not crea
 returns HTTP 200 even when nothing matched (an empty array), so a CI job that expects a change should
 check the results rather than only the status code.
 
+Example - purge cached responses from the same pipeline after a deploy reseeds data behind a cached
+read, so callers see the new data without waiting out the TTL. `POST /admin/api/cache/purge` selects
+endpoints with the same `AND`-combined, case-insensitive filters, plus `route` and `provider` (the
+connector behind an endpoint's connection):
+
+```sh
+# Everything behind one database (a named connection):
+curl -fsS -X POST "$WEIR_URL/admin/api/cache/purge?connection=sales" -H "$AUTH"
+
+# One procedure by name, across every connection that exposes it:
+curl -fsS -X POST "$WEIR_URL/admin/api/cache/purge?object=GetOrders" -H "$AUTH"
+
+# One route, or one endpoint by its id when you already have it:
+curl -fsS -X POST "$WEIR_URL/admin/api/cache/purge?route=orders/get" -H "$AUTH"
+curl -fsS -X POST "$WEIR_URL/admin/api/endpoints/$ENDPOINT_ID/cache/purge" -H "$AUTH"
+
+# Every endpoint (no filter):
+curl -fsS -X POST "$WEIR_URL/admin/api/cache/purge" -H "$AUTH"
+```
+
+The response is `{ "matchedEndpoints": <n>, "purgedRoutes": [ ... ] }`. Purging clears rendered
+responses only - it never changes an endpoint definition - and the cache refills on the next call.
+
 ## Audit and security logging
 
 Every administrative mutation is audited: sign-ins, key and token create / revoke, endpoint
-create / update / delete / import, scope upsert / delete, admin create and password reset, and
-settings changes - each recording the acting admin and the affected resource. Data-plane call auditing
+create / update / delete / import, cache purges, scope upsert / delete, admin create and password
+reset, and settings changes - each recording the acting admin and the affected resource. Data-plane call auditing
 is opt-in (`Weir:Audit:DataPlane`). The audit log is visible under **Audit** and queryable via
 `GET /admin/api/audit`, and is pruned by a background service per the runtime `AuditRetentionDays`
 setting (see [Configuration](configuration.md#logging)).

@@ -33,9 +33,10 @@ stored procedures and functions, and for each one:
   turned off, or `no endpoint` when the object is not yet exposed;
 - the **endpoint** route (method + path) if one exists;
 - a **changes** column that fills in after a **Sync** to show what was added / updated / removed;
-- **actions** - a created row has **Test**, **Edit**, **Sync**, **Delete**; an object with no
-  endpoint has **Params** (inspect its parameters) and **Create** (open the editor pre-filled from
-  that object with its parameters already discovered).
+- **actions** - a created row has **Test**, **Edit**, **Sync**, **Delete**, plus **Purge cache** when
+  caching is enabled (force-clears that endpoint's cached responses); an object with no endpoint has
+  **Params** (inspect its parameters) and **Create** (open the editor pre-filled from that object with
+  its parameters already discovered).
 
 Sort any column, filter per column, or use the quick filter to search across all columns. When a
 connection's database cannot be introspected, the grid still lists its endpoints.

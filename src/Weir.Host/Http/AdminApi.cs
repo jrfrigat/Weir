@@ -46,6 +46,7 @@ public static class AdminApi
         MapExport(admin);
         MapIntrospection(admin);
         MapSync(admin);
+        MapCache(admin);
         return app;
     }
 
@@ -1009,6 +1010,96 @@ public static class AdminApi
                 $"{results.Count} endpoint(s), {changed} changed" + (results.Count > 0 && results.Count <= 5 ? ": " + string.Join("; ", results.Select(DescribeSync)) : string.Empty));
             return Results.Ok(results);
         }).RequireAuthorization("AdminOnly");
+    }
+
+    /// <summary>
+    /// Maps the cache-purge routes that force-evict cached data-plane responses. Both are AdminOnly and
+    /// audited, so a personal access token can drive them from a deployment pipeline. Purging never
+    /// touches the endpoint definitions - it only clears already-rendered responses, which are refilled
+    /// on the next call.
+    /// </summary>
+    /// <param name="group">The admin route group.</param>
+    private static void MapCache(RouteGroupBuilder group)
+    {
+        // Purge one endpoint's cached responses by id (the admin UI per-row "Purge cache" action).
+        group.MapPost("/endpoints/{id:guid}/cache/purge", async (
+            Guid id, IControlPlaneStore store, IResponseCache cache, ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
+        {
+            var endpoint = await store.GetEndpointAsync(id, cancellationToken);
+            if (endpoint is null)
+            {
+                return Results.NotFound();
+            }
+
+            await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(endpoint.Route), cancellationToken);
+            await AuditActionAsync(store, clock, user, "cache.purge", $"route {endpoint.Route}");
+            return Results.Ok(new CachePurgeResult { MatchedEndpoints = 1, PurgedRoutes = [endpoint.Route] });
+        }).RequireAuthorization("AdminOnly");
+
+        // Purge cached responses by filter, for scripted / CI-CD invalidation. Selects endpoints by
+        // route, connection (a database on a server), schema, object (procedure) and/or provider
+        // (connector), then evicts each matched endpoint's cache-key prefix. With no filter every
+        // endpoint's cache is purged, so the pipeline can invalidate as broadly or narrowly as needed
+        // without knowing endpoint ids.
+        group.MapPost("/cache/purge", async (
+            string? route, string? connection, string? schema, [FromQuery(Name = "object")] string? objectName, string? provider,
+            IControlPlaneStore store, IDataConnectionRegistry registry, IResponseCache cache,
+            ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
+        {
+            var endpoints = await store.GetEndpointsAsync(cancellationToken);
+            var selected = endpoints
+                .Where(e => string.IsNullOrEmpty(route) || string.Equals(e.Route, route, StringComparison.OrdinalIgnoreCase))
+                .Where(e => string.IsNullOrEmpty(connection) || string.Equals(e.ConnectionName, connection, StringComparison.OrdinalIgnoreCase))
+                .Where(e => string.IsNullOrEmpty(schema) || string.Equals(e.Schema, schema, StringComparison.OrdinalIgnoreCase))
+                .Where(e => string.IsNullOrEmpty(objectName) || string.Equals(e.ObjectName, objectName, StringComparison.OrdinalIgnoreCase))
+                .Where(e => string.IsNullOrEmpty(provider) || ConnectionHasProvider(registry, e.ConnectionName, provider))
+                .ToList();
+
+            // Route is the eviction unit (the cache-key prefix), so dedupe: several endpoints (a GET and
+            // a POST) can share a route, and clearing its prefix evicts them all in one pass.
+            var routes = selected
+                .Select(e => e.Route)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var purged in routes)
+            {
+                await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(purged), cancellationToken);
+            }
+
+            await AuditActionAsync(store, clock, user, "cache.purge",
+                DescribePurge(route, connection, schema, objectName, provider, routes.Count));
+            return Results.Ok(new CachePurgeResult { MatchedEndpoints = selected.Count, PurgedRoutes = routes });
+        }).RequireAuthorization("AdminOnly");
+    }
+
+    /// <summary>Whether a named connection resolves to a connector with the given provider (case-insensitive).</summary>
+    /// <param name="registry">The connection registry.</param>
+    /// <param name="connectionName">The endpoint's connection name.</param>
+    /// <param name="provider">The provider (connector) key to match, e.g. <c>SqlServer</c>.</param>
+    /// <returns>True when the connection is registered and its provider matches.</returns>
+    private static bool ConnectionHasProvider(IDataConnectionRegistry registry, string connectionName, string provider) =>
+        registry.TryGet(connectionName, out var descriptor) &&
+        string.Equals(descriptor.Provider, provider, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Builds a compact, secret-free audit detail for a cache purge: the active filters and the route count.</summary>
+    /// <param name="route">The route filter, if any.</param>
+    /// <param name="connection">The connection filter, if any.</param>
+    /// <param name="schema">The schema filter, if any.</param>
+    /// <param name="objectName">The object filter, if any.</param>
+    /// <param name="provider">The provider filter, if any.</param>
+    /// <param name="routeCount">How many distinct routes were purged.</param>
+    /// <returns>A description such as <c>connection=orders, object=usp_Get; 2 route(s) purged</c>.</returns>
+    private static string DescribePurge(string? route, string? connection, string? schema, string? objectName, string? provider, int routeCount)
+    {
+        var filters = new List<string>();
+        if (!string.IsNullOrEmpty(route)) filters.Add($"route={route}");
+        if (!string.IsNullOrEmpty(connection)) filters.Add($"connection={connection}");
+        if (!string.IsNullOrEmpty(schema)) filters.Add($"schema={schema}");
+        if (!string.IsNullOrEmpty(objectName)) filters.Add($"object={objectName}");
+        if (!string.IsNullOrEmpty(provider)) filters.Add($"provider={provider}");
+        var scope = filters.Count == 0 ? "all endpoints" : string.Join(", ", filters);
+        return $"{scope}; {routeCount} route(s) purged";
     }
 
     /// <summary>Loads the set of "schema.object" names available on a connection.</summary>

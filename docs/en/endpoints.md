@@ -109,7 +109,9 @@ execution. For stored procedures the integer RETURN value is always captured in 
 Set a per-endpoint cache policy: `Enabled`, `TtlSeconds`, `VaryByParameters` (the input parameters
 whose values form the cache key), and `VaryByApiKey`. The rendered JSON is cached in memory; clients
 cannot bypass it. Caching is best suited to read-only endpoints. Editing or deleting an endpoint
-evicts its cached responses immediately, so a change never serves stale data.
+evicts its cached responses immediately, so a change never serves stale data. You can also force a
+purge at any time - per endpoint from the admin UI, or by filter over the admin API for CI/CD (see
+[Purging the cache](#purging-the-cache) below).
 
 Cache-eligible `GET` responses carry HTTP cache validators: a strong `ETag` derived from the exact
 response bytes and `Cache-Control: private, max-age=<TtlSeconds>`. A client that re-requests with
@@ -165,3 +167,31 @@ route returns HTTP 200 with a JSON array of per-endpoint results, each with a `s
 An empty array means nothing matched the filter, so a CI/CD job that expects a change should inspect
 the results, not only the status code. For a full CI/CD example using a personal access token, see
 [Security](security.md).
+
+### Purging the cache
+
+Caching normally expires on its own TTL, and editing or deleting an endpoint already evicts its cached
+responses. When a deployment changes the data behind a cached read - a migration reseeds a table, a
+job rewrites reference data - force a purge so callers see the new data at once instead of waiting out
+the TTL. Purging clears already-rendered responses only; it never changes an endpoint definition, and
+the cache refills on the next call.
+
+From the admin UI, the **Purge cache** action on a cache-enabled endpoint's row clears that endpoint.
+Over the admin API (a login JWT or a personal access token, `Admin` role), one route covers both a
+single endpoint and pipeline-friendly bulk invalidation:
+
+| Scope | Route |
+| :-- | :-- |
+| One endpoint by id | `POST /admin/api/endpoints/{id}/cache/purge` |
+| One route | `POST /admin/api/cache/purge?route=orders/get` |
+| One procedure by name (across connections) | `POST /admin/api/cache/purge?object=GetOrders` |
+| A specific database on a server (a named connection) | `POST /admin/api/cache/purge?connection=sales` |
+| A whole schema | `POST /admin/api/cache/purge?connection=sales&schema=dbo` |
+| Every endpoint on a provider (connector) | `POST /admin/api/cache/purge?provider=SqlServer` |
+| Every endpoint | `POST /admin/api/cache/purge` |
+
+The `route`, `connection`, `schema`, `object` and `provider` filters combine with AND and are
+case-insensitive; `provider` matches the connector behind an endpoint's connection (for example
+`SqlServer` or `PostgreSql`). With no filter, every endpoint's cache is purged. Both routes return
+HTTP 200 with `{ "matchedEndpoints": <n>, "purgedRoutes": [ ... ] }`, where `purgedRoutes` lists the
+distinct routes that were cleared. Every purge is written to the audit log under `cache.purge`.

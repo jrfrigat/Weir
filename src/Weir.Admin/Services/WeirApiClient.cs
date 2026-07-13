@@ -259,6 +259,65 @@ public sealed class WeirApiClient
             : null;
     }
 
+    // ----- Cache -----------------------------------------------------------------------------
+
+    /// <summary>Force-purges one endpoint's cached responses by id.</summary>
+    /// <param name="id">The endpoint id.</param>
+    /// <returns>The purge result, or null on failure.</returns>
+    public async Task<CachePurgeResult?> PurgeEndpointCacheAsync(Guid id)
+    {
+        var response = await _http.PostAsync($"admin/api/endpoints/{id}/cache/purge", content: null);
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CachePurgeResult>()
+            : null;
+    }
+
+    /// <summary>
+    /// Force-purges cached responses by filter, matching the CI/CD invalidation endpoint. Selects
+    /// endpoints by route, connection (a database on a server), schema, object (procedure) and/or
+    /// provider (connector). With no filter every endpoint's cache is purged.
+    /// </summary>
+    /// <param name="route">Optional route to limit the purge to.</param>
+    /// <param name="connection">Optional connection name to limit the purge to.</param>
+    /// <param name="schema">Optional schema to limit the purge to.</param>
+    /// <param name="objectName">Optional object (procedure / function) name to limit the purge to.</param>
+    /// <param name="provider">Optional provider (connector) key to limit the purge to.</param>
+    /// <returns>The purge result, or null on failure.</returns>
+    public async Task<CachePurgeResult?> PurgeCacheAsync(string? route = null, string? connection = null, string? schema = null, string? objectName = null, string? provider = null)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrEmpty(route))
+        {
+            query.Add("route=" + Uri.EscapeDataString(route));
+        }
+
+        if (!string.IsNullOrEmpty(connection))
+        {
+            query.Add("connection=" + Uri.EscapeDataString(connection));
+        }
+
+        if (!string.IsNullOrEmpty(schema))
+        {
+            query.Add("schema=" + Uri.EscapeDataString(schema));
+        }
+
+        if (!string.IsNullOrEmpty(objectName))
+        {
+            query.Add("object=" + Uri.EscapeDataString(objectName));
+        }
+
+        if (!string.IsNullOrEmpty(provider))
+        {
+            query.Add("provider=" + Uri.EscapeDataString(provider));
+        }
+
+        var url = query.Count == 0 ? "admin/api/cache/purge" : "admin/api/cache/purge?" + string.Join('&', query);
+        var response = await _http.PostAsync(url, content: null);
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CachePurgeResult>()
+            : null;
+    }
+
     // ----- API keys --------------------------------------------------------------------------
 
     /// <summary>Lists API keys.</summary>

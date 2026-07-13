@@ -103,6 +103,62 @@ public class AdminAuthorizationTests : IClassFixture<AdminAuthorizationTests.Hos
         Assert.Empty(results!);
     }
 
+    [Fact]
+    public async Task Cache_Purge_Accepts_Route_Connection_Schema_Object_Provider_Filters()
+    {
+        var client = _factory.CreateClient();
+        var jwt = await LoginAsync(client, "admin", "admin-password");
+
+        // No endpoint matches this filter, so the purge matches nothing (200) - confirming the
+        // route/connection/schema/object/provider query filters are accepted and applied.
+        var response = await SendAsync(client, HttpMethod.Post,
+            "/admin/api/cache/purge?connection=nope&schema=dbo&object=GetOrders&provider=SqlServer", jwt, content: null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<CachePurgeResult>();
+        Assert.NotNull(result);
+        Assert.Equal(0, result!.MatchedEndpoints);
+        Assert.Empty(result.PurgedRoutes);
+    }
+
+    [Fact]
+    public async Task Cache_Purge_By_Endpoint_Id_Reports_The_Route()
+    {
+        var client = _factory.CreateClient();
+        var jwt = await LoginAsync(client, "admin", "admin-password");
+
+        var save = await SendAsync(client, HttpMethod.Post, "/admin/api/endpoints", jwt, new EndpointDefinition
+        {
+            Route = "cache/purge-by-id",
+            ConnectionName = "primary",
+            ObjectName = "usp_Get",
+        });
+        save.EnsureSuccessStatusCode();
+        var endpoint = await save.Content.ReadFromJsonAsync<EndpointDefinition>();
+        Assert.NotNull(endpoint);
+
+        var purge = await SendAsync(client, HttpMethod.Post, $"/admin/api/endpoints/{endpoint!.Id}/cache/purge", jwt, content: null);
+        Assert.Equal(HttpStatusCode.OK, purge.StatusCode);
+        var result = await purge.Content.ReadFromJsonAsync<CachePurgeResult>();
+        Assert.NotNull(result);
+        Assert.Equal(1, result!.MatchedEndpoints);
+        Assert.Contains("cache/purge-by-id", result.PurgedRoutes);
+    }
+
+    [Fact]
+    public async Task Cache_Purge_Is_AdminOnly()
+    {
+        var client = _factory.CreateClient();
+        var adminToken = await LoginAsync(client, "admin", "admin-password");
+
+        var created = await SendAsync(client, HttpMethod.Post, "/admin/api/admins", adminToken,
+            new CreateAdminRequest { Username = "viewer-cache", Password = "viewer-pass", Role = AdminRoles.Viewer });
+        created.EnsureSuccessStatusCode();
+        var viewerToken = await LoginAsync(client, "viewer-cache", "viewer-pass");
+
+        var response = await SendAsync(client, HttpMethod.Post, "/admin/api/cache/purge", viewerToken, content: null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static async Task<string> LoginAsync(HttpClient client, string username, string password)
     {
         var response = await client.PostAsJsonAsync("/admin/api/auth/login",

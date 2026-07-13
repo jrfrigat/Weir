@@ -85,6 +85,12 @@
                                     <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => OpenLogs(context))">Logs</FlareButton>
                                     <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => Edit(context))">Edit</FlareButton>
                                     <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SyncOneAsync(context.Id))">Sync</FlareButton>
+                                    @if (context.Cache.Enabled)
+                                    {
+                                        <FlareTooltip Content="Force-clear this endpoint's cached responses" Arrow="true">
+                                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => PurgeCacheAsync(context))">Purge cache</FlareButton>
+                                        </FlareTooltip>
+                                    }
                                     <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Error" OnClick="@(() => DeleteAsync(context))">Delete</FlareButton>
                                 </FlareStack>
                             </Template>
@@ -774,6 +780,18 @@
         _openApiUrl = null;
         _syncBusy = false;
         await LoadAsync();
+    }
+
+    /// <summary>Force-clears one endpoint's cached responses; they refill on the next call.</summary>
+    /// <param name="endpoint">The endpoint whose cache to purge.</param>
+    private async Task PurgeCacheAsync(EndpointDefinition endpoint)
+    {
+        var result = await Api.PurgeEndpointCacheAsync(endpoint.Id);
+        _notice = result is null
+            ? $"Cache purge failed for /api/{endpoint.Route}."
+            : $"Purged cache for /api/{endpoint.Route}.";
+        _exportUrl = null;
+        _openApiUrl = null;
     }
 
     private static string ChangeSummary(EndpointSyncResult result)
