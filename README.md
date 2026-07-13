@@ -38,7 +38,7 @@ mapping, caching, telemetry and serialization.
 | Plane | Concern | Storage |
 |-------|---------|---------|
 | **Data plane** | The hot request path: auth, bind params, execute SP, stream JSON | Target databases (MSSQL) |
-| **Control plane** | Weir's own metadata: endpoints, API keys, scopes, admin users, audit, settings | Separate store (SQLite or PostgreSQL; provider-abstracted) |
+| **Control plane** | Weir's own metadata: endpoints, API keys, scopes, admin users, audit, settings | Separate store (SQLite, PostgreSQL, or SQL Server; provider-abstracted) |
 
 ## Solution layout
 
@@ -59,7 +59,7 @@ src/
 tests/
 docs/                        en/ and ru/ documentation, plus adr/
 build/                       Dockerfile, CI
-samples/                     Example stored procedures and metadata seed
+samples/                     Example schemas + endpoint seeds, and a CLI client / load tester
 ```
 
 ## API contract (summary)

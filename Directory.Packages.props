@@ -59,15 +59,22 @@
     <PackageVersion Include="StackExchange.Redis" Version="3.0.17" />
   </ItemGroup>
 
+  <ItemGroup Label="Samples">
+    <!-- Rich console rendering for the sample CLI client / load tester (samples/client). The 0.x line
+         bundles the command framework in the main package; the split-out Spectre.Console.Cli only ships
+         as a 1.0 prerelease, so this sample uses a small hand-rolled dispatcher over Spectre.Console. -->
+    <PackageVersion Include="Spectre.Console" Version="0.57.1" />
+  </ItemGroup>
+
   <ItemGroup Label="Blazor WASM admin">
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
-    <PackageVersion Include="Flare.Blazor" Version="0.1.9" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.1.9" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.1.9" />
+    <PackageVersion Include="Flare.Blazor" Version="0.2.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.2.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.2.0" />
   </ItemGroup>
 
   <ItemGroup Label="Testing">

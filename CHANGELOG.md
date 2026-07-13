@@ -55,6 +55,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Flare (the admin UI component library) updated 0.1.9 -> 0.2.0. The release adds `FlareSlider` colored
+  zones and keyboard events across the field family, restores the field focus indicator, and improves the
+  in-box theme fidelity (Fluent / Material state layers, the Visual Studio switch geometry). Its breaking
+  changes are theme-authoring only (new required `InputTokens` / `StateTokens` fields when a theme
+  constructs those tokens directly); Weir's Command Center theme derives from the in-box Visual Studio
+  theme via `with`, so it inherits them and needed no change.
 - NuGet package ids are now prefixed `FrigaT.Weir.*` (for example `FrigaT.Weir.Core`). The bare `Weir`
   id prefix is reserved on nuget.org by another owner, which silently blocked every publish. Only the
   package ids change: assemblies, namespaces, project references and the container image stay `Weir.*` /
@@ -147,6 +153,27 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- A **sample CLI client and load tester** under `samples/client/Weir.Sample.Client` (`weir-sample`),
+  built on Spectre.Console. It calls the sample endpoints over HTTP with an API key, exactly as an
+  external consumer would. Two command families: the widgets sample (`samples/sqlserver/schema.sql`) -
+  `list`, `get`, `create`, `import` (table-valued parameter) - and the demo / orders sample
+  (`samples/sqlserver/demo-database.sql`, `weir-demo.endpoints.json`) - `products`, `product`, `orders`,
+  `order` (two result sets), `create-order` (table-valued parameter, output params + return value) and
+  `customer-stats` (output params); plus a generic `call` that prints the raw envelope. Launched with just
+  a URL and key (no command) it opens an **interactive shell** that stays open for request-after-request
+  use; given a command up front it runs one-shot for scripts / CI. A `load` command drives concurrent
+  requests against any endpoint (`--concurrency`, `--duration` or `--requests`, `--warmup`) and reports
+  throughput and latency percentiles (p50 / p90 / p95 / p99) plus a status-code breakdown, preflighting one
+  request so a bad URL / key / route fails fast. Not packed or shipped in the image; documented in
+  `samples/README.md`.
+- **Forced cache purge** for cached data-plane responses, from the admin UI and over the admin API for
+  CI/CD. The Endpoints grid gains a **Purge cache** action (shown when caching is enabled) that clears one
+  endpoint's cached responses. `POST /admin/api/endpoints/{id}/cache/purge` does the same by id, and
+  `POST /admin/api/cache/purge` invalidates in bulk with `AND`-combined, case-insensitive filters: `route`,
+  `connection` (a database on a server), `schema`, `object` (procedure / function name) and `provider`
+  (the connector behind an endpoint's connection); with no filter it purges every endpoint. Both return
+  `{ matchedEndpoints, purgedRoutes }`, are `AdminOnly`, and are audited under `cache.purge`. Purging clears
+  rendered responses only - it never changes an endpoint definition - and the cache refills on the next call.
 - A **SQL Server control-plane provider** (`Weir.ControlPlane.SqlServer`, `Provider=SqlServer`), the third
   `IControlPlaneStore` backend alongside SQLite and PostgreSQL. It mirrors the PostgreSQL provider in
   T-SQL (bounded `nvarchar` keys, `bit`/`IDENTITY`, `UPDATE ...; IF @@ROWCOUNT = 0 INSERT` upserts,

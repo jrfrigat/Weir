@@ -15,6 +15,7 @@
     <Project Path="src/connectors/Weir.Connectors.SqlServer/Weir.Connectors.SqlServer.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/client/Weir.Sample.Client/Weir.Sample.Client.csproj" />
     <Project Path="samples/connectors/Weir.Connectors.MySql/Weir.Connectors.MySql.csproj" />
   </Folder>
   <Folder Name="/tests/">

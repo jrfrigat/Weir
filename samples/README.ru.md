@@ -14,6 +14,8 @@
   базу `WeirDemo` со схемой `sales`, процедурами / функциями / табличным типом, покрывающими все
   возможности Weir (см. ниже).
 - `weir-demo.endpoints.json` - определения endpoint под `demo-database.sql`, готовые к импорту.
+- `client/` - CLI-клиент и нагрузочный тестер (`weir-sample`), который вызывает endpoint widgets по
+  HTTP, как это делал бы любой внешний потребитель (см. [CLI-клиент](#cli-клиент)).
 
 ## Полная демо-база (SQL Server)
 
@@ -55,6 +57,94 @@
    - `POST /api/widgets` с телом `{ "name": "Bolt", "price": 1.50 }`
    - `POST /api/widgets/import` с телом
      `{ "items": [ { "Name": "Nut", "Price": 0.25 }, { "Name": "Washer", "Price": 0.10 } ] }`
+
+## CLI-клиент
+
+`client/Weir.Sample.Client` - небольшое консольное приложение (`weir-sample`) на
+[Spectre.Console](https://spectreconsole.net/), которое вызывает endpoint widgets и умеет нагружать
+любой endpoint. Оно общается с запущенным хостом по HTTP с API-ключом (`X-Api-Key`), то есть проверяет
+Weir end-to-end - удобно для быстрого smoke-теста или замера пропускной способности после изменений.
+
+### Интерактивный режим
+
+Передайте URL хоста и API-ключ как аргументы (без команды) - откроется интерактивная оболочка, которая
+остаётся открытой, так что можно отправлять запрос за запросом без перезапуска. Из каталога
+`samples/client/Weir.Sample.Client`:
+
+```sh
+dotnet run -- --url http://localhost:8080 --api-key weir_...
+```
+
+Затем вводите команды в приглашении `weir>` (`help` покажет список, `exit` выходит):
+
+```text
+weir> list                                    # GET /api/widgets, таблицей
+weir> get 1                                   # GET /api/widgets/by-id?id=1
+weir> create Bolt 1.50                        # POST /api/widgets; печатает новый id
+weir> import --item Nut:0.25 --item Washer:0.10   # массовая вставка через табличный параметр
+weir> call widgets/by-id?id=1                 # вызвать любой маршрут, напечатать сырой envelope
+weir> load -c 32 -d 15                        # нагрузка на endpoint widgets
+weir> exit
+```
+
+URL и ключ также читаются из `WEIR_URL` / `WEIR_API_KEY`, поэтому один `dotnet run` (с заданными
+переменными) открывает оболочку.
+
+### Одиночный режим (one-shot)
+
+Укажите команду сразу - она выполнится один раз и приложение закроется, что удобно для скриптов и CI.
+URL и ключ берутся из `--url` / `--api-key` или из окружения:
+
+```sh
+export WEIR_URL=http://localhost:8080
+export WEIR_API_KEY=weir_...              # API-ключ, созданный в панели администратора
+dotnet run -- list
+dotnet run -- create Bolt 1.50
+dotnet run -- import --item Nut:0.25 --item Washer:0.10
+dotnet run -- help                        # полный справочник команд и опций
+```
+
+### Команды demo / orders
+
+Команды `list` / `get` / `create` / `import` работают с примером widgets (`endpoints.seed.json`). Есть
+второе семейство команд для более полной демо-базы (`sqlserver/demo-database.sql`, импортируется из
+`weir-demo.endpoints.json`) - продукты, заказы и клиенты в схеме `sales`:
+
+```text
+weir> products                                   # GET /api/products (таблица)
+weir> product 3                                  # GET /api/products/by-id?id=3
+weir> create-order 1 --item 1:2 --item 4:10      # POST /api/orders (табличный параметр)
+weir> order 1                                    # GET /api/orders/detail (заголовок + позиции)
+weir> orders 1                                   # GET /api/customers/orders (табличная функция)
+weir> customer-stats 1                           # GET /api/customers/stats (output-параметры)
+```
+
+`create-order` принимает id клиента и одну или несколько пар `--item ProductId:Quantity`; в ответе
+показываются id и сумма заказа (output-параметры) и число позиций (возвращаемое значение процедуры).
+`order` отображает оба result set (заголовок заказа и его позиции). Любой другой демо-маршрут -
+`products/search`, `products/price`, `inventory/adjust`, `ping`, ... - доступен через универсальную
+команду `call`.
+
+### Нагрузочное тестирование
+
+Команда `load` запускает конкурентные запросы к одному endpoint и выводит пропускную способность и
+перцентили задержки (p50 / p90 / p95 / p99), а также разбивку по кодам статуса. Она работает заданное
+время (`--duration`) или заданное число запросов (`--requests`), с необязательным прогревом.
+
+```sh
+# 32 воркера в течение 15 секунд, прогрев 2с (результаты прогрева отбрасываются):
+dotnet run -- load --route widgets -c 32 -d 15 -w 2
+
+# Фиксированные 50 000 запросов при concurrency 64:
+dotnet run -- load --route widgets -c 64 -n 50000
+
+# Нагрузка на POST-endpoint с телом:
+dotnet run -- load --route widgets -X POST -b '{"name":"Load","price":1.00}' -c 16 -d 10
+```
+
+Перед стартом выполняется один preflight-запрос, поэтому неверный URL, ключ или маршрут приводят к
+быстрой ошибке, а не к потоку одинаковых сбоев. Инструмент - однопроцессная проверка для удобства, а не
+замена распределённому стенду для бенчмарков.
 
 ## Замечание о формате seed-файла
 

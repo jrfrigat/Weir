@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sample console client and load tester for a running Weir host. It calls the data plane over HTTP
+    (X-Api-Key) exactly as any external consumer would, against the "widgets" schema in
+    samples/sqlserver/schema.sql. It is a learning / smoke-test tool, not a shipped product: it is not
+    packed to NuGet and not included in the container image, but it builds in the solution so it stays
+    compatible with the response envelope.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>weir-sample</AssemblyName>
+    <RootNamespace>Weir.Sample.Client</RootNamespace>
+    <Description>Sample CLI client and load tester for the Weir data plane.</Description>
+    <!-- Console app: no need to nag about making the sample's own types internal or about
+         URI-typed parameters on its (non-public) helper surface. -->
+    <NoWarn>$(NoWarn);CA1515;CA1054;CA1056</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+</Project>

@@ -102,3 +102,5 @@ Content-Type: application/json
 - [Безопасность](security.md) - API-ключи, скоупы, аккаунты админов
 - [Конфигурация](configuration.md) - все настройки
 - [Деплой](deployment.md) - Docker и compose
+- [Примеры](../../samples/README.ru.md) - готовая к импорту схема "widgets" (SQL Server и PostgreSQL),
+  более полная демо-база и CLI-клиент / нагрузочный тестер (`weir-sample`), вызывающий эндпоинты по HTTP

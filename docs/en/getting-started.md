@@ -102,3 +102,5 @@ The response is the standard envelope:
 - [Security](security.md) - API keys, scopes, admin accounts
 - [Configuration](configuration.md) - every setting
 - [Deployment](deployment.md) - Docker and compose
+- [Samples](../../samples/README.md) - a ready-to-import "widgets" schema (SQL Server and PostgreSQL), a
+  fuller demo database, and a CLI client / load tester (`weir-sample`) that calls the endpoints over HTTP
