@@ -300,6 +300,12 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             {
                 parameter.Size = size;
             }
+            else if (wp.Direction is WeirDirection.Output or WeirDirection.InputOutput)
+            {
+                // Output parameters need an explicit buffer size so the driver can receive the
+                // value. For text/bytea types, -1 tells Npgsql to use its default max-size buffer.
+                parameter.Size = -1;
+            }
 
             if (wp.Precision is { } precision)
             {

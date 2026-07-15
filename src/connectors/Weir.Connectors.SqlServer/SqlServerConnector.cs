@@ -389,6 +389,14 @@ public sealed class SqlServerConnector : IDbConnector
                 {
                     parameter.Size = size;
                 }
+                else if (wp.Direction is WeirDirection.Output or WeirDirection.InputOutput)
+                {
+                    // Output parameters must have an explicit buffer size so SqlClient can receive
+                    // the value. For max-capable types (NVarChar, VarChar, VarBinary), -1 tells the
+                    // driver to use its default max-size buffer. Without this, Size defaults to 0 and
+                    // the output is truncated or rejected.
+                    parameter.Size = -1;
+                }
 
                 if (wp.Precision is { } precision)
                 {
