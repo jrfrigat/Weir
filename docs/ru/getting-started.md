@@ -99,7 +99,7 @@ Content-Type: application/json
 
 ## Дальше
 
-- [Эндпоинты и контракт API](endpoints.md) - параметры, TVP, output-параметры, кеширование
+- [Эндпоинты и контракт API](endpoints.md) - параметры, TVP, output-параметры, кэширование
 - [Безопасность](security.md) - API-ключи, скоупы, аккаунты админов
 - [Конфигурация](configuration.md) - все настройки
 - [Деплой](deployment.md) - Docker и compose
