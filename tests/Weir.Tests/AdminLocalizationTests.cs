@@ -46,7 +46,7 @@ public class AdminLocalizationTests
     /// <summary>Collects the composite-format placeholders ({0}, {1}, ...) used by a value.</summary>
     /// <param name="value">The resource value to scan.</param>
     /// <returns>The distinct argument indexes referenced, ascending.</returns>
-    private static IReadOnlyList<string> Placeholders(string value) =>
+    private static List<string> Placeholders(string value) =>
         Regex.Matches(value, @"\{(\d+)(?:[,:][^}]*)?\}")
             .Select(m => m.Groups[1].Value)
             .Distinct(StringComparer.Ordinal)
