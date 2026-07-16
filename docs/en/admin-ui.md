@@ -154,6 +154,22 @@ the host serves the PWA control files (`service-worker.js`, `service-worker-asse
 `register-sw.js`, the manifest) with `Cache-Control: no-cache` so the browser always sees a fresh
 deployment; put the same rule on any reverse proxy or CDN in front of Weir.
 
+## Language
+
+The console ships English and Russian. Pick the language from the **translate** menu in the top bar;
+the same picker sits on the sign-in card, since login happens before there is a session. The choice is
+a per-browser preference: it is kept in `localStorage` and applied before the first paint, so it
+survives a reload and an offline start. With nothing stored, the console follows the browser language
+and falls back to English. Switching is instant - no reload - and never touches the control plane: the
+language belongs to the browser, not to the gateway, so two admins on one deployment can each read it
+in their own language.
+
+The strings live in `src/Weir.Admin/Resources/AdminStrings.resx` (English, the neutral fallback) and
+`AdminStrings.ru.resx` (Russian), reached through the generated `AdminStrings` class; components that
+render them derive from `LocalizedPage`, which re-renders them on a switch. To add a language: add
+`AdminStrings.<code>.resx`, add the code and its native display name to
+`LanguageService.SupportedCultures`, and rebuild - the satellite assembly is picked up automatically.
+
 ## Theme
 
 The UI uses a single fixed theme: the Visual Studio 2026 geometry recoloured with the **Command Center**

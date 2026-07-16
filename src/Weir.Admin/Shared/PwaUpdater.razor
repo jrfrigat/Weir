@@ -34,7 +34,7 @@
             _shown = true;
             // Persistent (durationMs: 0) info toast with an Update action, rendered by FlareSnackbarProvider
             // in the app's theme - the Command Center popup, not a bespoke banner.
-            Snackbar.Show("A new version of Weir Admin is available.", SnackbarSeverity.Info, 0, "Update", ApplyUpdateAsync, true);
+            Snackbar.Show(AdminStrings.Pwa_UpdateAvailable, SnackbarSeverity.Info, 0, AdminStrings.Pwa_UpdateAction, ApplyUpdateAsync, true);
         });
 
     /// <summary>Applies the waiting service worker (which triggers a one-time reload onto the new build).</summary>

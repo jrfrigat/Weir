@@ -37,6 +37,8 @@ builder.Services.AddFlareVersionCheck(options =>
     options.Interval = TimeSpan.FromMinutes(30);
 });
 
+builder.Services.AddScoped<LanguageService>();
+
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<TokenStore>();
 builder.Services.AddScoped<WeirAuthStateProvider>();
@@ -54,4 +56,11 @@ builder.Services.AddScoped(sp =>
 });
 builder.Services.AddScoped<WeirApiClient>();
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+
+// Resolve the UI language before the first render: the choice lives in localStorage (so it survives a
+// reload and an offline start), and reading it is async, which a component's synchronous first render
+// cannot wait for. Doing it here means no flash of English before the saved language applies.
+await host.Services.GetRequiredService<LanguageService>().InitializeCultureAsync();
+
+await host.RunAsync();

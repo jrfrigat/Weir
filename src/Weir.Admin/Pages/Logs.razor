@@ -1,39 +1,40 @@
 @page "/logs"
 @attribute [Authorize]
+@inherits LocalizedPage
 @using System.Globalization
 @using System.Text.Json
 @inject WeirApiClient Api
 @inject NavigationManager Nav
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="logs" Description="Data-plane request history - timing, results and slow calls">
+    <PageHeader Title="@AdminStrings.Logs_Title" Description="@AdminStrings.Logs_Description">
         <Actions>
             @if (_endpointLabel is not null)
             {
-                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Label="@($"endpoint: {_endpointLabel}")" />
-                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearEndpoint">Clear</FlareButton>
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Label="@string.Format(AdminStrings.Logs_EndpointChip, _endpointLabel)" />
+                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearEndpoint">@AdminStrings.Logs_Clear</FlareButton>
             }
-            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="RefreshAsync" Loading="_loading">Refresh</FlareButton>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="RefreshAsync" Loading="_loading">@AdminStrings.Common_Refresh</FlareButton>
         </Actions>
     </PageHeader>
 
     <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Medium" Wrap="true">
-        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// FILTER</FlareText>
-        <FlareSwitch Value="_slowOnly" ValueChanged="OnSlowOnlyChanged" Label="Slow only" />
-        <FlareSwitch Value="_errorsOnly" ValueChanged="OnErrorsOnlyChanged" Label="Errors only" />
+        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionFilter</FlareText>
+        <FlareSwitch Value="_slowOnly" ValueChanged="OnSlowOnlyChanged" Label="@AdminStrings.Logs_SlowOnly" />
+        <FlareSwitch Value="_errorsOnly" ValueChanged="OnErrorsOnlyChanged" Label="@AdminStrings.Logs_ErrorsOnly" />
         @if (_entries is { Count: > 0 })
         {
-            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@_entries.Count loaded</FlareText>
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_LoadedCount, _entries.Count)</FlareText>
         }
     </FlareStack>
 
     @if (_entries is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else if (_entries.Count == 0)
     {
-        <FlareEmptyState Title="No requests logged yet" Description="Calls appear here once the data plane serves them (request logging is enabled in Settings).">
+        <FlareEmptyState Title="@AdminStrings.Logs_EmptyTitle" Description="@AdminStrings.Logs_EmptyDescription">
             <Icon><FlareIcon Name="receipt_long" /></Icon>
         </FlareEmptyState>
     }
@@ -41,18 +42,18 @@
     {
         <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" RowClick="@(e => OpenDetail(e))">
             <Columns>
-                <FlareColumn TItem="RequestLogEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
-                <FlareColumn TItem="RequestLogEntry" Title="Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
                     <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Route" Field="@(e => (object?)e.Route)" Filterable="true" FilterFunc="@FilterLike">
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Route" Field="@(e => (object?)e.Route)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true">/@context.Route</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Object" Field="@(e => (object?)e.ObjectName)" Filterable="true" FilterFunc="@FilterLike" />
-                <FlareColumn TItem="RequestLogEntry" Title="Status" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenInt">
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Object" Field="@(e => (object?)e.ObjectName)" Filterable="true" FilterFunc="@FilterLike" />
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Status" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenInt">
                     <Template><FlareText Element="span" Mono="true" Color="@StatusColor(context.StatusCode)">@(context.StatusCode?.ToString() ?? "-")</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Duration" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenDouble">
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Duration" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenDouble">
                     <Template>
                         <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
                             @if (context.Slow)
@@ -63,9 +64,9 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="DB" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" Filterable="true" FilterFunc="@FilterBetweenDoubleNullable" />
-                <FlareColumn TItem="RequestLogEntry" Title="Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? "cache" : e.RowsReturned?.ToString() ?? "-"))" Filterable="true" FilterFunc="@FilterLikeRows" />
-                <FlareColumn TItem="RequestLogEntry" Title="Caller" Field="@(e => (object?)e.ApiKeyPrefix)" Filterable="true" FilterFunc="@FilterLike">
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Db" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" Filterable="true" FilterFunc="@FilterBetweenDoubleNullable" />
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? AdminStrings.Logs_CacheLabel : e.RowsReturned?.ToString() ?? "-"))" Filterable="true" FilterFunc="@FilterLikeRows" />
+                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Caller" Field="@(e => (object?)e.ApiKeyPrefix)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.ApiKeyPrefix</FlareText></Template>
                 </FlareColumn>
             </Columns>
@@ -74,11 +75,11 @@
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
             @if (_hasMore)
             {
-                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">Load older</FlareButton>
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Logs_LoadOlder</FlareButton>
             }
             @if (_loadingMore)
             {
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
             }
         </FlareStack>
     }
@@ -103,8 +104,8 @@
                 @if (_selected.EndpointId is { } endpointId)
                 {
                     <FlareStack Row Gap="FlareSpacing.Small" Wrap="true">
-                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointTest(endpointId))">Test endpoint</FlareButton>
-                        <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointEdit(endpointId))">Edit endpoint</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointTest(endpointId))">@AdminStrings.Logs_TestEndpoint</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointEdit(endpointId))">@AdminStrings.Logs_EditEndpoint</FlareButton>
                     </FlareStack>
                 }
 
@@ -118,7 +119,7 @@
                     var overheadPct = denom > 0 ? overhead / denom * 100 : 100;
                 }
                 <FlareCard Variant="CardVariant.Outlined">
-                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// TIMING BREAKDOWN</FlareText>
+                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionTimingBreakdown</FlareText>
                     @* Part-to-whole segmented bar. Flare has no stacked/segmented meter component yet
                        (FlareProgress is single-value progress with a stop indicator, semantically wrong
                        here) - tracked in Flare docs/issues/flare-segmented-meter-component.md. Colours
@@ -126,56 +127,56 @@
                     <div style="display:flex;width:100%;height:24px;border-radius:4px;overflow:hidden;margin:0.5rem 0;background:var(--flare-color-surface-variant);">
                         @if (dbPct > 0)
                         {
-                            <div style="width:@Pct(dbPct)%;background:var(--flare-color-error);" title="DB @Ms(db)"></div>
+                            <div style="width:@Pct(dbPct)%;background:var(--flare-color-error);" title="@string.Format(AdminStrings.Logs_TimingDb, Ms(db))"></div>
                         }
-                        <div style="width:@Pct(overheadPct)%;background:var(--flare-color-on-surface-variant);" title="Other @Ms(overhead)"></div>
+                        <div style="width:@Pct(overheadPct)%;background:var(--flare-color-on-surface-variant);" title="@string.Format(AdminStrings.Logs_TimingOther, Ms(overhead))"></div>
                     </div>
                     <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
                         @if (db > 0)
                         {
-                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.Error">DB @Ms(db)</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.Error">@string.Format(AdminStrings.Logs_TimingDb, Ms(db))</FlareText>
                         }
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">Other @Ms(overhead)</FlareText>
+                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_TimingOther, Ms(overhead))</FlareText>
                         <FlareDivider Vertical="true" Style="height:14px;" />
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">Total @Ms(total)</FlareText>
+                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_TimingTotal, Ms(total))</FlareText>
                         @if (_selected.AverageMs is { } avg)
                         {
-                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">avg @Ms(avg)</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_TimingAverage, Ms(avg))</FlareText>
                         }
                     </FlareStack>
                 </FlareCard>
 
                 <FlareDescriptionList>
-                    <FlareDescriptionItem Label="Time"><FlareText Mono="true">@_selected.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</FlareText></FlareDescriptionItem>
-                    <FlareDescriptionItem Label="Object"><FlareText Mono="true">@_selected.ObjectName</FlareText></FlareDescriptionItem>
-                    <FlareDescriptionItem Label="Connection"><FlareText Mono="true">@_selected.ConnectionName</FlareText></FlareDescriptionItem>
-                    <FlareDescriptionItem Label="Status"><FlareText Mono="true" Color="@StatusColor(_selected.StatusCode)">@(_selected.StatusCode?.ToString() ?? "-") (@_selected.Outcome)</FlareText></FlareDescriptionItem>
-                    <FlareDescriptionItem Label="Duration"><FlareText Mono="true" Color="@(_selected.Slow ? FlareColor.Warning : FlareColor.OnSurface)">@Ms(_selected.DurationMs)@(_selected.Slow ? " (slow)" : "")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Time"><FlareText Mono="true">@_selected.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Object"><FlareText Mono="true">@_selected.ObjectName</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Connection"><FlareText Mono="true">@_selected.ConnectionName</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Status"><FlareText Mono="true" Color="@StatusColor(_selected.StatusCode)">@(_selected.StatusCode?.ToString() ?? "-") (@_selected.Outcome)</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Duration"><FlareText Mono="true" Color="@(_selected.Slow ? FlareColor.Warning : FlareColor.OnSurface)">@Ms(_selected.DurationMs)@(_selected.Slow ? AdminStrings.Logs_SlowSuffix : "")</FlareText></FlareDescriptionItem>
                     @if (_selected.DbDurationMs is { } db)
                     {
-                        <FlareDescriptionItem Label="Database time"><FlareText Mono="true">@Ms(db)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Logs_DatabaseTime"><FlareText Mono="true">@Ms(db)</FlareText></FlareDescriptionItem>
                     }
                     @if (_selected.AverageMs is { } avg)
                     {
-                        <FlareDescriptionItem Label="Endpoint average"><FlareText Mono="true">@Ms(avg)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Logs_EndpointAverage"><FlareText Mono="true">@Ms(avg)</FlareText></FlareDescriptionItem>
                     }
-                    <FlareDescriptionItem Label="Rows"><FlareText Mono="true">@(_selected.CacheHit ? "served from cache" : _selected.RowsReturned?.ToString() ?? "-")</FlareText></FlareDescriptionItem>
-                    <FlareDescriptionItem Label="Caller"><FlareText Mono="true">@_selected.ApiKeyPrefix</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Rows"><FlareText Mono="true">@(_selected.CacheHit ? AdminStrings.Logs_ServedFromCache : _selected.RowsReturned?.ToString() ?? "-")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Logs_Caller"><FlareText Mono="true">@_selected.ApiKeyPrefix</FlareText></FlareDescriptionItem>
                 </FlareDescriptionList>
 
                 @if (!string.IsNullOrEmpty(_selected.Error))
                 {
-                    <FlareAlert Severity="AlertSeverity.Error" Title="Error">@_selected.Error</FlareAlert>
+                    <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Logs_ErrorTitle">@_selected.Error</FlareAlert>
                 }
 
                 @if (!string.IsNullOrEmpty(_selected.Parameters))
                 {
                     <FlareDivider />
                     <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
-                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// PARAMETERS</FlareText>
+                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionParameters</FlareText>
                         <FlareStack Row Gap="FlareSpacing.XSmall">
                             <FlareClipboard Text="@Pretty(_selected.Parameters)" Variant="ButtonVariant.Text" Size="ButtonSize.Sm" />
-                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson("Parameters", _selected!.Parameters!))">View</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson(AdminStrings.Logs_ParametersTitle, _selected!.Parameters!))">@AdminStrings.Logs_View</FlareButton>
                         </FlareStack>
                     </FlareStack>
                     <FlareCodeBlock Value="@Preview(_selected.Parameters)" Language="json" ReadOnly="true" />
@@ -185,10 +186,10 @@
                 {
                     <FlareDivider />
                     <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
-                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// RESULT</FlareText>
+                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionResult</FlareText>
                         <FlareStack Row Gap="FlareSpacing.XSmall">
                             <FlareClipboard Text="@Pretty(_selected.Result)" Variant="ButtonVariant.Text" Size="ButtonSize.Sm" />
-                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson("Result", _selected!.Result!))">View</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson(AdminStrings.Logs_ResultTitle, _selected!.Result!))">@AdminStrings.Logs_View</FlareButton>
                         </FlareStack>
                     </FlareStack>
                     <FlareCodeBlock Value="@Preview(_selected.Result)" Language="json" ReadOnly="true" />
@@ -197,7 +198,7 @@
                 @if (string.IsNullOrEmpty(_selected.Parameters) && string.IsNullOrEmpty(_selected.Result))
                 {
                     <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
-                        Parameter and result capture is off for this endpoint. Enable it per endpoint in the endpoint editor's Logging section.
+                        @AdminStrings.Logs_CaptureOffHint
                     </FlareText>
                 }
             </FlareStack>
@@ -214,7 +215,7 @@
     </ChildContent>
     <Actions>
         <FlareClipboard Text="@_jsonBody" Variant="ButtonVariant.Text" />
-        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => _showJson = false)">Close</FlareButton>
+        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => _showJson = false)">@AdminStrings.Common_Close</FlareButton>
     </Actions>
 </FlareDialog>
 
@@ -371,7 +372,7 @@
             cut--;
         }
 
-        return pretty[..cut] + "\n... (truncated - use View for the full JSON)";
+        return pretty[..cut] + AdminStrings.Logs_TruncatedMarker;
     }
 
     /// <summary>Formats a percentage for a CSS width, invariant culture.</summary>
@@ -385,8 +386,8 @@
     /// <summary>Tooltip explaining why a call was flagged slow.</summary>
     private static string SlowHint(RequestLogEntry entry) =>
         entry.AverageMs is { } avg
-            ? $"Slower than usual: {Ms(entry.DurationMs)} vs {Ms(avg)} average"
-            : "Slower than usual for this endpoint";
+            ? string.Format(AdminStrings.Logs_SlowHintWithAverage, Ms(entry.DurationMs), Ms(avg))
+            : AdminStrings.Logs_SlowHint;
 
     /// <summary>Pretty-prints a captured JSON string, falling back to the raw text.</summary>
     private static string Pretty(string raw)
@@ -461,7 +462,7 @@
             return true;
         }
 
-        var text = entry.CacheHit ? "cache" : entry.RowsReturned?.ToString() ?? "-";
+        var text = entry.CacheHit ? AdminStrings.Logs_CacheLabel : entry.RowsReturned?.ToString() ?? "-";
         return text.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
 

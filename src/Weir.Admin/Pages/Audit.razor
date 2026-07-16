@@ -1,17 +1,18 @@
 @page "/audit"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="audit" Description="Recent audit entries - newest first" />
+    <PageHeader Title="@AdminStrings.Audit_Title" Description="@AdminStrings.Audit_Description" />
 
     @if (_entries is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else if (_entries.Count == 0)
     {
-        <FlareEmptyState Title="No audit entries">
+        <FlareEmptyState Title="@AdminStrings.Audit_EmptyTitle">
             <Icon><FlareIcon Name="history" /></Icon>
         </FlareEmptyState>
     }
@@ -19,11 +20,11 @@
     {
         <FlareDataGrid Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50">
             <ToolbarContent>
-                <FlareDataGridQuickFilter Placeholder="Filter..." />
+                <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
             </ToolbarContent>
             <Columns>
-                <FlareColumn TItem="AuditEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
-                <FlareColumn TItem="AuditEntry" Title="Category" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnTime" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
+                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnCategory" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
                     <Template>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
                             <FlareIcon Name="fiber_manual_record" Size="0.7rem" Color="@KindColor(context.Category)" />
@@ -31,9 +32,9 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AuditEntry" Title="Actor" Field="@(e => (object?)e.Actor)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="AuditEntry" Title="Detail" Field="@(e => (object?)(string.IsNullOrEmpty(e.Detail) ? e.Route : e.Detail))" Filterable="true" />
-                <FlareColumn TItem="AuditEntry" Title="Outcome" Filterable="true">
+                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnActor" Field="@(e => (object?)e.Actor)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnDetail" Field="@(e => (object?)(string.IsNullOrEmpty(e.Detail) ? e.Route : e.Detail))" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnOutcome" Filterable="true">
                     <Template>
                         <FlareText Element="span" Mono="true" Color="@OutcomeColor(context.Outcome)">@context.Outcome</FlareText>
                     </Template>
@@ -44,13 +45,13 @@
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
             @if (_hasMore)
             {
-                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">Load older</FlareButton>
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Audit_LoadOlder</FlareButton>
             }
             @if (_loadingMore)
             {
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
             }
-            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@_entries.Count loaded</FlareText>
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Audit_EntriesLoaded, _entries.Count)</FlareText>
         </FlareStack>
     }
 </FlareStack>

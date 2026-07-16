@@ -1,0 +1,1226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Изменить</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="Common_Saving" xml:space="preserve">
+    <value>Сохранение...</value>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Common_Search" xml:space="preserve">
+    <value>Поиск</value>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Common_Actions" xml:space="preserve">
+    <value>Действия</value>
+  </data>
+  <data name="Common_Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Common_Description" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Common_Enabled" xml:space="preserve">
+    <value>Включен</value>
+  </data>
+  <data name="Common_Yes" xml:space="preserve">
+    <value>Да</value>
+  </data>
+  <data name="Common_No" xml:space="preserve">
+    <value>Нет</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>Нет</value>
+  </data>
+  <data name="Common_Create" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Common_Reset" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Common_Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Common_Back" xml:space="preserve">
+    <value>Назад</value>
+  </data>
+  <data name="Nav_Overview" xml:space="preserve">
+    <value>обзор</value>
+  </data>
+  <data name="Nav_Endpoints" xml:space="preserve">
+    <value>эндпоинты</value>
+  </data>
+  <data name="Nav_Scopes" xml:space="preserve">
+    <value>скоупы</value>
+  </data>
+  <data name="Nav_Keys" xml:space="preserve">
+    <value>ключи</value>
+  </data>
+  <data name="Nav_Admins" xml:space="preserve">
+    <value>администраторы</value>
+  </data>
+  <data name="Nav_Logs" xml:space="preserve">
+    <value>логи</value>
+  </data>
+  <data name="Nav_Audit" xml:space="preserve">
+    <value>аудит</value>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>настройки</value>
+  </data>
+  <data name="Layout_LanguageMenuAriaLabel" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="Layout_GitHubAriaLabel" xml:space="preserve">
+    <value>Исходный код Weir на GitHub</value>
+  </data>
+  <data name="Layout_AccountMenuAriaLabel" xml:space="preserve">
+    <value>Меню аккаунта</value>
+  </data>
+  <data name="Layout_Account" xml:space="preserve">
+    <value>Аккаунт</value>
+  </data>
+  <data name="Layout_SignOut" xml:space="preserve">
+    <value>Выйти</value>
+  </data>
+  <data name="Layout_ErrorTitle" xml:space="preserve">
+    <value>Что-то пошло не так</value>
+  </data>
+  <data name="Layout_ErrorBody" xml:space="preserve">
+    <value>На этой странице произошла непредвиденная ошибка. Перезагрузите ее или перейдите на другой экран.</value>
+  </data>
+  <data name="Layout_PageNotFound" xml:space="preserve">
+    <value>Страница не найдена.</value>
+  </data>
+  <data name="Pwa_UpdateAvailable" xml:space="preserve">
+    <value>Доступна новая версия Weir Admin.</value>
+  </data>
+  <data name="Pwa_UpdateAction" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Account_Title" xml:space="preserve">
+    <value>аккаунт</value>
+  </data>
+  <data name="Account_Description" xml:space="preserve">
+    <value>Ваш профиль, пароль и персональные токены доступа</value>
+  </data>
+  <data name="Account_Profile" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+  <data name="Account_Username" xml:space="preserve">
+    <value>Имя пользователя</value>
+  </data>
+  <data name="Account_Role" xml:space="preserve">
+    <value>Роль</value>
+  </data>
+  <data name="Account_RoleFullAccess" xml:space="preserve">
+    <value>полный доступ</value>
+  </data>
+  <data name="Account_RoleReadOnly" xml:space="preserve">
+    <value>только чтение</value>
+  </data>
+  <data name="Account_ChangePasswordHeading" xml:space="preserve">
+    <value>Смена пароля</value>
+  </data>
+  <data name="Account_CurrentPassword" xml:space="preserve">
+    <value>Текущий пароль</value>
+  </data>
+  <data name="Account_NewPassword" xml:space="preserve">
+    <value>Новый пароль</value>
+  </data>
+  <data name="Account_ConfirmNewPassword" xml:space="preserve">
+    <value>Подтвердите новый пароль</value>
+  </data>
+  <data name="Account_ChangePasswordButton" xml:space="preserve">
+    <value>Сменить пароль</value>
+  </data>
+  <data name="Account_AccessTokens" xml:space="preserve">
+    <value>Токены доступа</value>
+  </data>
+  <data name="Account_TokensIntro" xml:space="preserve">
+    <value>Персональные токены доступа вызывают admin API от вашего имени (с вашей ролью), для скриптов и CI/CD - например, чтобы синхронизировать параметры эндпоинта при деплое. Передавайте его как</value>
+  </data>
+  <data name="Account_TokenCreatedTitle" xml:space="preserve">
+    <value>Токен создан - скопируйте его сейчас</value>
+  </data>
+  <data name="Account_TokenCreatedBody" xml:space="preserve">
+    <value>Токен показывается один раз, получить его позже нельзя.</value>
+  </data>
+  <data name="Account_Copied" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Account_Done" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Account_TokenNamePlaceholder" xml:space="preserve">
+    <value>например, ci-deploy</value>
+  </data>
+  <data name="Account_TokenExpiryLabel" xml:space="preserve">
+    <value>Истекает через (дней; пусто = никогда)</value>
+  </data>
+  <data name="Account_TokenExpiryPlaceholder" xml:space="preserve">
+    <value>например, 90</value>
+  </data>
+  <data name="Account_CreateToken" xml:space="preserve">
+    <value>Создать токен</value>
+  </data>
+  <data name="Account_NoTokens" xml:space="preserve">
+    <value>Токенов пока нет.</value>
+  </data>
+  <data name="Account_ColumnToken" xml:space="preserve">
+    <value>Токен</value>
+  </data>
+  <data name="Account_ColumnCreated" xml:space="preserve">
+    <value>Создан</value>
+  </data>
+  <data name="Account_ColumnExpires" xml:space="preserve">
+    <value>Истекает</value>
+  </data>
+  <data name="Account_ColumnLastUsed" xml:space="preserve">
+    <value>Использован</value>
+  </data>
+  <data name="Account_Never" xml:space="preserve">
+    <value>никогда</value>
+  </data>
+  <data name="Account_Revoke" xml:space="preserve">
+    <value>Отозвать</value>
+  </data>
+  <data name="Account_ErrorTokenNameRequired" xml:space="preserve">
+    <value>Введите имя токена.</value>
+  </data>
+  <data name="Account_ErrorTokenExpiryInvalid" xml:space="preserve">
+    <value>Срок должен быть положительным числом дней или пустым.</value>
+  </data>
+  <data name="Account_ErrorTokenCreateFailed" xml:space="preserve">
+    <value>Не удалось создать токен.</value>
+  </data>
+  <data name="Account_ErrorPasswordFieldsRequired" xml:space="preserve">
+    <value>Заполните текущий и новый пароль.</value>
+  </data>
+  <data name="Account_ErrorPasswordMismatch" xml:space="preserve">
+    <value>Новые пароли не совпадают.</value>
+  </data>
+  <data name="Account_PasswordChanged" xml:space="preserve">
+    <value>Пароль изменен.</value>
+  </data>
+  <data name="Account_ErrorCurrentPasswordIncorrect" xml:space="preserve">
+    <value>Текущий пароль неверен.</value>
+  </data>
+  <data name="Admins_Title" xml:space="preserve">
+    <value>администраторы</value>
+  </data>
+  <data name="Admins_Description" xml:space="preserve">
+    <value>Локальные учетные записи, которые могут входить в эту консоль</value>
+  </data>
+  <data name="Admins_NewAdmin" xml:space="preserve">
+    <value>Новый администратор</value>
+  </data>
+  <data name="Admins_Username" xml:space="preserve">
+    <value>Имя пользователя</value>
+  </data>
+  <data name="Admins_Password" xml:space="preserve">
+    <value>Пароль</value>
+  </data>
+  <data name="Admins_Role" xml:space="preserve">
+    <value>Роль</value>
+  </data>
+  <data name="Admins_EmptyTitle" xml:space="preserve">
+    <value>Нет учетных записей администраторов</value>
+  </data>
+  <data name="Admins_EmptyDescription" xml:space="preserve">
+    <value>Создайте учетную запись администратора выше.</value>
+  </data>
+  <data name="Admins_Login" xml:space="preserve">
+    <value>Логин</value>
+  </data>
+  <data name="Admins_Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Admins_StatusEnabled" xml:space="preserve">
+    <value>включен</value>
+  </data>
+  <data name="Admins_StatusDisabled" xml:space="preserve">
+    <value>отключен</value>
+  </data>
+  <data name="Admins_LastLogin" xml:space="preserve">
+    <value>Последний вход</value>
+  </data>
+  <data name="Admins_Created" xml:space="preserve">
+    <value>Создан</value>
+  </data>
+  <data name="Admins_ResetPassword" xml:space="preserve">
+    <value>Сбросить пароль</value>
+  </data>
+  <data name="Admins_NewPassword" xml:space="preserve">
+    <value>Новый пароль</value>
+  </data>
+  <data name="Admins_RoleNotePrefix" xml:space="preserve">
+    <value>Добавлять администраторов и сбрасывать пароли могут только учетные записи с ролью Admin. Свой пароль можно изменить на странице </value>
+  </data>
+  <data name="Admins_AccountLink" xml:space="preserve">
+    <value>Аккаунт</value>
+  </data>
+  <data name="Admins_RoleNoteSuffix" xml:space="preserve">
+    <value>.</value>
+  </data>
+  <data name="Admins_RoleAdminFullAccess" xml:space="preserve">
+    <value>Admin (полный доступ)</value>
+  </data>
+  <data name="Admins_RoleViewerReadOnly" xml:space="preserve">
+    <value>Viewer (только чтение)</value>
+  </data>
+  <data name="Admins_EnterUsernameAndPassword" xml:space="preserve">
+    <value>Введите имя пользователя и пароль.</value>
+  </data>
+  <data name="Admins_EnterNewPassword" xml:space="preserve">
+    <value>Введите новый пароль.</value>
+  </data>
+  <data name="Admins_ResetFailedAdminRoleRequired" xml:space="preserve">
+    <value>Не удалось (требуется роль Admin).</value>
+  </data>
+  <data name="Audit_Title" xml:space="preserve">
+    <value>аудит</value>
+  </data>
+  <data name="Audit_Description" xml:space="preserve">
+    <value>Последние записи аудита - сначала новые</value>
+  </data>
+  <data name="Audit_EmptyTitle" xml:space="preserve">
+    <value>Нет записей аудита</value>
+  </data>
+  <data name="Audit_FilterPlaceholder" xml:space="preserve">
+    <value>Фильтр...</value>
+  </data>
+  <data name="Audit_ColumnTime" xml:space="preserve">
+    <value>Время</value>
+  </data>
+  <data name="Audit_ColumnCategory" xml:space="preserve">
+    <value>Категория</value>
+  </data>
+  <data name="Audit_ColumnActor" xml:space="preserve">
+    <value>Субъект</value>
+  </data>
+  <data name="Audit_ColumnDetail" xml:space="preserve">
+    <value>Детали</value>
+  </data>
+  <data name="Audit_ColumnOutcome" xml:space="preserve">
+    <value>Результат</value>
+  </data>
+  <data name="Audit_LoadOlder" xml:space="preserve">
+    <value>Загрузить ещё</value>
+  </data>
+  <data name="Audit_EntriesLoaded" xml:space="preserve">
+    <value>загружено: {0}</value>
+  </data>
+  <data name="Dashboard_OverviewHeading" xml:space="preserve">
+    <value>// ОБЗОР</value>
+  </data>
+  <data name="Dashboard_OverviewHeadingLive" xml:space="preserve">
+    <value>// ОБЗОР - ОНЛАЙН</value>
+  </data>
+  <data name="Dashboard_StatusStarting" xml:space="preserve">
+    <value>ЗАПУСК</value>
+  </data>
+  <data name="Dashboard_StatusOperational" xml:space="preserve">
+    <value>РАБОТАЕТ</value>
+  </data>
+  <data name="Dashboard_StatusDegraded" xml:space="preserve">
+    <value>ДЕГРАДАЦИЯ</value>
+  </data>
+  <data name="Dashboard_StatusCheckingConnections" xml:space="preserve">
+    <value>проверка подключений</value>
+  </data>
+  <data name="Dashboard_StatusAllNominal" xml:space="preserve">
+    <value>все системы в норме</value>
+  </data>
+  <data name="Dashboard_StatusConnectionsDown" xml:space="preserve">
+    <value>{0} из {1} подключений недоступно</value>
+  </data>
+  <data name="Dashboard_ThroughputCaption" xml:space="preserve">
+    <value>пропускная способность req/s</value>
+  </data>
+  <data name="Dashboard_TotalRequestsCaption" xml:space="preserve">
+    <value>всего запросов</value>
+  </data>
+  <data name="Dashboard_InFlightCaption" xml:space="preserve">
+    <value>в обработке</value>
+  </data>
+  <data name="Dashboard_UptimeErrorsCaption" xml:space="preserve">
+    <value>аптайм - {0} ошибок ({1})</value>
+  </data>
+  <data name="Dashboard_ConnectionConnected" xml:space="preserve">
+    <value>подключено</value>
+  </data>
+  <data name="Dashboard_ConnectionUnreachable" xml:space="preserve">
+    <value>недоступно</value>
+  </data>
+  <data name="Dashboard_ConnectionProbe" xml:space="preserve">
+    <value>проба</value>
+  </data>
+  <data name="Dashboard_ConnectionDown" xml:space="preserve">
+    <value>не отвечает</value>
+  </data>
+  <data name="Dashboard_ServiceMetricsHeading" xml:space="preserve">
+    <value>// МЕТРИКИ СЕРВИСА</value>
+  </data>
+  <data name="Dashboard_P50Latency" xml:space="preserve">
+    <value>задержка p50</value>
+  </data>
+  <data name="Dashboard_P95Latency" xml:space="preserve">
+    <value>задержка p95</value>
+  </data>
+  <data name="Dashboard_P99Latency" xml:space="preserve">
+    <value>задержка p99</value>
+  </data>
+  <data name="Dashboard_ErrorRate" xml:space="preserve">
+    <value>доля ошибок</value>
+  </data>
+  <data name="Dashboard_CacheHit" xml:space="preserve">
+    <value>попадания в кэш</value>
+  </data>
+  <data name="Dashboard_Connections" xml:space="preserve">
+    <value>подключения</value>
+  </data>
+  <data name="Dashboard_CacheHeading" xml:space="preserve">
+    <value>// КЭШ</value>
+  </data>
+  <data name="Dashboard_CacheHitMiss" xml:space="preserve">
+    <value>{0} попаданий - {1} промахов</value>
+  </data>
+  <data name="Dashboard_ThroughputChartTitle" xml:space="preserve">
+    <value>ПРОПУСКНАЯ СПОСОБНОСТЬ</value>
+  </data>
+  <data name="Dashboard_LatencyChartTitle" xml:space="preserve">
+    <value>ЗАДЕРЖКА p50</value>
+  </data>
+  <data name="Dashboard_EndpointsHeading" xml:space="preserve">
+    <value>// ЭНДПОИНТЫ - ОНЛАЙН</value>
+  </data>
+  <data name="Dashboard_EndpointsActiveHint" xml:space="preserve">
+    <value>{0} активно - нажмите на строку для деталей</value>
+  </data>
+  <data name="Dashboard_NoCallsRecorded" xml:space="preserve">
+    <value>Вызовов пока не зафиксировано.</value>
+  </data>
+  <data name="Dashboard_ColumnRoute" xml:space="preserve">
+    <value>Маршрут</value>
+  </data>
+  <data name="Dashboard_ColumnObject" xml:space="preserve">
+    <value>Объект</value>
+  </data>
+  <data name="Dashboard_ColumnCount" xml:space="preserve">
+    <value>Кол-во</value>
+  </data>
+  <data name="Dashboard_ColumnErrorPct" xml:space="preserve">
+    <value>Ошибки%</value>
+  </data>
+  <data name="Dashboard_ColumnCache" xml:space="preserve">
+    <value>Кэш</value>
+  </data>
+  <data name="Dashboard_ColumnLast" xml:space="preserve">
+    <value>Последний</value>
+  </data>
+  <data name="Endpoints_PageTitle" xml:space="preserve">
+    <value>эндпоинты</value>
+  </data>
+  <data name="Endpoints_PageDescription" xml:space="preserve">
+    <value>HTTP-маршруты, связанные с хранимыми процедурами и функциями</value>
+  </data>
+  <data name="Endpoints_SyncAllButton" xml:space="preserve">
+    <value>Синхронизировать все</value>
+  </data>
+  <data name="Endpoints_ImportButton" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Endpoints_ExportButton" xml:space="preserve">
+    <value>Экспорт</value>
+  </data>
+  <data name="Endpoints_NewEndpoint" xml:space="preserve">
+    <value>Новый эндпоинт</value>
+  </data>
+  <data name="Endpoints_TabEndpoints" xml:space="preserve">
+    <value>Эндпоинты</value>
+  </data>
+  <data name="Endpoints_EmptyTitle" xml:space="preserve">
+    <value>Пока нет эндпоинтов</value>
+  </data>
+  <data name="Endpoints_EmptyDescription" xml:space="preserve">
+    <value>Создайте эндпоинт или свяжите объект БД на вкладке "База данных".</value>
+  </data>
+  <data name="Endpoints_FilterSectionHeader" xml:space="preserve">
+    <value>// ФИЛЬТР</value>
+  </data>
+  <data name="Endpoints_FilterScopeLabel" xml:space="preserve">
+    <value>Требуемый скоуп</value>
+  </data>
+  <data name="Endpoints_FilterKeyLabel" xml:space="preserve">
+    <value>Доступен по ключу</value>
+  </data>
+  <data name="Endpoints_FilterSummary" xml:space="preserve">
+    <value>показано {0} из {1} - Экспорт и OpenAPI учитывают этот фильтр</value>
+  </data>
+  <data name="Endpoints_ClearFilters" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Endpoints_QuickFilterPlaceholder" xml:space="preserve">
+    <value>Фильтр...</value>
+  </data>
+  <data name="Endpoints_StatusColumn" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Endpoints_StatusDisabled" xml:space="preserve">
+    <value>Отключён</value>
+  </data>
+  <data name="Endpoints_MethodLabel" xml:space="preserve">
+    <value>Метод</value>
+  </data>
+  <data name="Endpoints_RouteLabel" xml:space="preserve">
+    <value>Маршрут</value>
+  </data>
+  <data name="Endpoints_ConnectionLabel" xml:space="preserve">
+    <value>Подключение</value>
+  </data>
+  <data name="Endpoints_ObjectLabel" xml:space="preserve">
+    <value>Объект</value>
+  </data>
+  <data name="Endpoints_TypeColumn" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="Endpoints_ParamsColumn" xml:space="preserve">
+    <value>Параметры</value>
+  </data>
+  <data name="Endpoints_Test" xml:space="preserve">
+    <value>Тест</value>
+  </data>
+  <data name="Endpoints_LogsButton" xml:space="preserve">
+    <value>Логи</value>
+  </data>
+  <data name="Endpoints_SyncButton" xml:space="preserve">
+    <value>Синхр.</value>
+  </data>
+  <data name="Endpoints_PurgeCacheTooltip" xml:space="preserve">
+    <value>Принудительно очистить кэшированные ответы этого эндпоинта</value>
+  </data>
+  <data name="Endpoints_PurgeCacheButton" xml:space="preserve">
+    <value>Очистить кэш</value>
+  </data>
+  <data name="Endpoints_TabDatabase" xml:space="preserve">
+    <value>База данных</value>
+  </data>
+  <data name="Endpoints_ObjectsNotBrowsable" xml:space="preserve">
+    <value>Объекты недоступны для обзора на этом подключении ({0}).</value>
+  </data>
+  <data name="Endpoints_NoObjectsFound" xml:space="preserve">
+    <value>На этом подключении объекты не найдены.</value>
+  </data>
+  <data name="Endpoints_SchemaLabel" xml:space="preserve">
+    <value>Схема</value>
+  </data>
+  <data name="Endpoints_EndpointColumn" xml:space="preserve">
+    <value>Эндпоинт</value>
+  </data>
+  <data name="Endpoints_NoneChip" xml:space="preserve">
+    <value>нет</value>
+  </data>
+  <data name="Endpoints_SelectObjectHint" xml:space="preserve">
+    <value>Выберите объект, чтобы посмотреть его параметры и создать эндпоинт, заполненный по нему.</value>
+  </data>
+  <data name="Endpoints_ObjectSummary" xml:space="preserve">
+    <value>{0} - параметров: {1}</value>
+  </data>
+  <data name="Endpoints_CreateFromObject" xml:space="preserve">
+    <value>Создать эндпоинт из этого объекта</value>
+  </data>
+  <data name="Endpoints_EditEndpoint" xml:space="preserve">
+    <value>Изменить эндпоинт</value>
+  </data>
+  <data name="Endpoints_ObjectTypeLabel" xml:space="preserve">
+    <value>Тип объекта</value>
+  </data>
+  <data name="Endpoints_ResultModeLabel" xml:space="preserve">
+    <value>Режим результата</value>
+  </data>
+  <data name="Endpoints_TimeoutLabel" xml:space="preserve">
+    <value>Таймаут (с)</value>
+  </data>
+  <data name="Endpoints_SuppressMessagesLabel" xml:space="preserve">
+    <value>Подавлять SQL-сообщения</value>
+  </data>
+  <data name="Endpoints_CachingSection" xml:space="preserve">
+    <value>Кэширование</value>
+  </data>
+  <data name="Endpoints_EnableCacheLabel" xml:space="preserve">
+    <value>Включить кэш</value>
+  </data>
+  <data name="Endpoints_CacheTtlLabel" xml:space="preserve">
+    <value>TTL (с)</value>
+  </data>
+  <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
+    <value>Различать по API-ключу</value>
+  </data>
+  <data name="Endpoints_CacheVaryByParams" xml:space="preserve">
+    <value>Различать кэш по параметрам</value>
+  </data>
+  <data name="Endpoints_CacheNoParameters" xml:space="preserve">
+    <value>Параметры не заданы; для всего эндпоинта кэшируется один ответ.</value>
+  </data>
+  <data name="Endpoints_CacheVaryHelp" xml:space="preserve">
+    <value>Выбранные параметры (и API-ключ, если включено) входят в ключ кэша, поэтому вызовы с разными значениями получают отдельные кэшированные ответы. Оставьте пустым, чтобы кэшировать один общий ответ на эндпоинт. Лимит строк и TTL ограничивают каждую запись.</value>
+  </data>
+  <data name="Endpoints_LoggingSection" xml:space="preserve">
+    <value>Логирование</value>
+  </data>
+  <data name="Endpoints_LogRequestsLabel" xml:space="preserve">
+    <value>Логировать запросы</value>
+  </data>
+  <data name="Endpoints_LogParametersLabel" xml:space="preserve">
+    <value>Сохранять параметры</value>
+  </data>
+  <data name="Endpoints_LogResultLabel" xml:space="preserve">
+    <value>Сохранять результат</value>
+  </data>
+  <data name="Endpoints_SlowThresholdLabel" xml:space="preserve">
+    <value>Порог медленных, %</value>
+  </data>
+  <data name="Endpoints_SlowThresholdPlaceholder" xml:space="preserve">
+    <value>из настроек</value>
+  </data>
+  <data name="Endpoints_LoggingHelp" xml:space="preserve">
+    <value>Сохранение параметров и результата может содержать персональные данные; включайте только там, где это нужно. Вызов помечается медленным, когда превышает скользящее среднее этого эндпоинта на заданный порог (пусто - используется глобальная настройка).</value>
+  </data>
+  <data name="Endpoints_RequiredScopes" xml:space="preserve">
+    <value>Требуемые скоупы</value>
+  </data>
+  <data name="Endpoints_NoScopesDefined" xml:space="preserve">
+    <value>Скоупы не заданы.</value>
+  </data>
+  <data name="Endpoints_ParametersSection" xml:space="preserve">
+    <value>Параметры</value>
+  </data>
+  <data name="Endpoints_DiscoverParameters" xml:space="preserve">
+    <value>Определить из базы данных</value>
+  </data>
+  <data name="Endpoints_ParamNamePlaceholder" xml:space="preserve">
+    <value>имя</value>
+  </data>
+  <data name="Endpoints_ParamSizePlaceholder" xml:space="preserve">
+    <value>размер</value>
+  </data>
+  <data name="Endpoints_TvpTypePlaceholder" xml:space="preserve">
+    <value>TVP-тип, например dbo.OrderLineType</value>
+  </data>
+  <data name="Endpoints_ColumnPlaceholder" xml:space="preserve">
+    <value>столбец</value>
+  </data>
+  <data name="Endpoints_RemoveColumnTooltip" xml:space="preserve">
+    <value>Удалить столбец</value>
+  </data>
+  <data name="Endpoints_AddColumn" xml:space="preserve">
+    <value>Добавить столбец</value>
+  </data>
+  <data name="Endpoints_AddParameter" xml:space="preserve">
+    <value>Добавить параметр</value>
+  </data>
+  <data name="Endpoints_SaveEndpoint" xml:space="preserve">
+    <value>Сохранить эндпоинт</value>
+  </data>
+  <data name="Endpoints_RawJsonLabel" xml:space="preserve">
+    <value>Сырой JSON</value>
+  </data>
+  <data name="Endpoints_NoInputParameters" xml:space="preserve">
+    <value>Этот эндпоинт не принимает входных параметров.</value>
+  </data>
+  <data name="Endpoints_AddRow" xml:space="preserve">
+    <value>Добавить строку</value>
+  </data>
+  <data name="Endpoints_NoColumnMetadata" xml:space="preserve">
+    <value>Нет метаданных столбцов; используйте сырой JSON.</value>
+  </data>
+  <data name="Endpoints_ResponseSection" xml:space="preserve">
+    <value>Ответ</value>
+  </data>
+  <data name="Endpoints_SendRequest" xml:space="preserve">
+    <value>Отправить запрос</value>
+  </data>
+  <data name="Endpoints_AllScopesFilter" xml:space="preserve">
+    <value>Все скоупы</value>
+  </data>
+  <data name="Endpoints_AllKeysFilter" xml:space="preserve">
+    <value>Все ключи</value>
+  </data>
+  <data name="Endpoints_DeleteConfirmTitle" xml:space="preserve">
+    <value>Удалить эндпоинт?</value>
+  </data>
+  <data name="Endpoints_DeleteConfirmBody" xml:space="preserve">
+    <value>Удалить {0} /api/{1}? Это действие необратимо.</value>
+  </data>
+  <data name="Endpoints_DiscoverNeedsConnection" xml:space="preserve">
+    <value>Сначала укажите подключение и имя объекта.</value>
+  </data>
+  <data name="Endpoints_NothingToSync" xml:space="preserve">
+    <value>Нечего синхронизировать.</value>
+  </data>
+  <data name="Endpoints_SyncedCount" xml:space="preserve">
+    <value>Синхронизировано эндпоинтов: {0}.</value>
+  </data>
+  <data name="Endpoints_SyncedSummary" xml:space="preserve">
+    <value>Синхронизировано: {0}</value>
+  </data>
+  <data name="Endpoints_CachePurgeFailed" xml:space="preserve">
+    <value>Не удалось очистить кэш для /api/{0}.</value>
+  </data>
+  <data name="Endpoints_CachePurged" xml:space="preserve">
+    <value>Кэш очищен для /api/{0}.</value>
+  </data>
+  <data name="Endpoints_ChangeAdded" xml:space="preserve">
+    <value>добавлено: {0}</value>
+  </data>
+  <data name="Endpoints_ChangeUpdated" xml:space="preserve">
+    <value>обновлено: {0}</value>
+  </data>
+  <data name="Endpoints_ChangeRemoved" xml:space="preserve">
+    <value>удалено: {0}</value>
+  </data>
+  <data name="Endpoints_ChangeNone" xml:space="preserve">
+    <value>без изменений</value>
+  </data>
+  <data name="Endpoints_DownloadedOpenApiFiltered" xml:space="preserve">
+    <value>Скачан документ OpenAPI (с фильтром).</value>
+  </data>
+  <data name="Endpoints_DownloadedOpenApi" xml:space="preserve">
+    <value>Скачан openapi.json.</value>
+  </data>
+  <data name="Endpoints_DownloadedFilteredEndpoints" xml:space="preserve">
+    <value>Скачано отфильтрованных эндпоинтов: {0}.</value>
+  </data>
+  <data name="Endpoints_DownloadedEndpoints" xml:space="preserve">
+    <value>Скачан endpoints.json.</value>
+  </data>
+  <data name="Endpoints_ImportedCount" xml:space="preserve">
+    <value>Импортировано эндпоинтов: {0}.</value>
+  </data>
+  <data name="Endpoints_ImportNoEndpoints" xml:space="preserve">
+    <value>В файле не найдено эндпоинтов.</value>
+  </data>
+  <data name="Endpoints_ImportFailed" xml:space="preserve">
+    <value>Ошибка импорта: {0}</value>
+  </data>
+  <data name="Endpoints_ObjectTypeProc" xml:space="preserve">
+    <value>Процедура</value>
+  </data>
+  <data name="Endpoints_ObjectTypeTableFn" xml:space="preserve">
+    <value>Табл. функция</value>
+  </data>
+  <data name="Endpoints_ObjectTypeScalarFn" xml:space="preserve">
+    <value>Скаляр. функция</value>
+  </data>
+  <data name="Keys_PageTitle" xml:space="preserve">
+    <value>ключи</value>
+  </data>
+  <data name="Keys_PageDescription" xml:space="preserve">
+    <value>Ключи аутентифицируют вызовы дата-плейна. Скоупы и гранты на процедуры ограничивают каждый ключ.</value>
+  </data>
+  <data name="Keys_CreateKey" xml:space="preserve">
+    <value>Создать ключ</value>
+  </data>
+  <data name="Keys_CreatedAlertTitle" xml:space="preserve">
+    <value>Ключ создан - скопируйте его сейчас</value>
+  </data>
+  <data name="Keys_CreatedAlertBody" xml:space="preserve">
+    <value>Ключ в открытом виде показывается один раз, позже получить его нельзя.</value>
+  </data>
+  <data name="Keys_Copied" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Keys_Done" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Keys_EmptyTitle" xml:space="preserve">
+    <value>API-ключей пока нет</value>
+  </data>
+  <data name="Keys_EmptyDescription" xml:space="preserve">
+    <value>Создайте ключ, чтобы клиенты могли обращаться к дата-плейну.</value>
+  </data>
+  <data name="Keys_ColumnKey" xml:space="preserve">
+    <value>Ключ</value>
+  </data>
+  <data name="Keys_Scopes" xml:space="preserve">
+    <value>Скоупы</value>
+  </data>
+  <data name="Keys_ProcedureAccess" xml:space="preserve">
+    <value>Доступ к процедурам</value>
+  </data>
+  <data name="Keys_ColumnCreated" xml:space="preserve">
+    <value>Создан</value>
+  </data>
+  <data name="Keys_ColumnLastUsed" xml:space="preserve">
+    <value>Последнее использование</value>
+  </data>
+  <data name="Keys_ColumnStatus" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Keys_StatusActive" xml:space="preserve">
+    <value>активен</value>
+  </data>
+  <data name="Keys_StatusRevoked" xml:space="preserve">
+    <value>отозван</value>
+  </data>
+  <data name="Keys_Revoke" xml:space="preserve">
+    <value>Отозвать</value>
+  </data>
+  <data name="Keys_CreateDialogTitle" xml:space="preserve">
+    <value>Создать API-ключ</value>
+  </data>
+  <data name="Keys_NamePlaceholder" xml:space="preserve">
+    <value>например, checkout-service</value>
+  </data>
+  <data name="Keys_NoScopesDefined" xml:space="preserve">
+    <value>Скоупы не заданы.</value>
+  </data>
+  <data name="Keys_ProcedureAccessHelp" xml:space="preserve">
+    <value>Оставьте пустым, чтобы разрешить все процедуры (в рамках скоупов). Используйте * для "любой".</value>
+  </data>
+  <data name="Keys_SchemaPlaceholder" xml:space="preserve">
+    <value>схема или *</value>
+  </data>
+  <data name="Keys_ObjectPlaceholder" xml:space="preserve">
+    <value>объект или *</value>
+  </data>
+  <data name="Keys_AddGrant" xml:space="preserve">
+    <value>Добавить грант</value>
+  </data>
+  <data name="Keys_GrantsAll" xml:space="preserve">
+    <value>все</value>
+  </data>
+  <data name="Keys_DiscardTitle" xml:space="preserve">
+    <value>Отменить создание ключа?</value>
+  </data>
+  <data name="Keys_DiscardBody" xml:space="preserve">
+    <value>Ключ ещё не создан. Отменить изменения?</value>
+  </data>
+  <data name="Keys_DiscardConfirm" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Keys_DiscardCancel" xml:space="preserve">
+    <value>Продолжить редактирование</value>
+  </data>
+  <data name="Keys_RevokeTitle" xml:space="preserve">
+    <value>Отозвать ключ?</value>
+  </data>
+  <data name="Keys_RevokeBody" xml:space="preserve">
+    <value>Отозвать "{0}"? Любой клиент с этим ключом сразу получит отказ. Действие необратимо.</value>
+  </data>
+  <data name="Login_Subtitle" xml:space="preserve">
+    <value>Вход в консоль шлюза.</value>
+  </data>
+  <data name="Login_UsernameLabel" xml:space="preserve">
+    <value>Логин</value>
+  </data>
+  <data name="Login_PasswordLabel" xml:space="preserve">
+    <value>Пароль</value>
+  </data>
+  <data name="Login_SignInButton" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+  <data name="Login_InvalidCredentials" xml:space="preserve">
+    <value>Неверный логин или пароль.</value>
+  </data>
+  <data name="Login_ServerUnreachable" xml:space="preserve">
+    <value>Сервер недоступен. Повторите попытку.</value>
+  </data>
+  <data name="Logs_Title" xml:space="preserve">
+    <value>логи</value>
+  </data>
+  <data name="Logs_Description" xml:space="preserve">
+    <value>История запросов плоскости данных - тайминги, результаты и медленные вызовы</value>
+  </data>
+  <data name="Logs_EndpointChip" xml:space="preserve">
+    <value>эндпоинт: {0}</value>
+  </data>
+  <data name="Logs_Clear" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Logs_SectionFilter" xml:space="preserve">
+    <value>// ФИЛЬТР</value>
+  </data>
+  <data name="Logs_SlowOnly" xml:space="preserve">
+    <value>Только медленные</value>
+  </data>
+  <data name="Logs_ErrorsOnly" xml:space="preserve">
+    <value>Только ошибки</value>
+  </data>
+  <data name="Logs_LoadedCount" xml:space="preserve">
+    <value>загружено: {0}</value>
+  </data>
+  <data name="Logs_EmptyTitle" xml:space="preserve">
+    <value>Запросов пока не залогировано</value>
+  </data>
+  <data name="Logs_EmptyDescription" xml:space="preserve">
+    <value>Вызовы появятся здесь, как только плоскость данных начнет их обслуживать (логирование запросов включается в Настройках).</value>
+  </data>
+  <data name="Logs_Time" xml:space="preserve">
+    <value>Время</value>
+  </data>
+  <data name="Logs_Method" xml:space="preserve">
+    <value>Метод</value>
+  </data>
+  <data name="Logs_Route" xml:space="preserve">
+    <value>Маршрут</value>
+  </data>
+  <data name="Logs_Object" xml:space="preserve">
+    <value>Объект</value>
+  </data>
+  <data name="Logs_Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Logs_Duration" xml:space="preserve">
+    <value>Длительность</value>
+  </data>
+  <data name="Logs_Db" xml:space="preserve">
+    <value>БД</value>
+  </data>
+  <data name="Logs_Rows" xml:space="preserve">
+    <value>Строки</value>
+  </data>
+  <data name="Logs_CacheLabel" xml:space="preserve">
+    <value>кэш</value>
+  </data>
+  <data name="Logs_Caller" xml:space="preserve">
+    <value>Вызывающий</value>
+  </data>
+  <data name="Logs_LoadOlder" xml:space="preserve">
+    <value>Загрузить ранние</value>
+  </data>
+  <data name="Logs_TestEndpoint" xml:space="preserve">
+    <value>Тест эндпоинта</value>
+  </data>
+  <data name="Logs_EditEndpoint" xml:space="preserve">
+    <value>Изменить эндпоинт</value>
+  </data>
+  <data name="Logs_SectionTimingBreakdown" xml:space="preserve">
+    <value>// РАЗБИВКА ВРЕМЕНИ</value>
+  </data>
+  <data name="Logs_TimingDb" xml:space="preserve">
+    <value>БД {0}</value>
+  </data>
+  <data name="Logs_TimingOther" xml:space="preserve">
+    <value>Прочее {0}</value>
+  </data>
+  <data name="Logs_TimingTotal" xml:space="preserve">
+    <value>Всего {0}</value>
+  </data>
+  <data name="Logs_TimingAverage" xml:space="preserve">
+    <value>сред. {0}</value>
+  </data>
+  <data name="Logs_Connection" xml:space="preserve">
+    <value>Соединение</value>
+  </data>
+  <data name="Logs_SlowSuffix" xml:space="preserve">
+    <value> (медленно)</value>
+  </data>
+  <data name="Logs_DatabaseTime" xml:space="preserve">
+    <value>Время БД</value>
+  </data>
+  <data name="Logs_EndpointAverage" xml:space="preserve">
+    <value>Среднее по эндпоинту</value>
+  </data>
+  <data name="Logs_ServedFromCache" xml:space="preserve">
+    <value>отдано из кэша</value>
+  </data>
+  <data name="Logs_ErrorTitle" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="Logs_SectionParameters" xml:space="preserve">
+    <value>// ПАРАМЕТРЫ</value>
+  </data>
+  <data name="Logs_ParametersTitle" xml:space="preserve">
+    <value>Параметры</value>
+  </data>
+  <data name="Logs_View" xml:space="preserve">
+    <value>Просмотр</value>
+  </data>
+  <data name="Logs_SectionResult" xml:space="preserve">
+    <value>// РЕЗУЛЬТАТ</value>
+  </data>
+  <data name="Logs_ResultTitle" xml:space="preserve">
+    <value>Результат</value>
+  </data>
+  <data name="Logs_CaptureOffHint" xml:space="preserve">
+    <value>Захват параметров и результата отключен для этого эндпоинта. Включите его для нужного эндпоинта в разделе Логирование редактора эндпоинта.</value>
+  </data>
+  <data name="Logs_SlowHintWithAverage" xml:space="preserve">
+    <value>Медленнее обычного: {0} против {1} в среднем</value>
+  </data>
+  <data name="Logs_SlowHint" xml:space="preserve">
+    <value>Медленнее обычного для этого эндпоинта</value>
+  </data>
+  <data name="Logs_TruncatedMarker" xml:space="preserve">
+    <value>
+... (обрезано - нажмите Просмотр, чтобы увидеть полный JSON)</value>
+  </data>
+  <data name="Scopes_Title" xml:space="preserve">
+    <value>скоупы</value>
+  </data>
+  <data name="Scopes_Description" xml:space="preserve">
+    <value>Именованные разрешения, привязанные к ключам и требуемые эндпоинтами</value>
+  </data>
+  <data name="Scopes_NewScope" xml:space="preserve">
+    <value>Новый скоуп</value>
+  </data>
+  <data name="Scopes_AddScope" xml:space="preserve">
+    <value>Добавить скоуп</value>
+  </data>
+  <data name="Scopes_EmptyTitle" xml:space="preserve">
+    <value>Скоупов пока нет</value>
+  </data>
+  <data name="Scopes_EmptyDescription" xml:space="preserve">
+    <value>Добавьте скоуп выше, чтобы выдать доступ API-ключам.</value>
+  </data>
+  <data name="Scopes_ColumnScope" xml:space="preserve">
+    <value>Скоуп</value>
+  </data>
+  <data name="Scopes_ColumnKeys" xml:space="preserve">
+    <value>Ключи</value>
+  </data>
+  <data name="Scopes_ColumnEndpoints" xml:space="preserve">
+    <value>Эндпоинты</value>
+  </data>
+  <data name="Scopes_DeleteInUseSuffix" xml:space="preserve">
+    <value> На него всё ещё ссылаются ключей: {0}, эндпоинтов: {1}.</value>
+  </data>
+  <data name="Scopes_DeleteConfirmTitle" xml:space="preserve">
+    <value>Удалить скоуп?</value>
+  </data>
+  <data name="Scopes_DeleteConfirmBody" xml:space="preserve">
+    <value>Удалить скоуп "{0}"?{1}</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>настройки</value>
+  </data>
+  <data name="Settings_PageDescription" xml:space="preserve">
+    <value>Системные настройки времени выполнения, применяются без перезапуска, если не указано иное</value>
+  </data>
+  <data name="Settings_LoadFailedTitle" xml:space="preserve">
+    <value>Не удалось загрузить настройки</value>
+  </data>
+  <data name="Settings_LoadFailedBody" xml:space="preserve">
+    <value>Служба настроек не ответила. Попробуйте перезагрузить страницу.</value>
+  </data>
+  <data name="Settings_SectionDataPlaneLimits" xml:space="preserve">
+    <value>// ЛИМИТЫ ПЛОСКОСТИ ДАННЫХ</value>
+  </data>
+  <data name="Settings_MaxRowsLabel" xml:space="preserve">
+    <value>Максимум строк</value>
+  </data>
+  <data name="Settings_RequestTimeoutLabel" xml:space="preserve">
+    <value>Таймаут запроса (с)</value>
+  </data>
+  <data name="Settings_MaxTvpRowsLabel" xml:space="preserve">
+    <value>Максимум строк TVP</value>
+  </data>
+  <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
+    <value>Ноль означает без ограничений. Ответ сверх лимита строк усекается и не кэшируется.</value>
+  </data>
+  <data name="Settings_SectionRateLimiting" xml:space="preserve">
+    <value>// ОГРАНИЧЕНИЕ ЧАСТОТЫ</value>
+  </data>
+  <data name="Settings_DefaultRateLimitLabel" xml:space="preserve">
+    <value>Лимит по умолчанию на ключ (в минуту)</value>
+  </data>
+  <data name="Settings_RateLimitingHelp" xml:space="preserve">
+    <value>Применяется к API-ключам без собственного лимита. Ноль оставляет их без ограничений.</value>
+  </data>
+  <data name="Settings_SectionConnectionResilience" xml:space="preserve">
+    <value>// УСТОЙЧИВОСТЬ ПОДКЛЮЧЕНИЙ</value>
+  </data>
+  <data name="Settings_MaxConcurrentPerConnectionLabel" xml:space="preserve">
+    <value>Максимум одновременных на подключение</value>
+  </data>
+  <data name="Settings_CircuitBreakerThresholdLabel" xml:space="preserve">
+    <value>Порог circuit breaker</value>
+  </data>
+  <data name="Settings_CircuitBreakerResetLabel" xml:space="preserve">
+    <value>Сброс circuit breaker (с)</value>
+  </data>
+  <data name="Settings_ConnectionResilienceHelp" xml:space="preserve">
+    <value>Bulkhead на каждое подключение к данным отклоняет избыточную конкурентность с HTTP 503 (ноль = без ограничений). После порога подряд идущих сбоев circuit breaker размыкается и сразу отвечает 503, пока не истечет окно сброса (нулевой порог отключает его).</value>
+  </data>
+  <data name="Settings_SectionAudit" xml:space="preserve">
+    <value>// АУДИТ</value>
+  </data>
+  <data name="Settings_AuditRetentionLabel" xml:space="preserve">
+    <value>Хранение аудита (дней)</value>
+  </data>
+  <data name="Settings_AuditHelp" xml:space="preserve">
+    <value>Записи аудита старше этого срока удаляются в фоне. Ноль хранит историю вечно.</value>
+  </data>
+  <data name="Settings_SectionRequestLog" xml:space="preserve">
+    <value>// ЖУРНАЛ ЗАПРОСОВ</value>
+  </data>
+  <data name="Settings_EnableRequestLogLabel" xml:space="preserve">
+    <value>Включить журнал запросов</value>
+  </data>
+  <data name="Settings_SlowThresholdLabel" xml:space="preserve">
+    <value>Порог медленных (%)</value>
+  </data>
+  <data name="Settings_RequestLogRetentionLabel" xml:space="preserve">
+    <value>Хранение (дней)</value>
+  </data>
+  <data name="Settings_RequestLogHelp" xml:space="preserve">
+    <value>Записывает каждый вызов плоскости данных (тайминги, строки, кэш). Вызов помечается медленным, когда превышает скользящее среднее эндпоинта на этот процент (эндпоинт может переопределить значение). Захват параметров и результатов включается отдельно для каждого эндпоинта. Нулевое хранение оставляет историю навсегда.</value>
+  </data>
+  <data name="Settings_SaveButton" xml:space="preserve">
+    <value>Сохранить настройки</value>
+  </data>
+  <data name="Settings_SectionBackupExport" xml:space="preserve">
+    <value>// РЕЗЕРВНАЯ КОПИЯ / ЭКСПОРТ</value>
+  </data>
+  <data name="Settings_GenerateExportButton" xml:space="preserve">
+    <value>Сформировать экспорт</value>
+  </data>
+  <data name="Settings_Preparing" xml:space="preserve">
+    <value>Подготовка...</value>
+  </data>
+  <data name="Settings_BackupExportHelp" xml:space="preserve">
+    <value>Переносимый снимок без секретов: эндпоинты, скоупы, настройки и несекретный список ключей и администраторов. Хэши не включаются; для полного восстановления используйте резервную копию базы данных. Требуется роль администратора.</value>
+  </data>
+  <data name="Settings_SectionLogging" xml:space="preserve">
+    <value>// ЛОГИРОВАНИЕ (ТРЕБУЕТСЯ ПЕРЕЗАПУСК)</value>
+  </data>
+  <data name="Settings_MaxRequestBodyLabel" xml:space="preserve">
+    <value>Максимальный размер тела запроса (байт)</value>
+  </data>
+  <data name="Settings_FileLoggingLabel" xml:space="preserve">
+    <value>Логирование в файл</value>
+  </data>
+  <data name="Settings_On" xml:space="preserve">
+    <value>вкл</value>
+  </data>
+  <data name="Settings_Off" xml:space="preserve">
+    <value>выкл</value>
+  </data>
+  <data name="Settings_DirectoryLabel" xml:space="preserve">
+    <value>Каталог</value>
+  </data>
+  <data name="Settings_RollingLabel" xml:space="preserve">
+    <value>Ротация</value>
+  </data>
+  <data name="Settings_RetainedFilesLabel" xml:space="preserve">
+    <value>Хранимых файлов</value>
+  </data>
+  <data name="Settings_RetainedFilesAll" xml:space="preserve">
+    <value>все</value>
+  </data>
+  <data name="Settings_FormatLabel" xml:space="preserve">
+    <value>Формат</value>
+  </data>
+  <data name="Settings_LevelLabel" xml:space="preserve">
+    <value>Уровень</value>
+  </data>
+  <data name="Settings_LoggingHelp" xml:space="preserve">
+    <value>Применяется при старте из конфигурации (Weir:Logging); измените значение в конфиге и перезапустите, чтобы оно вступило в силу.</value>
+  </data>
+  <data name="Settings_ExportRejected" xml:space="preserve">
+    <value>Экспорт отклонен. Экспортировать control plane могут только полные администраторы.</value>
+  </data>
+  <data name="Settings_ExportDownloaded" xml:space="preserve">
+    <value>Файл weir-control-plane.json загружен.</value>
+  </data>
+  <data name="Settings_ExportServiceUnavailable" xml:space="preserve">
+    <value>Служба экспорта не ответила.</value>
+  </data>
+  <data name="Settings_ValuesMustNotBeNegative" xml:space="preserve">
+    <value>Значения не должны быть отрицательными.</value>
+  </data>
+  <data name="Settings_UpdateRejected" xml:space="preserve">
+    <value>Обновление отклонено. Изменять настройки могут только полные администраторы.</value>
+  </data>
+  <data name="Settings_SavedAndApplied" xml:space="preserve">
+    <value>Настройки сохранены и применены.</value>
+  </data>
+  <data name="Settings_SettingsServiceUnavailable" xml:space="preserve">
+    <value>Служба настроек не ответила.</value>
+  </data>
+</root>

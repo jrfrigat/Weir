@@ -1,18 +1,19 @@
 @page "/settings"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IFlareDownload Download
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="settings" Description="Runtime system settings, applied without a restart unless noted" />
+    <PageHeader Title="@AdminStrings.Settings_Title" Description="@AdminStrings.Settings_PageDescription" />
 
     @if (_loadFailed)
     {
-        <FlareAlert Severity="AlertSeverity.Error" Title="Could not load settings">The settings service did not respond. Try reloading.</FlareAlert>
+        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Settings_LoadFailedTitle">@AdminStrings.Settings_LoadFailedBody</FlareAlert>
     }
     else if (_loading)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else
     {
@@ -23,94 +24,94 @@
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// DATA PLANE LIMITS</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionDataPlaneLimits</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareNumericField TValue="int" Label="Max rows" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="Request timeout (s)" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="Max TVP rows" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
                 </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Zero means unlimited. A response beyond the row cap is truncated and not cached.</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// RATE LIMITING</FlareText>
-                <FlareNumericField TValue="int" Label="Default per-key limit (per minute)" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Applied to API keys that set no limit of their own. Zero leaves them unthrottled.</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRateLimiting</FlareText>
+                <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RateLimitingHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// CONNECTION RESILIENCE</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionConnectionResilience</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareNumericField TValue="int" Label="Max concurrent per connection" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Style="max-width:16rem;" />
-                    <FlareNumericField TValue="int" Label="Circuit breaker threshold" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Style="max-width:14rem;" />
-                    <FlareNumericField TValue="int" Label="Circuit breaker reset (s)" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxConcurrentPerConnectionLabel" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerThresholdLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerResetLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" Style="max-width:14rem;" />
                 </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">A bulkhead per data connection rejects excess concurrency with HTTP 503 (zero = unlimited). After the threshold of consecutive failures the breaker opens and short-circuits with 503 until the reset window elapses (zero threshold disables it).</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ConnectionResilienceHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// AUDIT</FlareText>
-                <FlareNumericField TValue="int" Label="Audit retention (days)" Size="FieldSize.Sm" @bind-Value="_auditRetentionDays" Style="max-width:16rem;" />
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Audit entries older than this are pruned in the background. Zero keeps history forever.</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionAudit</FlareText>
+                <FlareNumericField TValue="int" Label="@AdminStrings.Settings_AuditRetentionLabel" Size="FieldSize.Sm" @bind-Value="_auditRetentionDays" Style="max-width:16rem;" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_AuditHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// REQUEST LOG</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRequestLog</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true" Align="FlareAlignItems.Center">
-                    <FlareSwitch Value="_requestLogEnabled" ValueChanged="@(v => _requestLogEnabled = v)" Label="Enable request log" />
-                    <FlareNumericField TValue="int" Label="Slow threshold (%)" Size="FieldSize.Sm" @bind-Value="_slowThresholdPercent" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="Retention (days)" Size="FieldSize.Sm" @bind-Value="_requestLogRetentionDays" Style="max-width:12rem;" />
+                    <FlareSwitch Value="_requestLogEnabled" ValueChanged="@(v => _requestLogEnabled = v)" Label="@AdminStrings.Settings_EnableRequestLogLabel" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_SlowThresholdLabel" Size="FieldSize.Sm" @bind-Value="_slowThresholdPercent" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestLogRetentionLabel" Size="FieldSize.Sm" @bind-Value="_requestLogRetentionDays" Style="max-width:12rem;" />
                 </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Records every data-plane call (timing, rows, cache). A call is flagged slow when it exceeds an endpoint's rolling average by this percentage (an endpoint can override it). Parameter and result capture stays opt-in per endpoint. Zero retention keeps history forever.</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RequestLogHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center">
-            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Disabled="_saving">Save settings</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Disabled="_saving">@AdminStrings.Settings_SaveButton</FlareButton>
             @if (_saving)
             {
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Saving...</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Saving</FlareText>
             }
         </FlareStack>
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// BACKUP / EXPORT</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionBackupExport</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center" Wrap="true">
-                    <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="ExportAsync" Disabled="_exporting">Generate export</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="ExportAsync" Disabled="_exporting">@AdminStrings.Settings_GenerateExportButton</FlareButton>
                     @if (_exporting)
                     {
-                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Preparing...</FlareText>
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_Preparing</FlareText>
                     }
                 </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">A portable, secret-free snapshot of endpoints, scopes, settings and non-secret key/admin inventory. Excludes hashes; use a database backup for full disaster recovery. Admin role required.</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_BackupExportHelp</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareCard Variant="CardVariant.Filled">
             <FlareStack Gap="FlareSpacing.XSmall">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// LOGGING (RESTART REQUIRED)</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionLogging</FlareText>
                 <FlareDescriptionList>
-                    <FlareDescriptionItem Label="Max request body (bytes)"><FlareText Mono="true">@_maxRequestBodyBytes.ToString("#,##0")</FlareText></FlareDescriptionItem>
+                    <FlareDescriptionItem Label="@AdminStrings.Settings_MaxRequestBodyLabel"><FlareText Mono="true">@_maxRequestBodyBytes.ToString("#,##0")</FlareText></FlareDescriptionItem>
                     @if (_logging is not null)
                     {
-                        <FlareDescriptionItem Label="File logging"><FlareText Mono="true">@(_logging.FileEnabled ? "on" : "off")</FlareText></FlareDescriptionItem>
-                        <FlareDescriptionItem Label="Directory"><FlareText Mono="true">@_logging.Directory</FlareText></FlareDescriptionItem>
-                        <FlareDescriptionItem Label="Rolling"><FlareText Mono="true">@_logging.RollingInterval</FlareText></FlareDescriptionItem>
-                        <FlareDescriptionItem Label="Retained files"><FlareText Mono="true">@(_logging.RetainedFileCountLimit?.ToString() ?? "all")</FlareText></FlareDescriptionItem>
-                        <FlareDescriptionItem Label="Format"><FlareText Mono="true">@_logging.Format</FlareText></FlareDescriptionItem>
-                        <FlareDescriptionItem Label="Level"><FlareText Mono="true">@_logging.MinimumLevel</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_FileLoggingLabel"><FlareText Mono="true">@(_logging.FileEnabled ? AdminStrings.Settings_On : AdminStrings.Settings_Off)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_DirectoryLabel"><FlareText Mono="true">@_logging.Directory</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_RollingLabel"><FlareText Mono="true">@_logging.RollingInterval</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_RetainedFilesLabel"><FlareText Mono="true">@(_logging.RetainedFileCountLimit?.ToString() ?? AdminStrings.Settings_RetainedFilesAll)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_FormatLabel"><FlareText Mono="true">@_logging.Format</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_LevelLabel"><FlareText Mono="true">@_logging.MinimumLevel</FlareText></FlareDescriptionItem>
                     }
                 </FlareDescriptionList>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Applied at startup from configuration (Weir:Logging); change it in config and restart to take effect.</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_LoggingHelp</FlareText>
             </FlareStack>
         </FlareCard>
     }
@@ -188,18 +189,18 @@
             var json = await Api.GetControlPlaneExportAsync();
             if (json is null)
             {
-                _status = "The export was rejected. Only full admins can export the control plane.";
+                _status = AdminStrings.Settings_ExportRejected;
                 _statusError = true;
                 return;
             }
 
             await Download.DownloadAsync("weir-control-plane.json", json, "application/json");
-            _status = "Downloaded weir-control-plane.json.";
+            _status = AdminStrings.Settings_ExportDownloaded;
             _statusError = false;
         }
         catch (HttpRequestException)
         {
-            _status = "The export service did not respond.";
+            _status = AdminStrings.Settings_ExportServiceUnavailable;
             _statusError = true;
         }
         finally
@@ -215,7 +216,7 @@
             _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
             _slowThresholdPercent < 0 || _requestLogRetentionDays < 0)
         {
-            _status = "Values must not be negative.";
+            _status = AdminStrings.Settings_ValuesMustNotBeNegative;
             _statusError = true;
             return;
         }
@@ -241,18 +242,18 @@
 
             if (applied is null)
             {
-                _status = "The update was rejected. Only full admins can change settings.";
+                _status = AdminStrings.Settings_UpdateRejected;
                 _statusError = true;
             }
             else
             {
-                _status = "Settings saved and applied.";
+                _status = AdminStrings.Settings_SavedAndApplied;
                 _statusError = false;
             }
         }
         catch (HttpRequestException)
         {
-            _status = "The settings service did not respond.";
+            _status = AdminStrings.Settings_SettingsServiceUnavailable;
             _statusError = true;
         }
         finally

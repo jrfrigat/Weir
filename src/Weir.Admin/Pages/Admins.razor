@@ -1,11 +1,12 @@
 @page "/admins"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="admins" Description="Local accounts that can sign in to this console">
+    <PageHeader Title="@AdminStrings.Admins_Title" Description="@AdminStrings.Admins_Description">
         <Actions>
-            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = !_showAdd">New admin</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = !_showAdd">@AdminStrings.Admins_NewAdmin</FlareButton>
         </Actions>
     </PageHeader>
 
@@ -13,10 +14,10 @@
     {
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
-                <FlareField Label="Username" @bind-Value="_username" autocomplete="off" />
-                <FlarePasswordField Label="Password" @bind-Value="_password" autocomplete="new-password" />
-                <FlareSelect TValue="string" Label="Role" @bind-Value="_role" Items="_roles" ItemLabel="RoleLabel" />
-                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync">Create</FlareButton>
+                <FlareField Label="@AdminStrings.Admins_Username" @bind-Value="_username" autocomplete="off" />
+                <FlarePasswordField Label="@AdminStrings.Admins_Password" @bind-Value="_password" autocomplete="new-password" />
+                <FlareSelect TValue="string" Label="@AdminStrings.Admins_Role" @bind-Value="_role" Items="_roles" ItemLabel="RoleLabel" />
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync">@AdminStrings.Common_Create</FlareButton>
                 @if (_createMessage is not null)
                 {
                     <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_createMessage</FlareText>
@@ -27,11 +28,11 @@
 
     @if (_admins is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else if (_admins.Count == 0)
     {
-        <FlareEmptyState Title="No admin accounts" Description="Create an admin account above.">
+        <FlareEmptyState Title="@AdminStrings.Admins_EmptyTitle" Description="@AdminStrings.Admins_EmptyDescription">
             <Icon><FlareIcon Name="group" /></Icon>
         </FlareEmptyState>
     }
@@ -39,7 +40,7 @@
     {
         <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="AdminUserInfo" Title="Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
                     <Template>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
                             <FlareAvatar Size="AvatarSize.Sm">@Initials(context.Username)</FlareAvatar>
@@ -47,21 +48,21 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="Role">
+                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Role">
                     <Template>
                         <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Role == AdminRoles.Admin ? FlareColor.Primary : FlareColor.Default)" Label="@context.Role" />
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="Status">
+                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Status">
                     <Template>
-                        <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Error)" Label="@(context.Enabled ? "enabled" : "disabled")" />
+                        <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Error)" Label="@(context.Enabled ? AdminStrings.Admins_StatusEnabled : AdminStrings.Admins_StatusDisabled)" />
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="Last login" Field="@(a => (object?)(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
-                <FlareColumn TItem="AdminUserInfo" Title="Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_LastLogin" Field="@(a => (object?)(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
                 <FlareColumn TItem="AdminUserInfo" Title="" Align="ColumnAlign.End">
                     <Template>
-                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">Reset password</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">@AdminStrings.Admins_ResetPassword</FlareButton>
                     </Template>
                 </FlareColumn>
             </Columns>
@@ -71,11 +72,11 @@
         {
             <FlareCard Variant="CardVariant.Outlined" Style="max-width:34rem;">
                 <FlareStack Gap="FlareSpacing.Small">
-                    <FlareText Typo="TypographyScale.TitleSmall">Reset password</FlareText>
-                    <FlarePasswordField Label="New password" @bind-Value="_resetPassword" autocomplete="new-password" />
+                    <FlareText Typo="TypographyScale.TitleSmall">@AdminStrings.Admins_ResetPassword</FlareText>
+                    <FlarePasswordField Label="@AdminStrings.Admins_NewPassword" @bind-Value="_resetPassword" autocomplete="new-password" />
                     <FlareStack Row Gap="FlareSpacing.Small">
-                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => ResetAsync(_resettingId!.Value))" Loading="_resetBusy">Save</FlareButton>
-                        <FlareButton Variant="ButtonVariant.Text" OnClick="@(() => { _resettingId = null; })">Cancel</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => ResetAsync(_resettingId!.Value))" Loading="_resetBusy">@AdminStrings.Common_Save</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Text" OnClick="@(() => { _resettingId = null; })">@AdminStrings.Common_Cancel</FlareButton>
                     </FlareStack>
                     @if (_resetMessage is not null)
                     {
@@ -86,7 +87,7 @@
         }
 
         <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
-            Only accounts with the Admin role can add admins or reset passwords. You can change your own password on the <FlareLink Href="/account">Account</FlareLink> page.
+            @AdminStrings.Admins_RoleNotePrefix<FlareLink Href="/account">@AdminStrings.Admins_AccountLink</FlareLink>@AdminStrings.Admins_RoleNoteSuffix
         </FlareText>
     }
 </FlareStack>
@@ -112,7 +113,7 @@
     private async Task LoadAsync() => _admins = await Api.GetAdminsAsync();
 
     /// <summary>Human-readable label for a role value in the selector.</summary>
-    private static string RoleLabel(string role) => role == AdminRoles.Admin ? "Admin (full access)" : "Viewer (read-only)";
+    private static string RoleLabel(string role) => role == AdminRoles.Admin ? AdminStrings.Admins_RoleAdminFullAccess : AdminStrings.Admins_RoleViewerReadOnly;
 
     /// <summary>Creates an admin account and reloads.</summary>
     private async Task CreateAsync()
@@ -120,7 +121,7 @@
         _createMessage = null;
         if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
         {
-            _createMessage = "Enter a username and password.";
+            _createMessage = AdminStrings.Admins_EnterUsernameAndPassword;
             return;
         }
 
@@ -146,7 +147,7 @@
         _resetMessage = null;
         if (string.IsNullOrWhiteSpace(_resetPassword))
         {
-            _resetMessage = "Enter a new password.";
+            _resetMessage = AdminStrings.Admins_EnterNewPassword;
             return;
         }
 
@@ -161,7 +162,7 @@
         }
         else
         {
-            _resetMessage = "Failed (Admin role required).";
+            _resetMessage = AdminStrings.Admins_ResetFailedAdminRoleRequired;
         }
     }
 

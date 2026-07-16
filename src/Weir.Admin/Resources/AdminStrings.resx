@@ -1,0 +1,1226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="Common_Saving" xml:space="preserve">
+    <value>Saving...</value>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Common_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Common_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Common_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Common_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Common_Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Common_Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="Common_No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Common_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Common_Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Common_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Common_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Nav_Overview" xml:space="preserve">
+    <value>overview</value>
+  </data>
+  <data name="Nav_Endpoints" xml:space="preserve">
+    <value>endpoints</value>
+  </data>
+  <data name="Nav_Scopes" xml:space="preserve">
+    <value>scopes</value>
+  </data>
+  <data name="Nav_Keys" xml:space="preserve">
+    <value>keys</value>
+  </data>
+  <data name="Nav_Admins" xml:space="preserve">
+    <value>admins</value>
+  </data>
+  <data name="Nav_Logs" xml:space="preserve">
+    <value>logs</value>
+  </data>
+  <data name="Nav_Audit" xml:space="preserve">
+    <value>audit</value>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>settings</value>
+  </data>
+  <data name="Layout_LanguageMenuAriaLabel" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Layout_GitHubAriaLabel" xml:space="preserve">
+    <value>Weir source on GitHub</value>
+  </data>
+  <data name="Layout_AccountMenuAriaLabel" xml:space="preserve">
+    <value>Account menu</value>
+  </data>
+  <data name="Layout_Account" xml:space="preserve">
+    <value>Account</value>
+  </data>
+  <data name="Layout_SignOut" xml:space="preserve">
+    <value>Sign out</value>
+  </data>
+  <data name="Layout_ErrorTitle" xml:space="preserve">
+    <value>Something went wrong</value>
+  </data>
+  <data name="Layout_ErrorBody" xml:space="preserve">
+    <value>An unexpected error occurred on this page. Try reloading, or navigate to another screen.</value>
+  </data>
+  <data name="Layout_PageNotFound" xml:space="preserve">
+    <value>Page not found.</value>
+  </data>
+  <data name="Pwa_UpdateAvailable" xml:space="preserve">
+    <value>A new version of Weir Admin is available.</value>
+  </data>
+  <data name="Pwa_UpdateAction" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Account_Title" xml:space="preserve">
+    <value>account</value>
+  </data>
+  <data name="Account_Description" xml:space="preserve">
+    <value>Your profile, password and personal access tokens</value>
+  </data>
+  <data name="Account_Profile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="Account_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Account_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Account_RoleFullAccess" xml:space="preserve">
+    <value>full access</value>
+  </data>
+  <data name="Account_RoleReadOnly" xml:space="preserve">
+    <value>read-only</value>
+  </data>
+  <data name="Account_ChangePasswordHeading" xml:space="preserve">
+    <value>Change password</value>
+  </data>
+  <data name="Account_CurrentPassword" xml:space="preserve">
+    <value>Current password</value>
+  </data>
+  <data name="Account_NewPassword" xml:space="preserve">
+    <value>New password</value>
+  </data>
+  <data name="Account_ConfirmNewPassword" xml:space="preserve">
+    <value>Confirm new password</value>
+  </data>
+  <data name="Account_ChangePasswordButton" xml:space="preserve">
+    <value>Change password</value>
+  </data>
+  <data name="Account_AccessTokens" xml:space="preserve">
+    <value>Access tokens</value>
+  </data>
+  <data name="Account_TokensIntro" xml:space="preserve">
+    <value>Personal access tokens call the admin API as you (with your role), for scripts and CI/CD - for example to sync an endpoint's parameters on deploy. Send it as</value>
+  </data>
+  <data name="Account_TokenCreatedTitle" xml:space="preserve">
+    <value>Token created - copy it now</value>
+  </data>
+  <data name="Account_TokenCreatedBody" xml:space="preserve">
+    <value>This token is shown once and cannot be retrieved later.</value>
+  </data>
+  <data name="Account_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Account_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="Account_TokenNamePlaceholder" xml:space="preserve">
+    <value>e.g. ci-deploy</value>
+  </data>
+  <data name="Account_TokenExpiryLabel" xml:space="preserve">
+    <value>Expires in days (blank = never)</value>
+  </data>
+  <data name="Account_TokenExpiryPlaceholder" xml:space="preserve">
+    <value>e.g. 90</value>
+  </data>
+  <data name="Account_CreateToken" xml:space="preserve">
+    <value>Create token</value>
+  </data>
+  <data name="Account_NoTokens" xml:space="preserve">
+    <value>No tokens yet.</value>
+  </data>
+  <data name="Account_ColumnToken" xml:space="preserve">
+    <value>Token</value>
+  </data>
+  <data name="Account_ColumnCreated" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="Account_ColumnExpires" xml:space="preserve">
+    <value>Expires</value>
+  </data>
+  <data name="Account_ColumnLastUsed" xml:space="preserve">
+    <value>Last used</value>
+  </data>
+  <data name="Account_Never" xml:space="preserve">
+    <value>never</value>
+  </data>
+  <data name="Account_Revoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="Account_ErrorTokenNameRequired" xml:space="preserve">
+    <value>Enter a name for the token.</value>
+  </data>
+  <data name="Account_ErrorTokenExpiryInvalid" xml:space="preserve">
+    <value>Expiry must be a positive number of days, or blank.</value>
+  </data>
+  <data name="Account_ErrorTokenCreateFailed" xml:space="preserve">
+    <value>Could not create the token.</value>
+  </data>
+  <data name="Account_ErrorPasswordFieldsRequired" xml:space="preserve">
+    <value>Fill in the current and new password.</value>
+  </data>
+  <data name="Account_ErrorPasswordMismatch" xml:space="preserve">
+    <value>The new passwords do not match.</value>
+  </data>
+  <data name="Account_PasswordChanged" xml:space="preserve">
+    <value>Password changed.</value>
+  </data>
+  <data name="Account_ErrorCurrentPasswordIncorrect" xml:space="preserve">
+    <value>The current password is incorrect.</value>
+  </data>
+  <data name="Admins_Title" xml:space="preserve">
+    <value>admins</value>
+  </data>
+  <data name="Admins_Description" xml:space="preserve">
+    <value>Local accounts that can sign in to this console</value>
+  </data>
+  <data name="Admins_NewAdmin" xml:space="preserve">
+    <value>New admin</value>
+  </data>
+  <data name="Admins_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Admins_Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Admins_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Admins_EmptyTitle" xml:space="preserve">
+    <value>No admin accounts</value>
+  </data>
+  <data name="Admins_EmptyDescription" xml:space="preserve">
+    <value>Create an admin account above.</value>
+  </data>
+  <data name="Admins_Login" xml:space="preserve">
+    <value>Login</value>
+  </data>
+  <data name="Admins_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Admins_StatusEnabled" xml:space="preserve">
+    <value>enabled</value>
+  </data>
+  <data name="Admins_StatusDisabled" xml:space="preserve">
+    <value>disabled</value>
+  </data>
+  <data name="Admins_LastLogin" xml:space="preserve">
+    <value>Last login</value>
+  </data>
+  <data name="Admins_Created" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="Admins_ResetPassword" xml:space="preserve">
+    <value>Reset password</value>
+  </data>
+  <data name="Admins_NewPassword" xml:space="preserve">
+    <value>New password</value>
+  </data>
+  <data name="Admins_RoleNotePrefix" xml:space="preserve">
+    <value>Only accounts with the Admin role can add admins or reset passwords. You can change your own password on the </value>
+  </data>
+  <data name="Admins_AccountLink" xml:space="preserve">
+    <value>Account</value>
+  </data>
+  <data name="Admins_RoleNoteSuffix" xml:space="preserve">
+    <value> page.</value>
+  </data>
+  <data name="Admins_RoleAdminFullAccess" xml:space="preserve">
+    <value>Admin (full access)</value>
+  </data>
+  <data name="Admins_RoleViewerReadOnly" xml:space="preserve">
+    <value>Viewer (read-only)</value>
+  </data>
+  <data name="Admins_EnterUsernameAndPassword" xml:space="preserve">
+    <value>Enter a username and password.</value>
+  </data>
+  <data name="Admins_EnterNewPassword" xml:space="preserve">
+    <value>Enter a new password.</value>
+  </data>
+  <data name="Admins_ResetFailedAdminRoleRequired" xml:space="preserve">
+    <value>Failed (Admin role required).</value>
+  </data>
+  <data name="Audit_Title" xml:space="preserve">
+    <value>audit</value>
+  </data>
+  <data name="Audit_Description" xml:space="preserve">
+    <value>Recent audit entries - newest first</value>
+  </data>
+  <data name="Audit_EmptyTitle" xml:space="preserve">
+    <value>No audit entries</value>
+  </data>
+  <data name="Audit_FilterPlaceholder" xml:space="preserve">
+    <value>Filter...</value>
+  </data>
+  <data name="Audit_ColumnTime" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Audit_ColumnCategory" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="Audit_ColumnActor" xml:space="preserve">
+    <value>Actor</value>
+  </data>
+  <data name="Audit_ColumnDetail" xml:space="preserve">
+    <value>Detail</value>
+  </data>
+  <data name="Audit_ColumnOutcome" xml:space="preserve">
+    <value>Outcome</value>
+  </data>
+  <data name="Audit_LoadOlder" xml:space="preserve">
+    <value>Load older</value>
+  </data>
+  <data name="Audit_EntriesLoaded" xml:space="preserve">
+    <value>{0} loaded</value>
+  </data>
+  <data name="Dashboard_OverviewHeading" xml:space="preserve">
+    <value>// OVERVIEW</value>
+  </data>
+  <data name="Dashboard_OverviewHeadingLive" xml:space="preserve">
+    <value>// OVERVIEW - LIVE</value>
+  </data>
+  <data name="Dashboard_StatusStarting" xml:space="preserve">
+    <value>STARTING</value>
+  </data>
+  <data name="Dashboard_StatusOperational" xml:space="preserve">
+    <value>OPERATIONAL</value>
+  </data>
+  <data name="Dashboard_StatusDegraded" xml:space="preserve">
+    <value>DEGRADED</value>
+  </data>
+  <data name="Dashboard_StatusCheckingConnections" xml:space="preserve">
+    <value>checking connections</value>
+  </data>
+  <data name="Dashboard_StatusAllNominal" xml:space="preserve">
+    <value>all systems nominal</value>
+  </data>
+  <data name="Dashboard_StatusConnectionsDown" xml:space="preserve">
+    <value>{0} of {1} connections down</value>
+  </data>
+  <data name="Dashboard_ThroughputCaption" xml:space="preserve">
+    <value>throughput req/s</value>
+  </data>
+  <data name="Dashboard_TotalRequestsCaption" xml:space="preserve">
+    <value>total requests</value>
+  </data>
+  <data name="Dashboard_InFlightCaption" xml:space="preserve">
+    <value>in-flight</value>
+  </data>
+  <data name="Dashboard_UptimeErrorsCaption" xml:space="preserve">
+    <value>uptime - {0} errors ({1})</value>
+  </data>
+  <data name="Dashboard_ConnectionConnected" xml:space="preserve">
+    <value>connected</value>
+  </data>
+  <data name="Dashboard_ConnectionUnreachable" xml:space="preserve">
+    <value>unreachable</value>
+  </data>
+  <data name="Dashboard_ConnectionProbe" xml:space="preserve">
+    <value>probe</value>
+  </data>
+  <data name="Dashboard_ConnectionDown" xml:space="preserve">
+    <value>down</value>
+  </data>
+  <data name="Dashboard_ServiceMetricsHeading" xml:space="preserve">
+    <value>// SERVICE METRICS</value>
+  </data>
+  <data name="Dashboard_P50Latency" xml:space="preserve">
+    <value>p50 latency</value>
+  </data>
+  <data name="Dashboard_P95Latency" xml:space="preserve">
+    <value>p95 latency</value>
+  </data>
+  <data name="Dashboard_P99Latency" xml:space="preserve">
+    <value>p99 latency</value>
+  </data>
+  <data name="Dashboard_ErrorRate" xml:space="preserve">
+    <value>error rate</value>
+  </data>
+  <data name="Dashboard_CacheHit" xml:space="preserve">
+    <value>cache hit</value>
+  </data>
+  <data name="Dashboard_Connections" xml:space="preserve">
+    <value>connections</value>
+  </data>
+  <data name="Dashboard_CacheHeading" xml:space="preserve">
+    <value>// CACHE</value>
+  </data>
+  <data name="Dashboard_CacheHitMiss" xml:space="preserve">
+    <value>{0} hit - {1} miss</value>
+  </data>
+  <data name="Dashboard_ThroughputChartTitle" xml:space="preserve">
+    <value>THROUGHPUT</value>
+  </data>
+  <data name="Dashboard_LatencyChartTitle" xml:space="preserve">
+    <value>LATENCY p50</value>
+  </data>
+  <data name="Dashboard_EndpointsHeading" xml:space="preserve">
+    <value>// ENDPOINTS - LIVE</value>
+  </data>
+  <data name="Dashboard_EndpointsActiveHint" xml:space="preserve">
+    <value>{0} active - click a row for details</value>
+  </data>
+  <data name="Dashboard_NoCallsRecorded" xml:space="preserve">
+    <value>No calls recorded yet.</value>
+  </data>
+  <data name="Dashboard_ColumnRoute" xml:space="preserve">
+    <value>Route</value>
+  </data>
+  <data name="Dashboard_ColumnObject" xml:space="preserve">
+    <value>Object</value>
+  </data>
+  <data name="Dashboard_ColumnCount" xml:space="preserve">
+    <value>Count</value>
+  </data>
+  <data name="Dashboard_ColumnErrorPct" xml:space="preserve">
+    <value>Err%</value>
+  </data>
+  <data name="Dashboard_ColumnCache" xml:space="preserve">
+    <value>Cache</value>
+  </data>
+  <data name="Dashboard_ColumnLast" xml:space="preserve">
+    <value>Last</value>
+  </data>
+  <data name="Endpoints_PageTitle" xml:space="preserve">
+    <value>endpoints</value>
+  </data>
+  <data name="Endpoints_PageDescription" xml:space="preserve">
+    <value>HTTP routes mapped to stored procedures and functions</value>
+  </data>
+  <data name="Endpoints_SyncAllButton" xml:space="preserve">
+    <value>Sync all</value>
+  </data>
+  <data name="Endpoints_ImportButton" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Endpoints_ExportButton" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Endpoints_NewEndpoint" xml:space="preserve">
+    <value>New endpoint</value>
+  </data>
+  <data name="Endpoints_TabEndpoints" xml:space="preserve">
+    <value>Endpoints</value>
+  </data>
+  <data name="Endpoints_EmptyTitle" xml:space="preserve">
+    <value>No endpoints yet</value>
+  </data>
+  <data name="Endpoints_EmptyDescription" xml:space="preserve">
+    <value>Create one, or map a database object from the Database tab.</value>
+  </data>
+  <data name="Endpoints_FilterSectionHeader" xml:space="preserve">
+    <value>// FILTER</value>
+  </data>
+  <data name="Endpoints_FilterScopeLabel" xml:space="preserve">
+    <value>Required scope</value>
+  </data>
+  <data name="Endpoints_FilterKeyLabel" xml:space="preserve">
+    <value>Reachable by key</value>
+  </data>
+  <data name="Endpoints_FilterSummary" xml:space="preserve">
+    <value>showing {0} of {1} - Export and OpenAPI honour this filter</value>
+  </data>
+  <data name="Endpoints_ClearFilters" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Endpoints_QuickFilterPlaceholder" xml:space="preserve">
+    <value>Filter...</value>
+  </data>
+  <data name="Endpoints_StatusColumn" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Endpoints_StatusDisabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Endpoints_MethodLabel" xml:space="preserve">
+    <value>Method</value>
+  </data>
+  <data name="Endpoints_RouteLabel" xml:space="preserve">
+    <value>Route</value>
+  </data>
+  <data name="Endpoints_ConnectionLabel" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Endpoints_ObjectLabel" xml:space="preserve">
+    <value>Object</value>
+  </data>
+  <data name="Endpoints_TypeColumn" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Endpoints_ParamsColumn" xml:space="preserve">
+    <value>Params</value>
+  </data>
+  <data name="Endpoints_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Endpoints_LogsButton" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="Endpoints_SyncButton" xml:space="preserve">
+    <value>Sync</value>
+  </data>
+  <data name="Endpoints_PurgeCacheTooltip" xml:space="preserve">
+    <value>Force-clear this endpoint's cached responses</value>
+  </data>
+  <data name="Endpoints_PurgeCacheButton" xml:space="preserve">
+    <value>Purge cache</value>
+  </data>
+  <data name="Endpoints_TabDatabase" xml:space="preserve">
+    <value>Database</value>
+  </data>
+  <data name="Endpoints_ObjectsNotBrowsable" xml:space="preserve">
+    <value>Objects not browsable on this connection ({0}).</value>
+  </data>
+  <data name="Endpoints_NoObjectsFound" xml:space="preserve">
+    <value>No objects found on this connection.</value>
+  </data>
+  <data name="Endpoints_SchemaLabel" xml:space="preserve">
+    <value>Schema</value>
+  </data>
+  <data name="Endpoints_EndpointColumn" xml:space="preserve">
+    <value>Endpoint</value>
+  </data>
+  <data name="Endpoints_NoneChip" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="Endpoints_SelectObjectHint" xml:space="preserve">
+    <value>Select an object to inspect its parameters, then create an endpoint pre-filled from it.</value>
+  </data>
+  <data name="Endpoints_ObjectSummary" xml:space="preserve">
+    <value>{0} - {1} parameters</value>
+  </data>
+  <data name="Endpoints_CreateFromObject" xml:space="preserve">
+    <value>Create endpoint from this object</value>
+  </data>
+  <data name="Endpoints_EditEndpoint" xml:space="preserve">
+    <value>Edit endpoint</value>
+  </data>
+  <data name="Endpoints_ObjectTypeLabel" xml:space="preserve">
+    <value>Object type</value>
+  </data>
+  <data name="Endpoints_ResultModeLabel" xml:space="preserve">
+    <value>Result mode</value>
+  </data>
+  <data name="Endpoints_TimeoutLabel" xml:space="preserve">
+    <value>Timeout (s)</value>
+  </data>
+  <data name="Endpoints_SuppressMessagesLabel" xml:space="preserve">
+    <value>Suppress SQL messages</value>
+  </data>
+  <data name="Endpoints_CachingSection" xml:space="preserve">
+    <value>Caching</value>
+  </data>
+  <data name="Endpoints_EnableCacheLabel" xml:space="preserve">
+    <value>Enable cache</value>
+  </data>
+  <data name="Endpoints_CacheTtlLabel" xml:space="preserve">
+    <value>TTL (s)</value>
+  </data>
+  <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
+    <value>Vary by API key</value>
+  </data>
+  <data name="Endpoints_CacheVaryByParams" xml:space="preserve">
+    <value>Vary cache by parameters</value>
+  </data>
+  <data name="Endpoints_CacheNoParameters" xml:space="preserve">
+    <value>No parameters defined; one response is cached for the whole endpoint.</value>
+  </data>
+  <data name="Endpoints_CacheVaryHelp" xml:space="preserve">
+    <value>Selected parameters (and, if set, the API key) become part of the cache key, so callers with different values get separate cached responses. Leave empty to cache one shared response per endpoint. The row cap and TTL bound each entry.</value>
+  </data>
+  <data name="Endpoints_LoggingSection" xml:space="preserve">
+    <value>Logging</value>
+  </data>
+  <data name="Endpoints_LogRequestsLabel" xml:space="preserve">
+    <value>Log requests</value>
+  </data>
+  <data name="Endpoints_LogParametersLabel" xml:space="preserve">
+    <value>Capture parameters</value>
+  </data>
+  <data name="Endpoints_LogResultLabel" xml:space="preserve">
+    <value>Capture result</value>
+  </data>
+  <data name="Endpoints_SlowThresholdLabel" xml:space="preserve">
+    <value>Slow threshold %</value>
+  </data>
+  <data name="Endpoints_SlowThresholdPlaceholder" xml:space="preserve">
+    <value>from settings</value>
+  </data>
+  <data name="Endpoints_LoggingHelp" xml:space="preserve">
+    <value>Parameter and result capture can hold PII; enable only where needed. A call is flagged slow when it exceeds this endpoint's rolling average by the threshold (blank uses the global setting).</value>
+  </data>
+  <data name="Endpoints_RequiredScopes" xml:space="preserve">
+    <value>Required scopes</value>
+  </data>
+  <data name="Endpoints_NoScopesDefined" xml:space="preserve">
+    <value>No scopes defined.</value>
+  </data>
+  <data name="Endpoints_ParametersSection" xml:space="preserve">
+    <value>Parameters</value>
+  </data>
+  <data name="Endpoints_DiscoverParameters" xml:space="preserve">
+    <value>Discover from database</value>
+  </data>
+  <data name="Endpoints_ParamNamePlaceholder" xml:space="preserve">
+    <value>name</value>
+  </data>
+  <data name="Endpoints_ParamSizePlaceholder" xml:space="preserve">
+    <value>size</value>
+  </data>
+  <data name="Endpoints_TvpTypePlaceholder" xml:space="preserve">
+    <value>TVP type e.g. dbo.OrderLineType</value>
+  </data>
+  <data name="Endpoints_ColumnPlaceholder" xml:space="preserve">
+    <value>column</value>
+  </data>
+  <data name="Endpoints_RemoveColumnTooltip" xml:space="preserve">
+    <value>Remove column</value>
+  </data>
+  <data name="Endpoints_AddColumn" xml:space="preserve">
+    <value>Add column</value>
+  </data>
+  <data name="Endpoints_AddParameter" xml:space="preserve">
+    <value>Add parameter</value>
+  </data>
+  <data name="Endpoints_SaveEndpoint" xml:space="preserve">
+    <value>Save endpoint</value>
+  </data>
+  <data name="Endpoints_RawJsonLabel" xml:space="preserve">
+    <value>Raw JSON</value>
+  </data>
+  <data name="Endpoints_NoInputParameters" xml:space="preserve">
+    <value>This endpoint takes no input parameters.</value>
+  </data>
+  <data name="Endpoints_AddRow" xml:space="preserve">
+    <value>Add row</value>
+  </data>
+  <data name="Endpoints_NoColumnMetadata" xml:space="preserve">
+    <value>No column metadata; use Raw JSON.</value>
+  </data>
+  <data name="Endpoints_ResponseSection" xml:space="preserve">
+    <value>Response</value>
+  </data>
+  <data name="Endpoints_SendRequest" xml:space="preserve">
+    <value>Send request</value>
+  </data>
+  <data name="Endpoints_AllScopesFilter" xml:space="preserve">
+    <value>All scopes</value>
+  </data>
+  <data name="Endpoints_AllKeysFilter" xml:space="preserve">
+    <value>All keys</value>
+  </data>
+  <data name="Endpoints_DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete endpoint?</value>
+  </data>
+  <data name="Endpoints_DeleteConfirmBody" xml:space="preserve">
+    <value>Delete {0} /api/{1}? This cannot be undone.</value>
+  </data>
+  <data name="Endpoints_DiscoverNeedsConnection" xml:space="preserve">
+    <value>Set the connection and object name first.</value>
+  </data>
+  <data name="Endpoints_NothingToSync" xml:space="preserve">
+    <value>Nothing to sync.</value>
+  </data>
+  <data name="Endpoints_SyncedCount" xml:space="preserve">
+    <value>Synced {0} endpoint(s).</value>
+  </data>
+  <data name="Endpoints_SyncedSummary" xml:space="preserve">
+    <value>Synced: {0}</value>
+  </data>
+  <data name="Endpoints_CachePurgeFailed" xml:space="preserve">
+    <value>Cache purge failed for /api/{0}.</value>
+  </data>
+  <data name="Endpoints_CachePurged" xml:space="preserve">
+    <value>Purged cache for /api/{0}.</value>
+  </data>
+  <data name="Endpoints_ChangeAdded" xml:space="preserve">
+    <value>added {0}</value>
+  </data>
+  <data name="Endpoints_ChangeUpdated" xml:space="preserve">
+    <value>updated {0}</value>
+  </data>
+  <data name="Endpoints_ChangeRemoved" xml:space="preserve">
+    <value>removed {0}</value>
+  </data>
+  <data name="Endpoints_ChangeNone" xml:space="preserve">
+    <value>no changes</value>
+  </data>
+  <data name="Endpoints_DownloadedOpenApiFiltered" xml:space="preserve">
+    <value>Downloaded OpenAPI document (filtered).</value>
+  </data>
+  <data name="Endpoints_DownloadedOpenApi" xml:space="preserve">
+    <value>Downloaded openapi.json.</value>
+  </data>
+  <data name="Endpoints_DownloadedFilteredEndpoints" xml:space="preserve">
+    <value>Downloaded {0} filtered endpoint(s).</value>
+  </data>
+  <data name="Endpoints_DownloadedEndpoints" xml:space="preserve">
+    <value>Downloaded endpoints.json.</value>
+  </data>
+  <data name="Endpoints_ImportedCount" xml:space="preserve">
+    <value>Imported {0} endpoint(s).</value>
+  </data>
+  <data name="Endpoints_ImportNoEndpoints" xml:space="preserve">
+    <value>No endpoints found in the file.</value>
+  </data>
+  <data name="Endpoints_ImportFailed" xml:space="preserve">
+    <value>Import failed: {0}</value>
+  </data>
+  <data name="Endpoints_ObjectTypeProc" xml:space="preserve">
+    <value>Proc</value>
+  </data>
+  <data name="Endpoints_ObjectTypeTableFn" xml:space="preserve">
+    <value>Table fn</value>
+  </data>
+  <data name="Endpoints_ObjectTypeScalarFn" xml:space="preserve">
+    <value>Scalar fn</value>
+  </data>
+  <data name="Keys_PageTitle" xml:space="preserve">
+    <value>keys</value>
+  </data>
+  <data name="Keys_PageDescription" xml:space="preserve">
+    <value>Keys authenticate data-plane callers. Scopes and procedure grants limit each.</value>
+  </data>
+  <data name="Keys_CreateKey" xml:space="preserve">
+    <value>Create key</value>
+  </data>
+  <data name="Keys_CreatedAlertTitle" xml:space="preserve">
+    <value>Key created - copy it now</value>
+  </data>
+  <data name="Keys_CreatedAlertBody" xml:space="preserve">
+    <value>This plaintext key is shown once and cannot be retrieved later.</value>
+  </data>
+  <data name="Keys_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Keys_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="Keys_EmptyTitle" xml:space="preserve">
+    <value>No API keys yet</value>
+  </data>
+  <data name="Keys_EmptyDescription" xml:space="preserve">
+    <value>Create one to let clients call the data plane.</value>
+  </data>
+  <data name="Keys_ColumnKey" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="Keys_Scopes" xml:space="preserve">
+    <value>Scopes</value>
+  </data>
+  <data name="Keys_ProcedureAccess" xml:space="preserve">
+    <value>Procedure access</value>
+  </data>
+  <data name="Keys_ColumnCreated" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="Keys_ColumnLastUsed" xml:space="preserve">
+    <value>Last used</value>
+  </data>
+  <data name="Keys_ColumnStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Keys_StatusActive" xml:space="preserve">
+    <value>active</value>
+  </data>
+  <data name="Keys_StatusRevoked" xml:space="preserve">
+    <value>revoked</value>
+  </data>
+  <data name="Keys_Revoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="Keys_CreateDialogTitle" xml:space="preserve">
+    <value>Create API key</value>
+  </data>
+  <data name="Keys_NamePlaceholder" xml:space="preserve">
+    <value>e.g. checkout-service</value>
+  </data>
+  <data name="Keys_NoScopesDefined" xml:space="preserve">
+    <value>No scopes defined.</value>
+  </data>
+  <data name="Keys_ProcedureAccessHelp" xml:space="preserve">
+    <value>Leave empty to allow every procedure (subject to scopes). Use * for "any".</value>
+  </data>
+  <data name="Keys_SchemaPlaceholder" xml:space="preserve">
+    <value>schema or *</value>
+  </data>
+  <data name="Keys_ObjectPlaceholder" xml:space="preserve">
+    <value>object or *</value>
+  </data>
+  <data name="Keys_AddGrant" xml:space="preserve">
+    <value>Add grant</value>
+  </data>
+  <data name="Keys_GrantsAll" xml:space="preserve">
+    <value>all</value>
+  </data>
+  <data name="Keys_DiscardTitle" xml:space="preserve">
+    <value>Discard key?</value>
+  </data>
+  <data name="Keys_DiscardBody" xml:space="preserve">
+    <value>This key has not been created yet. Discard your changes?</value>
+  </data>
+  <data name="Keys_DiscardConfirm" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="Keys_DiscardCancel" xml:space="preserve">
+    <value>Keep editing</value>
+  </data>
+  <data name="Keys_RevokeTitle" xml:space="preserve">
+    <value>Revoke key?</value>
+  </data>
+  <data name="Keys_RevokeBody" xml:space="preserve">
+    <value>Revoke "{0}"? Any client using it will immediately be denied. This cannot be undone.</value>
+  </data>
+  <data name="Login_Subtitle" xml:space="preserve">
+    <value>Sign in to the gateway console.</value>
+  </data>
+  <data name="Login_UsernameLabel" xml:space="preserve">
+    <value>Login</value>
+  </data>
+  <data name="Login_PasswordLabel" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Login_SignInButton" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="Login_InvalidCredentials" xml:space="preserve">
+    <value>Invalid username or password.</value>
+  </data>
+  <data name="Login_ServerUnreachable" xml:space="preserve">
+    <value>Could not reach the server. Please try again.</value>
+  </data>
+  <data name="Logs_Title" xml:space="preserve">
+    <value>logs</value>
+  </data>
+  <data name="Logs_Description" xml:space="preserve">
+    <value>Data-plane request history - timing, results and slow calls</value>
+  </data>
+  <data name="Logs_EndpointChip" xml:space="preserve">
+    <value>endpoint: {0}</value>
+  </data>
+  <data name="Logs_Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Logs_SectionFilter" xml:space="preserve">
+    <value>// FILTER</value>
+  </data>
+  <data name="Logs_SlowOnly" xml:space="preserve">
+    <value>Slow only</value>
+  </data>
+  <data name="Logs_ErrorsOnly" xml:space="preserve">
+    <value>Errors only</value>
+  </data>
+  <data name="Logs_LoadedCount" xml:space="preserve">
+    <value>{0} loaded</value>
+  </data>
+  <data name="Logs_EmptyTitle" xml:space="preserve">
+    <value>No requests logged yet</value>
+  </data>
+  <data name="Logs_EmptyDescription" xml:space="preserve">
+    <value>Calls appear here once the data plane serves them (request logging is enabled in Settings).</value>
+  </data>
+  <data name="Logs_Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Logs_Method" xml:space="preserve">
+    <value>Method</value>
+  </data>
+  <data name="Logs_Route" xml:space="preserve">
+    <value>Route</value>
+  </data>
+  <data name="Logs_Object" xml:space="preserve">
+    <value>Object</value>
+  </data>
+  <data name="Logs_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Logs_Duration" xml:space="preserve">
+    <value>Duration</value>
+  </data>
+  <data name="Logs_Db" xml:space="preserve">
+    <value>DB</value>
+  </data>
+  <data name="Logs_Rows" xml:space="preserve">
+    <value>Rows</value>
+  </data>
+  <data name="Logs_CacheLabel" xml:space="preserve">
+    <value>cache</value>
+  </data>
+  <data name="Logs_Caller" xml:space="preserve">
+    <value>Caller</value>
+  </data>
+  <data name="Logs_LoadOlder" xml:space="preserve">
+    <value>Load older</value>
+  </data>
+  <data name="Logs_TestEndpoint" xml:space="preserve">
+    <value>Test endpoint</value>
+  </data>
+  <data name="Logs_EditEndpoint" xml:space="preserve">
+    <value>Edit endpoint</value>
+  </data>
+  <data name="Logs_SectionTimingBreakdown" xml:space="preserve">
+    <value>// TIMING BREAKDOWN</value>
+  </data>
+  <data name="Logs_TimingDb" xml:space="preserve">
+    <value>DB {0}</value>
+  </data>
+  <data name="Logs_TimingOther" xml:space="preserve">
+    <value>Other {0}</value>
+  </data>
+  <data name="Logs_TimingTotal" xml:space="preserve">
+    <value>Total {0}</value>
+  </data>
+  <data name="Logs_TimingAverage" xml:space="preserve">
+    <value>avg {0}</value>
+  </data>
+  <data name="Logs_Connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Logs_SlowSuffix" xml:space="preserve">
+    <value> (slow)</value>
+  </data>
+  <data name="Logs_DatabaseTime" xml:space="preserve">
+    <value>Database time</value>
+  </data>
+  <data name="Logs_EndpointAverage" xml:space="preserve">
+    <value>Endpoint average</value>
+  </data>
+  <data name="Logs_ServedFromCache" xml:space="preserve">
+    <value>served from cache</value>
+  </data>
+  <data name="Logs_ErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Logs_SectionParameters" xml:space="preserve">
+    <value>// PARAMETERS</value>
+  </data>
+  <data name="Logs_ParametersTitle" xml:space="preserve">
+    <value>Parameters</value>
+  </data>
+  <data name="Logs_View" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Logs_SectionResult" xml:space="preserve">
+    <value>// RESULT</value>
+  </data>
+  <data name="Logs_ResultTitle" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="Logs_CaptureOffHint" xml:space="preserve">
+    <value>Parameter and result capture is off for this endpoint. Enable it per endpoint in the endpoint editor's Logging section.</value>
+  </data>
+  <data name="Logs_SlowHintWithAverage" xml:space="preserve">
+    <value>Slower than usual: {0} vs {1} average</value>
+  </data>
+  <data name="Logs_SlowHint" xml:space="preserve">
+    <value>Slower than usual for this endpoint</value>
+  </data>
+  <data name="Logs_TruncatedMarker" xml:space="preserve">
+    <value>
+... (truncated - use View for the full JSON)</value>
+  </data>
+  <data name="Scopes_Title" xml:space="preserve">
+    <value>scopes</value>
+  </data>
+  <data name="Scopes_Description" xml:space="preserve">
+    <value>Named permissions attached to keys and required by endpoints</value>
+  </data>
+  <data name="Scopes_NewScope" xml:space="preserve">
+    <value>New scope</value>
+  </data>
+  <data name="Scopes_AddScope" xml:space="preserve">
+    <value>Add scope</value>
+  </data>
+  <data name="Scopes_EmptyTitle" xml:space="preserve">
+    <value>No scopes yet</value>
+  </data>
+  <data name="Scopes_EmptyDescription" xml:space="preserve">
+    <value>Add a scope above to grant API keys access.</value>
+  </data>
+  <data name="Scopes_ColumnScope" xml:space="preserve">
+    <value>Scope</value>
+  </data>
+  <data name="Scopes_ColumnKeys" xml:space="preserve">
+    <value>Keys</value>
+  </data>
+  <data name="Scopes_ColumnEndpoints" xml:space="preserve">
+    <value>Endpoints</value>
+  </data>
+  <data name="Scopes_DeleteInUseSuffix" xml:space="preserve">
+    <value> It is still referenced by {0} key(s) and {1} endpoint(s).</value>
+  </data>
+  <data name="Scopes_DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete scope?</value>
+  </data>
+  <data name="Scopes_DeleteConfirmBody" xml:space="preserve">
+    <value>Delete scope "{0}"?{1}</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>settings</value>
+  </data>
+  <data name="Settings_PageDescription" xml:space="preserve">
+    <value>Runtime system settings, applied without a restart unless noted</value>
+  </data>
+  <data name="Settings_LoadFailedTitle" xml:space="preserve">
+    <value>Could not load settings</value>
+  </data>
+  <data name="Settings_LoadFailedBody" xml:space="preserve">
+    <value>The settings service did not respond. Try reloading.</value>
+  </data>
+  <data name="Settings_SectionDataPlaneLimits" xml:space="preserve">
+    <value>// DATA PLANE LIMITS</value>
+  </data>
+  <data name="Settings_MaxRowsLabel" xml:space="preserve">
+    <value>Max rows</value>
+  </data>
+  <data name="Settings_RequestTimeoutLabel" xml:space="preserve">
+    <value>Request timeout (s)</value>
+  </data>
+  <data name="Settings_MaxTvpRowsLabel" xml:space="preserve">
+    <value>Max TVP rows</value>
+  </data>
+  <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
+    <value>Zero means unlimited. A response beyond the row cap is truncated and not cached.</value>
+  </data>
+  <data name="Settings_SectionRateLimiting" xml:space="preserve">
+    <value>// RATE LIMITING</value>
+  </data>
+  <data name="Settings_DefaultRateLimitLabel" xml:space="preserve">
+    <value>Default per-key limit (per minute)</value>
+  </data>
+  <data name="Settings_RateLimitingHelp" xml:space="preserve">
+    <value>Applied to API keys that set no limit of their own. Zero leaves them unthrottled.</value>
+  </data>
+  <data name="Settings_SectionConnectionResilience" xml:space="preserve">
+    <value>// CONNECTION RESILIENCE</value>
+  </data>
+  <data name="Settings_MaxConcurrentPerConnectionLabel" xml:space="preserve">
+    <value>Max concurrent per connection</value>
+  </data>
+  <data name="Settings_CircuitBreakerThresholdLabel" xml:space="preserve">
+    <value>Circuit breaker threshold</value>
+  </data>
+  <data name="Settings_CircuitBreakerResetLabel" xml:space="preserve">
+    <value>Circuit breaker reset (s)</value>
+  </data>
+  <data name="Settings_ConnectionResilienceHelp" xml:space="preserve">
+    <value>A bulkhead per data connection rejects excess concurrency with HTTP 503 (zero = unlimited). After the threshold of consecutive failures the breaker opens and short-circuits with 503 until the reset window elapses (zero threshold disables it).</value>
+  </data>
+  <data name="Settings_SectionAudit" xml:space="preserve">
+    <value>// AUDIT</value>
+  </data>
+  <data name="Settings_AuditRetentionLabel" xml:space="preserve">
+    <value>Audit retention (days)</value>
+  </data>
+  <data name="Settings_AuditHelp" xml:space="preserve">
+    <value>Audit entries older than this are pruned in the background. Zero keeps history forever.</value>
+  </data>
+  <data name="Settings_SectionRequestLog" xml:space="preserve">
+    <value>// REQUEST LOG</value>
+  </data>
+  <data name="Settings_EnableRequestLogLabel" xml:space="preserve">
+    <value>Enable request log</value>
+  </data>
+  <data name="Settings_SlowThresholdLabel" xml:space="preserve">
+    <value>Slow threshold (%)</value>
+  </data>
+  <data name="Settings_RequestLogRetentionLabel" xml:space="preserve">
+    <value>Retention (days)</value>
+  </data>
+  <data name="Settings_RequestLogHelp" xml:space="preserve">
+    <value>Records every data-plane call (timing, rows, cache). A call is flagged slow when it exceeds an endpoint's rolling average by this percentage (an endpoint can override it). Parameter and result capture stays opt-in per endpoint. Zero retention keeps history forever.</value>
+  </data>
+  <data name="Settings_SaveButton" xml:space="preserve">
+    <value>Save settings</value>
+  </data>
+  <data name="Settings_SectionBackupExport" xml:space="preserve">
+    <value>// BACKUP / EXPORT</value>
+  </data>
+  <data name="Settings_GenerateExportButton" xml:space="preserve">
+    <value>Generate export</value>
+  </data>
+  <data name="Settings_Preparing" xml:space="preserve">
+    <value>Preparing...</value>
+  </data>
+  <data name="Settings_BackupExportHelp" xml:space="preserve">
+    <value>A portable, secret-free snapshot of endpoints, scopes, settings and non-secret key/admin inventory. Excludes hashes; use a database backup for full disaster recovery. Admin role required.</value>
+  </data>
+  <data name="Settings_SectionLogging" xml:space="preserve">
+    <value>// LOGGING (RESTART REQUIRED)</value>
+  </data>
+  <data name="Settings_MaxRequestBodyLabel" xml:space="preserve">
+    <value>Max request body (bytes)</value>
+  </data>
+  <data name="Settings_FileLoggingLabel" xml:space="preserve">
+    <value>File logging</value>
+  </data>
+  <data name="Settings_On" xml:space="preserve">
+    <value>on</value>
+  </data>
+  <data name="Settings_Off" xml:space="preserve">
+    <value>off</value>
+  </data>
+  <data name="Settings_DirectoryLabel" xml:space="preserve">
+    <value>Directory</value>
+  </data>
+  <data name="Settings_RollingLabel" xml:space="preserve">
+    <value>Rolling</value>
+  </data>
+  <data name="Settings_RetainedFilesLabel" xml:space="preserve">
+    <value>Retained files</value>
+  </data>
+  <data name="Settings_RetainedFilesAll" xml:space="preserve">
+    <value>all</value>
+  </data>
+  <data name="Settings_FormatLabel" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="Settings_LevelLabel" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="Settings_LoggingHelp" xml:space="preserve">
+    <value>Applied at startup from configuration (Weir:Logging); change it in config and restart to take effect.</value>
+  </data>
+  <data name="Settings_ExportRejected" xml:space="preserve">
+    <value>The export was rejected. Only full admins can export the control plane.</value>
+  </data>
+  <data name="Settings_ExportDownloaded" xml:space="preserve">
+    <value>Downloaded weir-control-plane.json.</value>
+  </data>
+  <data name="Settings_ExportServiceUnavailable" xml:space="preserve">
+    <value>The export service did not respond.</value>
+  </data>
+  <data name="Settings_ValuesMustNotBeNegative" xml:space="preserve">
+    <value>Values must not be negative.</value>
+  </data>
+  <data name="Settings_UpdateRejected" xml:space="preserve">
+    <value>The update was rejected. Only full admins can change settings.</value>
+  </data>
+  <data name="Settings_SavedAndApplied" xml:space="preserve">
+    <value>Settings saved and applied.</value>
+  </data>
+  <data name="Settings_SettingsServiceUnavailable" xml:space="preserve">
+    <value>The settings service did not respond.</value>
+  </data>
+</root>

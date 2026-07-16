@@ -1,5 +1,6 @@
 @page "/"
 @attribute [Authorize]
+@inherits LocalizedPage
 @using System.Globalization
 @using Microsoft.AspNetCore.SignalR.Client
 @inject WeirApiClient Api
@@ -15,7 +16,7 @@
 
 <FlareStack Gap="FlareSpacing.XSmall">
 
-    <FlareText Element="h1" Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// OVERVIEW @(_hub is not null ? "- LIVE" : "")</FlareText>
+    <FlareText Element="h1" Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@(_hub is not null ? AdminStrings.Dashboard_OverviewHeadingLive : AdminStrings.Dashboard_OverviewHeading)</FlareText>
 
     @* Status ribbon *@
     <FlareCard Variant="CardVariant.Filled">
@@ -23,27 +24,27 @@
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                 <FlareIcon Name="@(total == 0 ? "pending" : allOk ? "monitor_heart" : "error")" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
                 <FlareStack Gap="FlareSpacing.None">
-                    <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? "STARTING" : allOk ? "OPERATIONAL" : "DEGRADED")</FlareText>
-                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? "checking connections" : allOk ? "all systems nominal" : $"{total - healthy} of {total} connections down")</FlareText>
+                    <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? AdminStrings.Dashboard_StatusStarting : allOk ? AdminStrings.Dashboard_StatusOperational : AdminStrings.Dashboard_StatusDegraded)</FlareText>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? AdminStrings.Dashboard_StatusCheckingConnections : allOk ? AdminStrings.Dashboard_StatusAllNominal : string.Format(AdminStrings.Dashboard_StatusConnectionsDown, total - healthy, total))</FlareText>
                 </FlareStack>
             </FlareStack>
             <FlareDivider Vertical="true" Style="height:38px;" />
             <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">throughput req/s</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_ThroughputCaption</FlareText>
             </FlareStack>
             <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Compact(_overview?.TotalRequests ?? 0)</FlareText>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">total requests</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_TotalRequestsCaption</FlareText>
             </FlareStack>
             <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@(_overview?.ActiveRequests ?? 0)</FlareText>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">in-flight</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_InFlightCaption</FlareText>
             </FlareStack>
             <FlareSpacer />
             <FlareStack Gap="FlareSpacing.None" Align="FlareAlignItems.End">
                 <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="FlareColor.OnSurfaceVariant">@FormatClock(_overview?.Uptime ?? TimeSpan.Zero)</FlareText>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">uptime - @Num(_overview?.TotalErrors ?? 0) errors (@Pct2(_overview?.ErrorRate ?? 0))</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Dashboard_UptimeErrorsCaption, Num(_overview?.TotalErrors ?? 0), Pct2(_overview?.ErrorRate ?? 0))</FlareText>
             </FlareStack>
         </FlareStack>
     </FlareCard>
@@ -59,11 +60,11 @@
                         <FlareIcon Name="@(connection.Healthy ? "check_circle" : "error")" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)" Size="1rem" />
                         <FlareStack Gap="FlareSpacing.None" Style="flex:1;min-width:0;">
                             <FlareText Mono="true" Typo="TypographyScale.LabelLarge">@connection.Name</FlareText>
-                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? (connection.Provider ?? "connected") : (connection.Error ?? "unreachable"))</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? (connection.Provider ?? AdminStrings.Dashboard_ConnectionConnected) : (connection.Error ?? AdminStrings.Dashboard_ConnectionUnreachable))</FlareText>
                         </FlareStack>
                         <FlareStack Gap="FlareSpacing.None" Align="FlareAlignItems.End">
                             <FlareText Mono="true" Typo="TypographyScale.LabelLarge" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)">@connection.LatencyMs.ToString("0.0", Invariant)ms</FlareText>
-                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? "probe" : "down")</FlareText>
+                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? AdminStrings.Dashboard_ConnectionProbe : AdminStrings.Dashboard_ConnectionDown)</FlareText>
                         </FlareStack>
                     </FlareStack>
                 </FlareCard>
@@ -75,26 +76,26 @@
        the rest of the row (StretchLast). *@
     <FlareStack Row StretchLast Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Start">
         <FlareCard Variant="CardVariant.Outlined" Style="width:300px;flex:none;box-sizing:border-box;">
-            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// SERVICE METRICS</FlareText>
+            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Dashboard_ServiceMetricsHeading</FlareText>
             <FlareDescriptionList>
-                <FlareDescriptionItem Label="p50 latency"><FlareText Mono="true">@Lat(_overview?.P50LatencyMs)</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="p95 latency"><FlareText Mono="true">@Lat(_overview?.P95LatencyMs)</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="p99 latency"><FlareText Mono="true" Color="FlareColor.Warning">@Lat(_overview?.P99LatencyMs)</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="error rate"><FlareText Mono="true">@Pct2(_overview?.ErrorRate ?? 0)</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="cache hit"><FlareText Mono="true" Color="FlareColor.Success">@Pct1(_overview?.CacheHitRatio ?? 0)</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="connections"><FlareText Mono="true">@healthy / @total</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_P50Latency"><FlareText Mono="true">@Lat(_overview?.P50LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_P95Latency"><FlareText Mono="true">@Lat(_overview?.P95LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_P99Latency"><FlareText Mono="true" Color="FlareColor.Warning">@Lat(_overview?.P99LatencyMs)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_ErrorRate"><FlareText Mono="true">@Pct2(_overview?.ErrorRate ?? 0)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_CacheHit"><FlareText Mono="true" Color="FlareColor.Success">@Pct1(_overview?.CacheHitRatio ?? 0)</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Dashboard_Connections"><FlareText Mono="true">@healthy / @total</FlareText></FlareDescriptionItem>
             </FlareDescriptionList>
             <FlareStack Gap="FlareSpacing.XSmall" Style="margin-top:0.75rem;">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// CACHE</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Dashboard_CacheHeading</FlareText>
                 <FlareProgress Variant="ProgressVariant.Linear" Value="@((_overview?.CacheHitRatio ?? 0) * 100)" Color="FlareColor.Success" />
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@Pct1(_overview?.CacheHitRatio ?? 0) hit - @Pct1(1 - (_overview?.CacheHitRatio ?? 0)) miss</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@string.Format(AdminStrings.Dashboard_CacheHitMiss, Pct1(_overview?.CacheHitRatio ?? 0), Pct1(1 - (_overview?.CacheHitRatio ?? 0)))</FlareText>
             </FlareStack>
         </FlareCard>
 
         <FlareStack Gap="FlareSpacing.Small" Style="min-width:0;">
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
-                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">THROUGHPUT</FlareText>
+                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">@AdminStrings.Dashboard_ThroughputChartTitle</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">req/s - 5m</FlareText>
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
@@ -103,7 +104,7 @@
             </FlareCard>
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
-                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">LATENCY p50</FlareText>
+                    <FlareText Typo="TypographyScale.LabelLarge" Mono="true">@AdminStrings.Dashboard_LatencyChartTitle</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">ms - 5m</FlareText>
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
@@ -116,30 +117,30 @@
     @* Endpoints live feed *@
     <FlareStack Gap="FlareSpacing.XSmall">
         <FlareStack Row Align="FlareAlignItems.Baseline" Justify="FlareJustifyContent.SpaceBetween">
-            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">// ENDPOINTS - LIVE</FlareText>
-            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(_endpoints?.Count ?? 0) active - click a row for details</FlareText>
+            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Dashboard_EndpointsHeading</FlareText>
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Dashboard_EndpointsActiveHint, _endpoints?.Count ?? 0)</FlareText>
         </FlareStack>
 
         @if (_endpoints is null || _endpoints.Count == 0)
         {
-            <FlareText Color="FlareColor.OnSurfaceVariant">No calls recorded yet.</FlareText>
+            <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_NoCallsRecorded</FlareText>
         }
         else
         {
             <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
                 <Columns>
-                    <FlareColumn TItem="EndpointMetrics" Title="Route" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
-                    <FlareColumn TItem="EndpointMetrics" Title="Object" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
-                    <FlareColumn TItem="EndpointMetrics" Title="Count" Field="@(e => (object?)e.Count)" Sortable="true" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="Err%" Align="ColumnAlign.End">
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnRoute" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnObject" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnCount" Field="@(e => (object?)e.Count)" Sortable="true" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnErrorPct" Align="ColumnAlign.End">
                         <Template>
                             <FlareText Element="span" Mono="true" Color="@(context.ErrorRate > 0 ? FlareColor.Error : FlareColor.OnSurfaceVariant)">@Pct2(context.ErrorRate)</FlareText>
                         </Template>
                     </FlareColumn>
                     <FlareColumn TItem="EndpointMetrics" Title="p50" Field="@(e => (object?)e.P50LatencyMs.ToString("0.0", Invariant))" Align="ColumnAlign.End" />
                     <FlareColumn TItem="EndpointMetrics" Title="p95" Field="@(e => (object?)e.P95LatencyMs.ToString("0", Invariant))" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="Cache" Field="@(e => (object?)e.CacheHitRatio.ToString("0%", Invariant))" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="Last" Field="@(e => (object?)(e.LastCalledAt.HasValue ? e.LastCalledAt.Value.ToLocalTime().ToString("HH:mm:ss") : "-"))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnCache" Field="@(e => (object?)e.CacheHitRatio.ToString("0%", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnLast" Field="@(e => (object?)(e.LastCalledAt.HasValue ? e.LastCalledAt.Value.ToLocalTime().ToString("HH:mm:ss") : "-"))" Align="ColumnAlign.End" />
                 </Columns>
             </FlareDataGrid>
         }
@@ -317,7 +318,12 @@
             ? $"{(int)uptime.TotalDays}d {uptime.Hours:00}:{uptime.Minutes:00}"
             : $"{uptime.Hours:00}:{uptime.Minutes:00}:{uptime.Seconds:00}";
 
-    /// <summary>Stops the hub and the fallback timer, guarding any in-flight tick from a disposed component.</summary>
+    /// <summary>
+    /// Stops the hub and the fallback timer, guarding any in-flight tick from a disposed component.
+    /// Also runs the base disposal by hand: when a component implements both IDisposable and
+    /// IAsyncDisposable the renderer calls only DisposeAsync, so LocalizedPage.Dispose never runs on
+    /// its own and its language subscription would keep this page (and the hub) alive forever.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
@@ -326,5 +332,7 @@
         {
             await _hub.DisposeAsync();
         }
+
+        Dispose();
     }
 }

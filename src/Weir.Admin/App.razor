@@ -1,3 +1,5 @@
+@inherits LocalizedPage
+
 <CascadingAuthenticationState>
     <FlareThemeProvider>
         <Router AppAssembly="@typeof(App).Assembly">
@@ -7,14 +9,14 @@
                         <RedirectToLogin />
                     </NotAuthorized>
                     <Authorizing>
-                        <div class="weir-boot">Loading...</div>
+                        <div class="weir-boot">@AdminStrings.Common_Loading</div>
                     </Authorizing>
                 </AuthorizeRouteView>
                 <FocusOnNavigate RouteData="@routeData" Selector="h1" />
             </Found>
             <NotFound>
                 <LayoutView Layout="@typeof(MainLayout)">
-                    <p role="alert">Page not found.</p>
+                    <p role="alert">@AdminStrings.Layout_PageNotFound</p>
                 </LayoutView>
             </NotFound>
         </Router>

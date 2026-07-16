@@ -1,12 +1,13 @@
 @page "/scopes"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IDialogService Dialog
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="scopes" Description="Named permissions attached to keys and required by endpoints">
+    <PageHeader Title="@AdminStrings.Scopes_Title" Description="@AdminStrings.Scopes_Description">
         <Actions>
-            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = !_showAdd">New scope</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = !_showAdd">@AdminStrings.Scopes_NewScope</FlareButton>
         </Actions>
     </PageHeader>
 
@@ -14,20 +15,20 @@
     {
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
-                <FlareField Label="Name" @bind-Value="_name" Placeholder="orders:read" />
-                <FlareField Label="Description" @bind-Value="_description" />
-                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="AddAsync">Add scope</FlareButton>
+                <FlareField Label="@AdminStrings.Common_Name" @bind-Value="_name" Placeholder="orders:read" />
+                <FlareField Label="@AdminStrings.Common_Description" @bind-Value="_description" />
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="AddAsync">@AdminStrings.Scopes_AddScope</FlareButton>
             </FlareStack>
         </FlareCard>
     }
 
     @if (_scopes is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else if (_scopes.Count == 0)
     {
-        <FlareEmptyState Title="No scopes yet" Description="Add a scope above to grant API keys access.">
+        <FlareEmptyState Title="@AdminStrings.Scopes_EmptyTitle" Description="@AdminStrings.Scopes_EmptyDescription">
             <Icon><FlareIcon Name="lock" /></Icon>
         </FlareEmptyState>
     }
@@ -35,19 +36,19 @@
     {
         <FlareDataGrid Items="@_scopes" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="Scope" Title="Scope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnScope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
                     <Template><FlareCode>@context.Name</FlareCode></Template>
                 </FlareColumn>
-                <FlareColumn TItem="Scope" Title="Description" Field="@(s => (object?)s.Description)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="Scope" Title="Keys" Align="ColumnAlign.End">
+                <FlareColumn TItem="Scope" Title="@AdminStrings.Common_Description" Field="@(s => (object?)s.Description)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnKeys" Align="ColumnAlign.End">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@KeyCount(context.Name)</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="Scope" Title="Endpoints" Align="ColumnAlign.End">
+                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnEndpoints" Align="ColumnAlign.End">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@EndpointCount(context.Name)</FlareText></Template>
                 </FlareColumn>
                 <FlareColumn TItem="Scope" Title="" Align="ColumnAlign.End">
                     <Template>
-                        <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => DeleteAsync(context.Name))">Delete</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => DeleteAsync(context.Name))">@AdminStrings.Common_Delete</FlareButton>
                     </Template>
                 </FlareColumn>
             </Columns>
@@ -107,10 +108,13 @@
     {
         var inUse = KeyCount(name) + EndpointCount(name);
         var suffix = inUse > 0
-            ? $" It is still referenced by {KeyCount(name)} key(s) and {EndpointCount(name)} endpoint(s)."
+            ? string.Format(AdminStrings.Scopes_DeleteInUseSuffix, KeyCount(name), EndpointCount(name))
             : string.Empty;
         var confirmed = await Dialog.ConfirmAsync(
-            "Delete scope?", $"Delete scope \"{name}\"?{suffix}", "Delete", "Cancel");
+            AdminStrings.Scopes_DeleteConfirmTitle,
+            string.Format(AdminStrings.Scopes_DeleteConfirmBody, name, suffix),
+            AdminStrings.Common_Delete,
+            AdminStrings.Common_Cancel);
         if (confirmed != true)
         {
             return;

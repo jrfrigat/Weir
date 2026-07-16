@@ -4,6 +4,7 @@
 @inject WeirAuthStateProvider Auth
 @inject WeirApiClient Api
 @inject NavigationManager Navigation
+@inject LanguageService Lang
 
 @* Command Center shell, composed from Flare: a top app bar with route tabs over a scrolling content
    region. A single fixed theme (Visual Studio 2026 geometry, Command Center palette) - no switcher.
@@ -19,24 +20,25 @@
                 <FlareText Typo="TypographyScale.TitleMedium" Weight="FontWeight.Bold" Mono="true">weir</FlareText>
             </FlareStack>
             <FlareLinkTabs>
-                <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="overview" />
-                <FlareLinkTab Href="/endpoints" Label="endpoints" />
-                <FlareLinkTab Href="/scopes" Label="scopes" />
-                <FlareLinkTab Href="/keys" Label="keys" />
-                <FlareLinkTab Href="/admins" Label="admins" />
-                <FlareLinkTab Href="/logs" Label="logs" />
-                <FlareLinkTab Href="/audit" Label="audit" />
-                <FlareLinkTab Href="/settings" Label="settings" />
+                <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="@AdminStrings.Nav_Overview" />
+                <FlareLinkTab Href="/endpoints" Label="@AdminStrings.Nav_Endpoints" />
+                <FlareLinkTab Href="/scopes" Label="@AdminStrings.Nav_Scopes" />
+                <FlareLinkTab Href="/keys" Label="@AdminStrings.Nav_Keys" />
+                <FlareLinkTab Href="/admins" Label="@AdminStrings.Nav_Admins" />
+                <FlareLinkTab Href="/logs" Label="@AdminStrings.Nav_Logs" />
+                <FlareLinkTab Href="/audit" Label="@AdminStrings.Nav_Audit" />
+                <FlareLinkTab Href="/settings" Label="@AdminStrings.Nav_Settings" />
             </FlareLinkTabs>
             <FlareSpacer />
-            @* Source-repository link. Sits on the right, just before the account menu. *@
+            @* UI language picker, then the source-repository link, then the account menu. *@
+            <LanguageSwitcher />
             <FlareIconButton Href="https://github.com/jrfrigat/weir" Target="_blank"
-                             AriaLabel="Weir source on GitHub" Size="ButtonSize.Sm">
+                             AriaLabel="@AdminStrings.Layout_GitHubAriaLabel" Size="ButtonSize.Sm">
                 <GitHubIcon Size="1.15rem" />
             </FlareIconButton>
             <AuthorizeView>
                 <Authorized>
-                    <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="Account menu">
+                    <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="@AdminStrings.Layout_AccountMenuAriaLabel">
                         <Activator>
                             <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
                                 <ChildContent>@context.User.Identity?.Name</ChildContent>
@@ -44,8 +46,8 @@
                             </FlareButton>
                         </Activator>
                         <ChildContent>
-                            <FlareMenuItem Icon="account_circle" Href="/account">Account</FlareMenuItem>
-                            <FlareMenuItem Icon="logout" OnClick="LogoutAsync">Sign out</FlareMenuItem>
+                            <FlareMenuItem Icon="account_circle" Href="/account">@AdminStrings.Layout_Account</FlareMenuItem>
+                            <FlareMenuItem Icon="logout" OnClick="LogoutAsync">@AdminStrings.Layout_SignOut</FlareMenuItem>
                         </ChildContent>
                     </FlareMenu>
                 </Authorized>
@@ -56,8 +58,8 @@
         <ErrorBoundary @ref="_errorBoundary">
             <ChildContent>@Body</ChildContent>
             <ErrorContent>
-                <FlareAlert Severity="AlertSeverity.Error" Title="Something went wrong">
-                    An unexpected error occurred on this page. Try reloading, or navigate to another screen.
+                <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Layout_ErrorTitle">
+                    @AdminStrings.Layout_ErrorBody
                 </FlareAlert>
             </ErrorContent>
         </ErrorBoundary>
@@ -67,12 +69,23 @@
 @code {
     private ErrorBoundary? _errorBoundary;
 
-    /// <summary>Recovers the error boundary on navigation so a per-page error clears when the user leaves it.</summary>
-    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+    /// <summary>
+    /// Recovers the error boundary on navigation so a per-page error clears when the user leaves it,
+    /// and follows the UI language. A layout derives from LayoutComponentBase, so it cannot inherit
+    /// LocalizedPage and subscribes to the language directly.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        Lang.LanguageChanged += OnLanguageChanged;
+    }
 
     /// <summary>Handles route changes by clearing any caught error.</summary>
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
         _errorBoundary?.Recover();
+
+    /// <summary>Re-renders the shell (nav labels, account menu) after a language switch.</summary>
+    private void OnLanguageChanged() => _ = InvokeAsync(StateHasChanged);
 
     /// <summary>Revokes the refresh token, clears both tokens, resets auth state and returns to login.</summary>
     private async Task LogoutAsync()
@@ -84,6 +97,10 @@
         Navigation.NavigateTo("login");
     }
 
-    /// <summary>Unsubscribes from navigation events.</summary>
-    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+    /// <summary>Unsubscribes from navigation and language events.</summary>
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        Lang.LanguageChanged -= OnLanguageChanged;
+    }
 }

@@ -1,25 +1,26 @@
 @page "/keys"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IFlareClipboard Clipboard
 @inject IDialogService Dialog
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="keys" Description="Keys authenticate data-plane callers. Scopes and procedure grants limit each.">
+    <PageHeader Title="@AdminStrings.Keys_PageTitle" Description="@AdminStrings.Keys_PageDescription">
         <Actions>
-            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="OpenCreate">Create key</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="OpenCreate">@AdminStrings.Keys_CreateKey</FlareButton>
         </Actions>
     </PageHeader>
 
     @if (_created is not null)
     {
-        <FlareAlert Severity="AlertSeverity.Success" Title="Key created - copy it now">
+        <FlareAlert Severity="AlertSeverity.Success" Title="@AdminStrings.Keys_CreatedAlertTitle">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">This plaintext key is shown once and cannot be retrieved later.</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_CreatedAlertBody</FlareText>
                 <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small" Wrap="true">
                     <FlareCode>@_created.PlainTextKey</FlareCode>
-                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => CopyAsync(_created.PlainTextKey)">@(_copied ? "Copied" : "Copy")</FlareButton>
-                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="() => { _created = null; _copied = false; }">Done</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => CopyAsync(_created.PlainTextKey)">@(_copied ? AdminStrings.Keys_Copied : AdminStrings.Common_Copy)</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="() => { _created = null; _copied = false; }">@AdminStrings.Keys_Done</FlareButton>
                 </FlareStack>
             </FlareStack>
         </FlareAlert>
@@ -27,11 +28,11 @@
 
     @if (_keys is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
     else if (_keys.Count == 0)
     {
-        <FlareEmptyState Title="No API keys yet" Description="Create one to let clients call the data plane.">
+        <FlareEmptyState Title="@AdminStrings.Keys_EmptyTitle" Description="@AdminStrings.Keys_EmptyDescription">
             <Icon><FlareIcon Name="key" /></Icon>
         </FlareEmptyState>
     }
@@ -39,24 +40,24 @@
     {
         <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="ApiKeyInfo" Title="Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="Key">
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Common_Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnKey">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.Prefix</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="ApiKeyInfo" Title="Scopes">
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_Scopes">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.Primary">@string.Join(", ", context.Scopes)</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="ApiKeyInfo" Title="Procedure access" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="Created" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="Last used" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="Status">
-                    <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? "active" : "revoked")" /></Template>
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ProcedureAccess" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnCreated" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnLastUsed" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnStatus">
+                    <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? AdminStrings.Keys_StatusActive : AdminStrings.Keys_StatusRevoked)" /></Template>
                 </FlareColumn>
                 <FlareColumn TItem="ApiKeyInfo" Title="" Align="ColumnAlign.End">
                     <Template>
                         @if (context.Enabled)
                         {
-                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeAsync(context))">Revoke</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeAsync(context))">@AdminStrings.Keys_Revoke</FlareButton>
                         }
                     </Template>
                 </FlareColumn>
@@ -65,15 +66,15 @@
     }
 </FlareStack>
 
-<FlareDialog @bind-Visible="_showCreate" Title="Create API key" Size="DialogSize.Md" ShowCloseButton="true" BeforeClose="ConfirmDiscardAsync">
+<FlareDialog @bind-Visible="_showCreate" Title="@AdminStrings.Keys_CreateDialogTitle" Size="DialogSize.Md" ShowCloseButton="true" BeforeClose="ConfirmDiscardAsync">
     <ChildContent>
         <FlareStack Gap="FlareSpacing.Medium">
-            <FlareField Label="Name" @bind-Value="_newName" Placeholder="e.g. checkout-service" />
+            <FlareField Label="@AdminStrings.Common_Name" @bind-Value="_newName" Placeholder="@AdminStrings.Keys_NamePlaceholder" />
             <div>
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Scopes</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Scopes</FlareText>
                 @if (_scopes is null || _scopes.Count == 0)
                 {
-                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No scopes defined.</FlareText>
+                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_NoScopesDefined</FlareText>
                 }
                 else
                 {
@@ -90,26 +91,26 @@
                 }
             </div>
             <div>
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Procedure access</FlareText>
-                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">Leave empty to allow every procedure (subject to scopes). Use * for "any".</FlareText>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_ProcedureAccess</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_ProcedureAccessHelp</FlareText>
                 <FlareStack Gap="FlareSpacing.XSmall" Style="margin-top:.5rem;">
                     @foreach (var grant in _grants)
                     {
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                             <FlareSelect TValue="string" @bind-Value="grant.Connection" Items="@GrantConnectionOptions" />
-                            <FlareField TValue="string" @bind-Value="grant.Schema" Placeholder="schema or *" />
-                            <FlareField TValue="string" @bind-Value="grant.ObjectName" Placeholder="object or *" />
-                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => _grants.Remove(grant))">Remove</FlareButton>
+                            <FlareField TValue="string" @bind-Value="grant.Schema" Placeholder="@AdminStrings.Keys_SchemaPlaceholder" />
+                            <FlareField TValue="string" @bind-Value="grant.ObjectName" Placeholder="@AdminStrings.Keys_ObjectPlaceholder" />
+                            <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => _grants.Remove(grant))">@AdminStrings.Common_Remove</FlareButton>
                         </FlareStack>
                     }
-                    <FlareStack Row><FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="AddGrant">Add grant</FlareButton></FlareStack>
+                    <FlareStack Row><FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="AddGrant">@AdminStrings.Keys_AddGrant</FlareButton></FlareStack>
                 </FlareStack>
             </div>
         </FlareStack>
     </ChildContent>
     <Actions>
-        <FlareButton Variant="ButtonVariant.Text" OnClick="() => _showCreate = false">Cancel</FlareButton>
-        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync" Loading="_busy">Create key</FlareButton>
+        <FlareButton Variant="ButtonVariant.Text" OnClick="() => _showCreate = false">@AdminStrings.Common_Cancel</FlareButton>
+        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync" Loading="_busy">@AdminStrings.Keys_CreateKey</FlareButton>
     </Actions>
 </FlareDialog>
 
@@ -159,7 +160,7 @@
     /// <summary>Builds a short summary of a key's grants for the list.</summary>
     private static string GrantsSummary(IReadOnlyList<ApiKeyGrant> grants) =>
         grants.Count == 0
-            ? "all"
+            ? AdminStrings.Keys_GrantsAll
             : string.Join(", ", grants.Select(g => $"{g.Connection}/{g.Schema}/{g.ObjectName}"));
 
     /// <summary>Reloads the key list.</summary>
@@ -221,7 +222,7 @@
         }
 
         var confirmed = await Dialog.ConfirmAsync(
-            "Discard key?", "This key has not been created yet. Discard your changes?", "Discard", "Keep editing");
+            AdminStrings.Keys_DiscardTitle, AdminStrings.Keys_DiscardBody, AdminStrings.Keys_DiscardConfirm, AdminStrings.Keys_DiscardCancel);
         return confirmed == true;
     }
 
@@ -230,9 +231,9 @@
     private async Task RevokeAsync(ApiKeyInfo key)
     {
         var confirmed = await Dialog.ConfirmAsync(
-            "Revoke key?",
-            $"Revoke \"{key.Name}\"? Any client using it will immediately be denied. This cannot be undone.",
-            "Revoke", "Cancel");
+            AdminStrings.Keys_RevokeTitle,
+            string.Format(AdminStrings.Keys_RevokeBody, key.Name),
+            AdminStrings.Keys_Revoke, AdminStrings.Common_Cancel);
         if (confirmed != true)
         {
             return;

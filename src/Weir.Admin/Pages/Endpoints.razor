@@ -3,19 +3,20 @@
 @using System.Globalization
 @using System.Text.Json
 @using System.Text.Json.Nodes
+@inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IDialogService Dialog
 @inject NavigationManager Nav
 @inject IFlareDownload Download
 
 <FlareStack Gap="FlareSpacing.Medium">
-    <PageHeader Title="endpoints" Description="HTTP routes mapped to stored procedures and functions">
+    <PageHeader Title="@AdminStrings.Endpoints_PageTitle" Description="@AdminStrings.Endpoints_PageDescription">
         <Actions>
-            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">Sync all</FlareButton>
-            <FlareFileUpload Variant="FileUploadVariant.Button" Accept=".json" ButtonText="Import" OnFilesChanged="ImportFilesAsync" />
-            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="ExportAsync">Export</FlareButton>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">@AdminStrings.Endpoints_SyncAllButton</FlareButton>
+            <FlareFileUpload Variant="FileUploadVariant.Button" Accept=".json" ButtonText="@AdminStrings.Endpoints_ImportButton" OnFilesChanged="ImportFilesAsync" />
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="ExportAsync">@AdminStrings.Endpoints_ExportButton</FlareButton>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="BuildOpenApiAsync" Loading="_openApiBusy">OpenAPI</FlareButton>
-            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">New endpoint</FlareButton>
+            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">@AdminStrings.Endpoints_NewEndpoint</FlareButton>
         </Actions>
     </PageHeader>
 
@@ -25,59 +26,59 @@
     }
 
     <FlareTabs ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
-        <FlareTab Label="Endpoints">
+        <FlareTab Label="@AdminStrings.Endpoints_TabEndpoints">
             @if (_endpoints is null)
             {
-                <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
             }
             else if (_endpoints.Count == 0)
             {
-                <FlareEmptyState Title="No endpoints yet" Description="Create one, or map a database object from the Database tab.">
+                <FlareEmptyState Title="@AdminStrings.Endpoints_EmptyTitle" Description="@AdminStrings.Endpoints_EmptyDescription">
                     <Icon><FlareIcon Name="api" /></Icon>
                 </FlareEmptyState>
             }
             else
             {
                 <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
-                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;align-self:center;">// FILTER</FlareText>
-                    <FlareSelect TValue="string" Label="Required scope" Size="FieldSize.Sm" Value="_filterScope" ValueChanged="OnFilterScopeChanged" Items="ScopeFilterOptions" ItemLabel="ScopeFilterLabel" Style="min-width:12rem;" />
-                    <FlareSelect TValue="string" Label="Reachable by key" Size="FieldSize.Sm" Value="_filterKeyId" ValueChanged="OnFilterKeyChanged" Items="KeyFilterOptions" ItemLabel="KeyFilterLabel" Style="min-width:14rem;" />
+                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;align-self:center;">@AdminStrings.Endpoints_FilterSectionHeader</FlareText>
+                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterScopeLabel" Size="FieldSize.Sm" Value="_filterScope" ValueChanged="OnFilterScopeChanged" Items="ScopeFilterOptions" ItemLabel="ScopeFilterLabel" Style="min-width:12rem;" />
+                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterKeyLabel" Size="FieldSize.Sm" Value="_filterKeyId" ValueChanged="OnFilterKeyChanged" Items="KeyFilterOptions" ItemLabel="KeyFilterLabel" Style="min-width:14rem;" />
                     @if (IsFiltered)
                     {
-                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Style="align-self:center;">showing @FilteredEndpoints.Count of @_endpoints.Count - Export and OpenAPI honour this filter</FlareText>
-                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">Clear</FlareButton>
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Style="align-self:center;">@string.Format(AdminStrings.Endpoints_FilterSummary, FilteredEndpoints.Count, _endpoints.Count)</FlareText>
+                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
                     }
                 </FlareStack>
                 <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu">
-                    <ToolbarContent><FlareDataGridQuickFilter Placeholder="Filter..." /></ToolbarContent>
+                    <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <Columns>
-                        <FlareColumn TItem="EndpointDefinition" Title="Status">
-                            <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? "Enabled" : "Disabled")" /></Template>
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_StatusColumn">
+                            <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? AdminStrings.Common_Enabled : AdminStrings.Endpoints_StatusDisabled)" /></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="Method" Field="@(e => (object?)e.HttpMethod)" Sortable="true">
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_MethodLabel" Field="@(e => (object?)e.HttpMethod)" Sortable="true">
                             <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="Route" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true">
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_RouteLabel" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true">
                             <Template><FlareText Element="span" Mono="true">/api/@context.Route</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="Connection" Field="@(e => (object?)e.ConnectionName)" Sortable="true" Filterable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="Object" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="Type" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="Params" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
-                        <FlareColumn TItem="EndpointDefinition" Title="Actions" Align="ColumnAlign.End">
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ConnectionLabel" Field="@(e => (object?)e.ConnectionName)" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ParamsColumn" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
+                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Common_Actions" Align="ColumnAlign.End">
                             <Template>
                                 <FlareStack Row Gap="FlareSpacing.XSmall" Justify="FlareJustifyContent.End">
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Primary" OnClick="@(() => StartTest(context))">Test</FlareButton>
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => OpenLogs(context))">Logs</FlareButton>
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => Edit(context))">Edit</FlareButton>
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SyncOneAsync(context.Id))">Sync</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Primary" OnClick="@(() => StartTest(context))">@AdminStrings.Endpoints_Test</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => OpenLogs(context))">@AdminStrings.Endpoints_LogsButton</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => Edit(context))">@AdminStrings.Common_Edit</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SyncOneAsync(context.Id))">@AdminStrings.Endpoints_SyncButton</FlareButton>
                                     @if (context.Cache.Enabled)
                                     {
-                                        <FlareTooltip Content="Force-clear this endpoint's cached responses" Arrow="true">
-                                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => PurgeCacheAsync(context))">Purge cache</FlareButton>
+                                        <FlareTooltip Content="@AdminStrings.Endpoints_PurgeCacheTooltip" Arrow="true">
+                                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => PurgeCacheAsync(context))">@AdminStrings.Endpoints_PurgeCacheButton</FlareButton>
                                         </FlareTooltip>
                                     }
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Error" OnClick="@(() => DeleteAsync(context))">Delete</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Error" OnClick="@(() => DeleteAsync(context))">@AdminStrings.Common_Delete</FlareButton>
                                 </FlareStack>
                             </Template>
                         </FlareColumn>
@@ -85,43 +86,43 @@
                 </FlareDataGrid>
             }
         </FlareTab>
-        <FlareTab Label="Database">
+        <FlareTab Label="@AdminStrings.Endpoints_TabDatabase">
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small">
-                    <FlareSelect TValue="string" Label="Connection" Value="_dbConnection" ValueChanged="SetDbConnectionAsync" Items="@ConnectionNames" ItemLabel="ProviderLabel" />
-                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="OnConnectionChangedAsync">Refresh</FlareButton>
+                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_ConnectionLabel" Value="_dbConnection" ValueChanged="SetDbConnectionAsync" Items="@ConnectionNames" ItemLabel="ProviderLabel" />
+                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="OnConnectionChangedAsync">@AdminStrings.Common_Refresh</FlareButton>
                 </FlareStack>
                 @if (_objectsError is not null)
                 {
-                    <FlareAlert Severity="AlertSeverity.Warning">Objects not browsable on this connection (@_objectsError).</FlareAlert>
+                    <FlareAlert Severity="AlertSeverity.Warning">@string.Format(AdminStrings.Endpoints_ObjectsNotBrowsable, _objectsError)</FlareAlert>
                 }
                 <FlareStack Row Gap="FlareSpacing.Medium" Align="FlareAlignItems.Start" Wrap="true">
                     <div style="flex:2 1 26rem;min-width:0;">
                         @if (_objects is null)
                         {
-                            <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                            <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
                         }
                         else if (_objects.Count == 0)
                         {
-                            <FlareText Color="FlareColor.OnSurfaceVariant">No objects found on this connection.</FlareText>
+                            <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_NoObjectsFound</FlareText>
                         }
                         else
                         {
                             <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" RowClick="OnObjectRowClick">
                                 <Columns>
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="Schema" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="Object" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_SchemaLabel" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
                                         <Template><FlareText Element="span" Mono="true">@context.Name</FlareText></Template>
                                     </FlareColumn>
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="Type" Field="@(o => (object?)ObjectTypeLabel(o.ObjectType))" Sortable="true" />
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="Endpoint" Align="ColumnAlign.End">
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(o => (object?)ObjectTypeLabel(o.ObjectType))" Sortable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_EndpointColumn" Align="ColumnAlign.End">
                                         <Template>
                                             @{
                                                 var mapped = EndpointsForObject(context.Schema, context.Name);
                                             }
                                             @if (mapped.Count == 0)
                                             {
-                                                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Default" Label="none" />
+                                                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Default" Label="@AdminStrings.Endpoints_NoneChip" />
                                             }
                                             else
                                             {
@@ -146,18 +147,18 @@
                     <FlareCard Variant="CardVariant.Outlined" Style="flex:1 1 20rem;min-width:18rem;">
                         @if (_selectedObject is null)
                         {
-                            <FlareText Color="FlareColor.OnSurfaceVariant" Typo="TypographyScale.BodySmall">Select an object to inspect its parameters, then create an endpoint pre-filled from it.</FlareText>
+                            <FlareText Color="FlareColor.OnSurfaceVariant" Typo="TypographyScale.BodySmall">@AdminStrings.Endpoints_SelectObjectHint</FlareText>
                         }
                         else
                         {
                             <FlareStack Gap="FlareSpacing.Small">
                                 <div>
                                     <FlareText Mono="true">@_selectedObject.Schema.@_selectedObject.Name</FlareText>
-                                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@ObjectTypeLabel(_selectedObject.ObjectType) - @(_selectedParameters?.Count ?? 0) parameters</FlareText>
+                                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@string.Format(AdminStrings.Endpoints_ObjectSummary, ObjectTypeLabel(_selectedObject.ObjectType), _selectedParameters?.Count ?? 0)</FlareText>
                                 </div>
                                 @if (_selectedParameters is null)
                                 {
-                                    <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                                    <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
                                 }
                                 else
                                 {
@@ -176,7 +177,7 @@
                                         }
                                     </FlareDescriptionList>
                                 }
-                                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" FullWidth="true" OnClick="@(() => CreateFromObjectAsync(_selectedObject))">Create endpoint from this object</FlareButton>
+                                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" FullWidth="true" OnClick="@(() => CreateFromObjectAsync(_selectedObject))">@AdminStrings.Endpoints_CreateFromObject</FlareButton>
                             </FlareStack>
                         }
                     </FlareCard>
@@ -188,40 +189,40 @@
 
 @* ===== Editor drawer ===== *@
 <FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="44rem" Variant="DrawerVariant.Temporary">
-    <Header><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? "Edit endpoint" : "New endpoint")</FlareText></Header>
+    <Header><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></Header>
     <ChildContent>
         @if (_editing is not null)
         {
             <FlareStack Gap="FlareSpacing.Medium">
                 <FlareGrid Columns="2" Gap="FlareSpacing.Small">
-                    <FlareCol Span="1"><FlareSelect TValue="string" Label="Method" Size="FieldSize.Sm" @bind-Value="_editing.HttpMethod" Items="_methods" /></FlareCol>
-                    <FlareCol Span="1"><FlareField Label="Route" Size="FieldSize.Sm" @bind-Value="_editing.Route" Placeholder="orders/create" /></FlareCol>
-                    <FlareCol Span="1"><FlareSelect TValue="string" Label="Connection" Size="FieldSize.Sm" @bind-Value="_editing.ConnectionName" Items="@ConnectionNames" /></FlareCol>
-                    <FlareCol Span="1"><FlareSelect TValue="DbObjectType" Label="Object type" Size="FieldSize.Sm" @bind-Value="_editing.ObjectType" Items="Enum.GetValues<DbObjectType>()" ItemLabel="@(v => ObjectTypeLabel(v))" /></FlareCol>
-                    <FlareCol Span="1"><FlareField Label="Schema" Size="FieldSize.Sm" @bind-Value="_editing.Schema" /></FlareCol>
-                    <FlareCol Span="1"><FlareField Label="Object" Size="FieldSize.Sm" @bind-Value="_editing.ObjectName" Placeholder="usp_CreateOrder" /></FlareCol>
-                    <FlareCol Span="1"><FlareSelect TValue="ResultMode" Label="Result mode" Size="FieldSize.Sm" @bind-Value="_editing.ResultMode" Items="Enum.GetValues<ResultMode>()" ItemLabel="@(v => v.ToString())" /></FlareCol>
-                    <FlareCol Span="1"><FlareNumericField TValue="int?" Label="Timeout (s)" Size="FieldSize.Sm" @bind-Value="_editing.CommandTimeoutSeconds" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="string" Label="@AdminStrings.Endpoints_MethodLabel" Size="FieldSize.Sm" @bind-Value="_editing.HttpMethod" Items="_methods" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_RouteLabel" Size="FieldSize.Sm" @bind-Value="_editing.Route" Placeholder="orders/create" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="string" Label="@AdminStrings.Endpoints_ConnectionLabel" Size="FieldSize.Sm" @bind-Value="_editing.ConnectionName" Items="@ConnectionNames" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="DbObjectType" Label="@AdminStrings.Endpoints_ObjectTypeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectType" Items="Enum.GetValues<DbObjectType>()" ItemLabel="@(v => ObjectTypeLabel(v))" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_SchemaLabel" Size="FieldSize.Sm" @bind-Value="_editing.Schema" /></FlareCol>
+                    <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_ObjectLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectName" Placeholder="usp_CreateOrder" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="ResultMode" Label="@AdminStrings.Endpoints_ResultModeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ResultMode" Items="Enum.GetValues<ResultMode>()" ItemLabel="@(v => v.ToString())" /></FlareCol>
+                    <FlareCol Span="1"><FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_TimeoutLabel" Size="FieldSize.Sm" @bind-Value="_editing.CommandTimeoutSeconds" /></FlareCol>
                 </FlareGrid>
 
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true">
-                    <FlareSwitch Value="_editing.Enabled" ValueChanged="@(v => _editing.Enabled = v)" Label="Enabled" />
-                    <FlareSwitch Value="_editing.SuppressMessages" ValueChanged="@(v => _editing.SuppressMessages = v)" Label="Suppress SQL messages" />
+                    <FlareSwitch Value="_editing.Enabled" ValueChanged="@(v => _editing.Enabled = v)" Label="@AdminStrings.Common_Enabled" />
+                    <FlareSwitch Value="_editing.SuppressMessages" ValueChanged="@(v => _editing.SuppressMessages = v)" Label="@AdminStrings.Endpoints_SuppressMessagesLabel" />
                 </FlareStack>
 
-                <FlareDivider Text="Caching" TextAlign="DividerTextAlign.Left" />
+                <FlareDivider Text="@AdminStrings.Endpoints_CachingSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
-                    <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="Enable cache" />
-                    <FlareNumericField TValue="int" Label="TTL (s)" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Style="max-width:9rem;" />
-                    <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="Vary by API key" />
+                    <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="@AdminStrings.Endpoints_EnableCacheLabel" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Style="max-width:9rem;" />
+                    <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="@AdminStrings.Endpoints_CacheVaryByApiKeyLabel" />
                 </FlareStack>
                 @if (_editing.CacheEnabled)
                 {
                     <div>
-                        <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Vary cache by parameters</FlareText>
+                        <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_CacheVaryByParams</FlareText>
                         @if (_editing.Parameters.Count == 0)
                         {
-                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No parameters defined; one response is cached for the whole endpoint.</FlareText>
+                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_CacheNoParameters</FlareText>
                         }
                         else
                         {
@@ -236,24 +237,24 @@
                                 }
                             </FlareStack>
                         }
-                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Selected parameters (and, if set, the API key) become part of the cache key, so callers with different values get separate cached responses. Leave empty to cache one shared response per endpoint. The row cap and TTL bound each entry.</FlareText>
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_CacheVaryHelp</FlareText>
                     </div>
                 }
 
-                <FlareDivider Text="Logging" TextAlign="DividerTextAlign.Left" />
+                <FlareDivider Text="@AdminStrings.Endpoints_LoggingSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
-                    <FlareSwitch Value="_editing.LogEnabled" ValueChanged="@(v => _editing.LogEnabled = v)" Label="Log requests" />
-                    <FlareSwitch Value="_editing.LogParameters" ValueChanged="@(v => _editing.LogParameters = v)" Label="Capture parameters" />
-                    <FlareSwitch Value="_editing.LogResult" ValueChanged="@(v => _editing.LogResult = v)" Label="Capture result" />
-                    <FlareNumericField TValue="int?" Label="Slow threshold %" Size="FieldSize.Sm" @bind-Value="_editing.SlowThresholdPercent" Placeholder="from settings" Style="max-width:12rem;" />
+                    <FlareSwitch Value="_editing.LogEnabled" ValueChanged="@(v => _editing.LogEnabled = v)" Label="@AdminStrings.Endpoints_LogRequestsLabel" />
+                    <FlareSwitch Value="_editing.LogParameters" ValueChanged="@(v => _editing.LogParameters = v)" Label="@AdminStrings.Endpoints_LogParametersLabel" />
+                    <FlareSwitch Value="_editing.LogResult" ValueChanged="@(v => _editing.LogResult = v)" Label="@AdminStrings.Endpoints_LogResultLabel" />
+                    <FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_SlowThresholdLabel" Size="FieldSize.Sm" @bind-Value="_editing.SlowThresholdPercent" Placeholder="@AdminStrings.Endpoints_SlowThresholdPlaceholder" Style="max-width:12rem;" />
                 </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Parameter and result capture can hold PII; enable only where needed. A call is flagged slow when it exceeds this endpoint's rolling average by the threshold (blank uses the global setting).</FlareText>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_LoggingHelp</FlareText>
 
                 <div>
-                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">Required scopes</FlareText>
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_RequiredScopes</FlareText>
                     @if (_scopes is null || _scopes.Count == 0)
                     {
-                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No scopes defined.</FlareText>
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_NoScopesDefined</FlareText>
                     }
                     else
                     {
@@ -267,9 +268,9 @@
                     }
                 </div>
 
-                <FlareDivider Text="Parameters" TextAlign="DividerTextAlign.Left" />
+                <FlareDivider Text="@AdminStrings.Endpoints_ParametersSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="DiscoverParametersAsync" Loading="_discovering">Discover from database</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="DiscoverParametersAsync" Loading="_discovering">@AdminStrings.Endpoints_DiscoverParameters</FlareButton>
                     @if (_discoverError is not null)
                     {
                         <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.Error">@_discoverError</FlareText>
@@ -280,37 +281,37 @@
                     <FlareCard Variant="CardVariant.Outlined" Compact="true">
                         <FlareStack Gap="FlareSpacing.XSmall">
                             <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Wrap="true">
-                                <FlareField TValue="string" Placeholder="name" Size="FieldSize.Sm" @bind-Value="parameter.Name" />
+                                <FlareField TValue="string" Placeholder="@AdminStrings.Endpoints_ParamNamePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Name" />
                                 <FlareSelect TValue="ParameterSource" Size="FieldSize.Sm" @bind-Value="parameter.Source" Items="Enum.GetValues<ParameterSource>()" ItemLabel="@(v => v.ToString())" />
                                 <FlareSelect TValue="Weir.Contracts.ParameterDirection" Size="FieldSize.Sm" @bind-Value="parameter.Direction" Items="Enum.GetValues<Weir.Contracts.ParameterDirection>()" ItemLabel="@(v => v.ToString())" />
                                 <FlareSelect TValue="WeirDbType" Size="FieldSize.Sm" @bind-Value="parameter.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" />
-                                <FlareNumericField TValue="int?" Placeholder="size" Size="FieldSize.Sm" @bind-Value="parameter.Size" Style="max-width:6rem;" />
-                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveParameter(parameter))">Remove</FlareButton>
+                                <FlareNumericField TValue="int?" Placeholder="@AdminStrings.Endpoints_ParamSizePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Size" Style="max-width:6rem;" />
+                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveParameter(parameter))">@AdminStrings.Common_Remove</FlareButton>
                             </FlareStack>
                             @if (parameter.DbType == WeirDbType.Structured)
                             {
-                                <FlareField TValue="string" Placeholder="TVP type e.g. dbo.OrderLineType" Size="FieldSize.Sm" @bind-Value="parameter.TypeName" />
+                                <FlareField TValue="string" Placeholder="@AdminStrings.Endpoints_TvpTypePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.TypeName" />
                                 @foreach (var column in parameter.Columns)
                                 {
                                     <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center">
-                                        <FlareField TValue="string" Placeholder="column" Size="FieldSize.Sm" @bind-Value="column.Name" />
+                                        <FlareField TValue="string" Placeholder="@AdminStrings.Endpoints_ColumnPlaceholder" Size="FieldSize.Sm" @bind-Value="column.Name" />
                                         <FlareSelect TValue="WeirDbType" Size="FieldSize.Sm" @bind-Value="column.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" />
-                                        <FlareTooltip Content="Remove column" Arrow="true">
+                                        <FlareTooltip Content="@AdminStrings.Endpoints_RemoveColumnTooltip" Arrow="true">
                                             <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveColumn(parameter, column))">x</FlareButton>
                                         </FlareTooltip>
                                     </FlareStack>
                                 }
-                                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddColumn(parameter))">Add column</FlareButton>
+                                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddColumn(parameter))">@AdminStrings.Endpoints_AddColumn</FlareButton>
                             }
                         </FlareStack>
                     </FlareCard>
                 }
-                <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddParameter">Add parameter</FlareButton></FlareStack>
+                <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddParameter">@AdminStrings.Endpoints_AddParameter</FlareButton></FlareStack>
 
                 <FlareDivider />
                 <FlareStack Row Gap="FlareSpacing.Small" Justify="FlareJustifyContent.End">
-                    <FlareButton Variant="ButtonVariant.Text" OnClick="CancelEdit">Cancel</FlareButton>
-                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Loading="_busy">Save endpoint</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Text" OnClick="CancelEdit">@AdminStrings.Common_Cancel</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Loading="_busy">@AdminStrings.Endpoints_SaveEndpoint</FlareButton>
                 </FlareStack>
             </FlareStack>
         }
@@ -321,7 +322,7 @@
 <FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="44rem" Variant="DrawerVariant.Temporary">
     <Header>
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">Test</FlareText>
+            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Endpoints_Test</FlareText>
             @if (_testing is not null)
             {
                 <FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(_testing.HttpMethod)">@_testing.HttpMethod</FlareText>
@@ -334,8 +335,8 @@
         {
             <FlareStack Gap="FlareSpacing.Medium">
                 <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
-                    <FlareText Typo="TypographyScale.TitleSmall">Parameters</FlareText>
-                    <FlareSwitch Value="_testRaw" ValueChanged="ToggleRaw" Label="Raw JSON" />
+                    <FlareText Typo="TypographyScale.TitleSmall">@AdminStrings.Endpoints_ParametersSection</FlareText>
+                    <FlareSwitch Value="_testRaw" ValueChanged="ToggleRaw" Label="@AdminStrings.Endpoints_RawJsonLabel" />
                 </FlareStack>
 
                 @if (_testRaw)
@@ -344,7 +345,7 @@
                 }
                 else if (_testInputParameters.Count == 0)
                 {
-                    <FlareText Color="FlareColor.OnSurfaceVariant">This endpoint takes no input parameters.</FlareText>
+                    <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_NoInputParameters</FlareText>
                 }
                 else
                 {
@@ -369,11 +370,11 @@
                                             }
                                         </FlareStack>
                                     }
-                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddTestRow(parameter))">Add row</FlareButton>
+                                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => AddTestRow(parameter))">@AdminStrings.Endpoints_AddRow</FlareButton>
                                 }
                                 else
                                 {
-                                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No column metadata; use Raw JSON.</FlareText>
+                                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_NoColumnMetadata</FlareText>
                                 }
                             }
                             else
@@ -386,14 +387,14 @@
 
                 @if (_testResponse is not null)
                 {
-                    <FlareDivider Text="Response" TextAlign="DividerTextAlign.Left" />
+                    <FlareDivider Text="@AdminStrings.Endpoints_ResponseSection" TextAlign="DividerTextAlign.Left" />
                     <FlareCodeBlock Value="@_testResponse" Language="json" ReadOnly="true" />
                 }
 
                 <FlareDivider />
                 <FlareStack Row Gap="FlareSpacing.Small" Justify="FlareJustifyContent.End">
-                    <FlareButton Variant="ButtonVariant.Text" OnClick="CloseTest">Close</FlareButton>
-                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SendTestAsync" Loading="_testBusy">Send request</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Text" OnClick="CloseTest">@AdminStrings.Common_Close</FlareButton>
+                    <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SendTestAsync" Loading="_testBusy">@AdminStrings.Endpoints_SendRequest</FlareButton>
                 </FlareStack>
             </FlareStack>
         }
@@ -531,7 +532,7 @@
     /// <summary>Label for a scope filter option ("All scopes" for the empty sentinel).</summary>
     /// <param name="value">The scope name, or empty for the sentinel.</param>
     /// <returns>The display label.</returns>
-    private static string ScopeFilterLabel(string value) => string.IsNullOrEmpty(value) ? "All scopes" : value;
+    private static string ScopeFilterLabel(string value) => string.IsNullOrEmpty(value) ? AdminStrings.Endpoints_AllScopesFilter : value;
 
     /// <summary>Options for the key filter: an "all" sentinel plus each key id (as a string).</summary>
     private IEnumerable<string> KeyFilterOptions => new[] { string.Empty }.Concat(_keys?.Select(k => k.Id.ToString()) ?? []);
@@ -543,7 +544,7 @@
     {
         if (string.IsNullOrEmpty(value))
         {
-            return "All keys";
+            return AdminStrings.Endpoints_AllKeysFilter;
         }
 
         var key = _keys?.FirstOrDefault(k => k.Id.ToString() == value);
@@ -698,9 +699,9 @@
     private async Task DeleteAsync(EndpointDefinition endpoint)
     {
         var confirmed = await Dialog.ConfirmAsync(
-            "Delete endpoint?",
-            $"Delete {endpoint.HttpMethod} /api/{endpoint.Route}? This cannot be undone.",
-            "Delete", "Cancel");
+            AdminStrings.Endpoints_DeleteConfirmTitle,
+            string.Format(AdminStrings.Endpoints_DeleteConfirmBody, endpoint.HttpMethod, endpoint.Route),
+            AdminStrings.Common_Delete, AdminStrings.Common_Cancel);
         if (confirmed != true)
         {
             return;
@@ -717,7 +718,7 @@
     {
         if (_editing is null || string.IsNullOrWhiteSpace(_editing.ConnectionName) || string.IsNullOrWhiteSpace(_editing.ObjectName))
         {
-            _discoverError = "Set the connection and object name first.";
+            _discoverError = AdminStrings.Endpoints_DiscoverNeedsConnection;
             return;
         }
 
@@ -766,7 +767,9 @@
     {
         _syncBusy = true;
         var results = await Api.SyncAllEndpointsAsync();
-        _notice = results is null ? "Nothing to sync." : $"Synced {results.Count} endpoint(s).";
+        _notice = results is null
+            ? AdminStrings.Endpoints_NothingToSync
+            : string.Format(AdminStrings.Endpoints_SyncedCount, results.Count);
         _syncBusy = false;
         await LoadAsync();
     }
@@ -775,7 +778,9 @@
     {
         _syncBusy = true;
         var result = await Api.SyncEndpointAsync(id);
-        _notice = result is null ? "Nothing to sync." : "Synced: " + ChangeSummary(result);
+        _notice = result is null
+            ? AdminStrings.Endpoints_NothingToSync
+            : string.Format(AdminStrings.Endpoints_SyncedSummary, ChangeSummary(result));
         _syncBusy = false;
         await LoadAsync();
     }
@@ -786,8 +791,8 @@
     {
         var result = await Api.PurgeEndpointCacheAsync(endpoint.Id);
         _notice = result is null
-            ? $"Cache purge failed for /api/{endpoint.Route}."
-            : $"Purged cache for /api/{endpoint.Route}.";
+            ? string.Format(AdminStrings.Endpoints_CachePurgeFailed, endpoint.Route)
+            : string.Format(AdminStrings.Endpoints_CachePurged, endpoint.Route);
     }
 
     private static string ChangeSummary(EndpointSyncResult result)
@@ -798,10 +803,10 @@
         }
 
         var parts = new List<string>();
-        if (result.Added.Count > 0) parts.Add("added " + string.Join(", ", result.Added));
-        if (result.Updated.Count > 0) parts.Add("updated " + string.Join(", ", result.Updated));
-        if (result.Removed.Count > 0) parts.Add("removed " + string.Join(", ", result.Removed));
-        return parts.Count == 0 ? "no changes" : string.Join("; ", parts);
+        if (result.Added.Count > 0) parts.Add(string.Format(AdminStrings.Endpoints_ChangeAdded, string.Join(", ", result.Added)));
+        if (result.Updated.Count > 0) parts.Add(string.Format(AdminStrings.Endpoints_ChangeUpdated, string.Join(", ", result.Updated)));
+        if (result.Removed.Count > 0) parts.Add(string.Format(AdminStrings.Endpoints_ChangeRemoved, string.Join(", ", result.Removed)));
+        return parts.Count == 0 ? AdminStrings.Endpoints_ChangeNone : string.Join("; ", parts);
     }
 
     private async Task BuildOpenApiAsync()
@@ -809,7 +814,7 @@
         _openApiBusy = true;
         var json = await Api.GetOpenApiAsync(FilterKeyId, string.IsNullOrEmpty(_filterScope) ? null : _filterScope);
         await Download.DownloadAsync("weir-openapi.json", json, "application/json");
-        _notice = IsFiltered ? "Downloaded OpenAPI document (filtered)." : "Downloaded openapi.json.";
+        _notice = IsFiltered ? AdminStrings.Endpoints_DownloadedOpenApiFiltered : AdminStrings.Endpoints_DownloadedOpenApi;
         _openApiBusy = false;
     }
 
@@ -817,7 +822,9 @@
     {
         var json = JsonSerializer.Serialize(FilteredEndpoints, new JsonSerializerOptions { WriteIndented = true });
         await Download.DownloadAsync("weir-endpoints.json", json, "application/json");
-        _notice = IsFiltered ? $"Downloaded {FilteredEndpoints.Count} filtered endpoint(s)." : "Downloaded endpoints.json.";
+        _notice = IsFiltered
+            ? string.Format(AdminStrings.Endpoints_DownloadedFilteredEndpoints, FilteredEndpoints.Count)
+            : AdminStrings.Endpoints_DownloadedEndpoints;
     }
 
     /// <summary>Imports endpoint definitions from the file the user picked via the Flare upload button.</summary>
@@ -837,17 +844,17 @@
             if (endpoints is { Count: > 0 })
             {
                 var imported = await Api.ImportEndpointsAsync(endpoints);
-                _notice = $"Imported {imported} endpoint(s).";
+                _notice = string.Format(AdminStrings.Endpoints_ImportedCount, imported);
                 await LoadAsync();
             }
             else
             {
-                _notice = "No endpoints found in the file.";
+                _notice = AdminStrings.Endpoints_ImportNoEndpoints;
             }
         }
         catch (Exception ex)
         {
-            _notice = "Import failed: " + ex.Message;
+            _notice = string.Format(AdminStrings.Endpoints_ImportFailed, ex.Message);
         }
     }
 
@@ -1057,9 +1064,9 @@
 
     private static string ObjectTypeLabel(DbObjectType type) => type switch
     {
-        DbObjectType.StoredProcedure => "Proc",
-        DbObjectType.TableValuedFunction => "Table fn",
-        DbObjectType.ScalarFunction => "Scalar fn",
+        DbObjectType.StoredProcedure => AdminStrings.Endpoints_ObjectTypeProc,
+        DbObjectType.TableValuedFunction => AdminStrings.Endpoints_ObjectTypeTableFn,
+        DbObjectType.ScalarFunction => AdminStrings.Endpoints_ObjectTypeScalarFn,
         _ => type.ToString(),
     };
 

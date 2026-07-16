@@ -1,22 +1,23 @@
 @page "/account"
 @attribute [Authorize]
+@inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IFlareClipboard Clipboard
 
 <FlareStack Gap="FlareSpacing.Medium" Style="max-width:34rem;">
-    <PageHeader Title="account" Description="Your profile, password and personal access tokens" />
+    <PageHeader Title="@AdminStrings.Account_Title" Description="@AdminStrings.Account_Description" />
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">Profile</FlareText>
+            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_Profile</FlareText>
             <FlareDescriptionList>
-                <FlareDescriptionItem Label="Username"><FlareText Mono="true">@(_me?.Username ?? "...")</FlareText></FlareDescriptionItem>
-                <FlareDescriptionItem Label="Role">
+                <FlareDescriptionItem Label="@AdminStrings.Account_Username"><FlareText Mono="true">@(_me?.Username ?? "...")</FlareText></FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Account_Role">
                     @if (_me is not null)
                     {
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                             <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(_me.Role == AdminRoles.Admin ? FlareColor.Primary : FlareColor.Default)" Label="@_me.Role" />
-                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@(_me.Role == AdminRoles.Admin ? "full access" : "read-only")</FlareText>
+                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@(_me.Role == AdminRoles.Admin ? AdminStrings.Account_RoleFullAccess : AdminStrings.Account_RoleReadOnly)</FlareText>
                         </FlareStack>
                     }
                 </FlareDescriptionItem>
@@ -26,12 +27,12 @@
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">Change password</FlareText>
-            <FlarePasswordField Label="Current password" @bind-Value="_current" autocomplete="current-password" />
-            <FlarePasswordField Label="New password" @bind-Value="_new" autocomplete="new-password" />
-            <FlarePasswordField Label="Confirm new password" @bind-Value="_confirm" autocomplete="new-password" />
+            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_ChangePasswordHeading</FlareText>
+            <FlarePasswordField Label="@AdminStrings.Account_CurrentPassword" @bind-Value="_current" autocomplete="current-password" />
+            <FlarePasswordField Label="@AdminStrings.Account_NewPassword" @bind-Value="_new" autocomplete="new-password" />
+            <FlarePasswordField Label="@AdminStrings.Account_ConfirmNewPassword" @bind-Value="_confirm" autocomplete="new-password" />
             <FlareStack Row>
-                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="ChangeAsync" Loading="_busy">Change password</FlareButton>
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="ChangeAsync" Loading="_busy">@AdminStrings.Account_ChangePasswordButton</FlareButton>
             </FlareStack>
             @if (_message is not null)
             {
@@ -42,31 +43,30 @@
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">Access tokens</FlareText>
+            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_AccessTokens</FlareText>
             <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
-                Personal access tokens call the admin API as you (with your role), for scripts and CI/CD -
-                for example to sync an endpoint's parameters on deploy. Send it as
+                @AdminStrings.Account_TokensIntro
                 <FlareCode>Authorization: Bearer &lt;token&gt;</FlareCode>.
             </FlareText>
 
             @if (_createdToken is not null)
             {
-                <FlareAlert Severity="AlertSeverity.Success" Title="Token created - copy it now">
+                <FlareAlert Severity="AlertSeverity.Success" Title="@AdminStrings.Account_TokenCreatedTitle">
                     <FlareStack Gap="FlareSpacing.Small">
-                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">This token is shown once and cannot be retrieved later.</FlareText>
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Account_TokenCreatedBody</FlareText>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small" Wrap="true">
                             <FlareCode>@_createdToken.PlainTextToken</FlareCode>
-                            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => CopyAsync(_createdToken.PlainTextToken)">@(_copied ? "Copied" : "Copy")</FlareButton>
-                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="() => { _createdToken = null; _copied = false; }">Done</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => CopyAsync(_createdToken.PlainTextToken)">@(_copied ? AdminStrings.Account_Copied : AdminStrings.Common_Copy)</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="() => { _createdToken = null; _copied = false; }">@AdminStrings.Account_Done</FlareButton>
                         </FlareStack>
                     </FlareStack>
                 </FlareAlert>
             }
 
             <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
-                <FlareField Label="Name" @bind-Value="_tokenName" Placeholder="e.g. ci-deploy" />
-                <FlareField Label="Expires in days (blank = never)" @bind-Value="_tokenExpiryDays" Placeholder="e.g. 90" />
-                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateTokenAsync" Loading="_tokenBusy">Create token</FlareButton>
+                <FlareField Label="@AdminStrings.Common_Name" @bind-Value="_tokenName" Placeholder="@AdminStrings.Account_TokenNamePlaceholder" />
+                <FlareField Label="@AdminStrings.Account_TokenExpiryLabel" @bind-Value="_tokenExpiryDays" Placeholder="@AdminStrings.Account_TokenExpiryPlaceholder" />
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateTokenAsync" Loading="_tokenBusy">@AdminStrings.Account_CreateToken</FlareButton>
             </FlareStack>
             @if (_tokenError is not null)
             {
@@ -75,26 +75,26 @@
 
             @if (_tokens is null)
             {
-                <FlareText Color="FlareColor.OnSurfaceVariant">Loading...</FlareText>
+                <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
             }
             else if (_tokens.Count == 0)
             {
-                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">No tokens yet.</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Account_NoTokens</FlareText>
             }
             else
             {
                 <FlareDataGrid Items="@_tokens" Dense="true" Striped="true">
                     <Columns>
-                        <FlareColumn TItem="AdminTokenInfo" Title="Name" Field="@(t => (object?)t.Name)" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="Token">
+                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Common_Name" Field="@(t => (object?)t.Name)" />
+                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnToken">
                             <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.Prefix</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="AdminTokenInfo" Title="Created" Field="@(t => (object?)t.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="Expires" Field="@(t => (object?)(t.ExpiresAt.HasValue ? t.ExpiresAt.Value.ToLocalTime().ToString("yyyy-MM-dd") : "never"))" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="Last used" Field="@(t => (object?)(t.LastUsedAt.HasValue ? t.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" />
+                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnCreated" Field="@(t => (object?)t.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" />
+                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnExpires" Field="@(t => (object?)(t.ExpiresAt.HasValue ? t.ExpiresAt.Value.ToLocalTime().ToString("yyyy-MM-dd") : AdminStrings.Account_Never))" />
+                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnLastUsed" Field="@(t => (object?)(t.LastUsedAt.HasValue ? t.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" />
                         <FlareColumn TItem="AdminTokenInfo" Title="" Align="ColumnAlign.End">
                             <Template>
-                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeTokenAsync(context.Id))">Revoke</FlareButton>
+                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeTokenAsync(context.Id))">@AdminStrings.Account_Revoke</FlareButton>
                             </Template>
                         </FlareColumn>
                     </Columns>
@@ -137,7 +137,7 @@
         _tokenError = null;
         if (string.IsNullOrWhiteSpace(_tokenName))
         {
-            _tokenError = "Enter a name for the token.";
+            _tokenError = AdminStrings.Account_ErrorTokenNameRequired;
             return;
         }
 
@@ -146,7 +146,7 @@
         {
             if (!int.TryParse(_tokenExpiryDays, out var days) || days <= 0)
             {
-                _tokenError = "Expiry must be a positive number of days, or blank.";
+                _tokenError = AdminStrings.Account_ErrorTokenExpiryInvalid;
                 return;
             }
 
@@ -159,7 +159,7 @@
 
         if (_createdToken is null)
         {
-            _tokenError = "Could not create the token.";
+            _tokenError = AdminStrings.Account_ErrorTokenCreateFailed;
             return;
         }
 
@@ -191,13 +191,13 @@
         _message = null;
         if (string.IsNullOrEmpty(_current) || string.IsNullOrEmpty(_new))
         {
-            (_ok, _message) = (false, "Fill in the current and new password.");
+            (_ok, _message) = (false, AdminStrings.Account_ErrorPasswordFieldsRequired);
             return;
         }
 
         if (_new != _confirm)
         {
-            (_ok, _message) = (false, "The new passwords do not match.");
+            (_ok, _message) = (false, AdminStrings.Account_ErrorPasswordMismatch);
             return;
         }
 
@@ -207,12 +207,12 @@
 
         if (ok)
         {
-            (_ok, _message) = (true, "Password changed.");
+            (_ok, _message) = (true, AdminStrings.Account_PasswordChanged);
             _current = _new = _confirm = string.Empty;
         }
         else
         {
-            (_ok, _message) = (false, "The current password is incorrect.");
+            (_ok, _message) = (false, AdminStrings.Account_ErrorCurrentPasswordIncorrect);
         }
     }
 }

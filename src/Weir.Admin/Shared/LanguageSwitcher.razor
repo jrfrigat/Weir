@@ -1,0 +1,24 @@
+@* UI language picker: a compact app-bar menu showing the active language code, one radio item per
+   shipped language. Composed from Flare (menu + icon), like the rest of the console. Each language is
+   listed under its own native name, so the entry a reader is looking for never depends on the language
+   the console currently happens to be in. *@
+@inherits LocalizedPage
+
+<FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="@AdminStrings.Layout_LanguageMenuAriaLabel">
+    <Activator>
+        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
+            <LeadingIcon><FlareIcon Name="translate" Size="1.05rem" /></LeadingIcon>
+            <ChildContent>@Lang.CurrentCulture.ToUpperInvariant()</ChildContent>
+        </FlareButton>
+    </Activator>
+    <ChildContent>
+        @foreach (var (code, displayName) in LanguageService.SupportedCultures)
+        {
+            var target = code;
+            <FlareMenuItem Icon="@(Lang.CurrentCulture == target ? "radio_button_checked" : "radio_button_unchecked")"
+                           OnClick="@(() => Lang.SetCultureAsync(target))">
+                @displayName
+            </FlareMenuItem>
+        }
+    </ChildContent>
+</FlareMenu>
