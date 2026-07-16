@@ -44,6 +44,11 @@ All notable changes to this project are documented here. The format is based on
   heap. An endpoint's responses are usually about the same size, so the previous one is a good guess. It
   stays a hint - the stream still grows if the guess is low, and the buffer is right-sized before it is
   cached - and it does not bother below 4 KB.
+- **Flare 0.4.0 -> 0.5.0**, and the OpenTelemetry core to 1.17. Flare 0.5.0 removes 89 fallbacks from its
+  component CSS, so a custom theme that leaned on a core default now renders nothing for that property.
+  Weir's Command Center theme takes its design tokens from the in-box Visual Studio theme wholesale and
+  overrides only colours, so it leans on nothing: the admin's geometry measures identical on both
+  versions. The OpenTelemetry instrumentation packages stay on 1.16, which is their own release cadence.
 
 ## [1.1.0] - 2026-07-16
 
