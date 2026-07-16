@@ -1,10 +1,126 @@
 # Changelog
 
+> [Russian / Russkiy](CHANGELOG.ru.md)
+
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-07-16
+
+### Added
+
+- **Per-endpoint control over coalescing.** `CachePolicy.CoalesceRequests` decides whether callers that
+  arrive while a response for the same cache key is already being produced wait for it, or each run the
+  procedure for themselves. On by default, so nothing changes unless it is turned off, and an endpoint
+  stored before this release picks the default up on its own. It only means anything while caching is
+  on: the cache key is what identifies two calls as asking the same question, so without one there is
+  nothing to wait on. Editable in the endpoint editor's **Caching** section.
+
+### Fixed
+
+- **A cache fill is no longer cancelled by the client that happened to start it.** A client hanging up
+  used to kill the query it had started, and every caller queued behind it went off and re-ran the same
+  thing - the work was thrown away exactly when it was nearly done. A fill now counts who is waiting and
+  runs its query on its own lifetime: one caller leaving is just that caller leaving, and the query is
+  dropped only once the last of them has gone, so it lives exactly as long as somebody still wants the
+  answer.
+- **A cache-filling query no longer holds its starter's request open.** The query is now detached from
+  the request that starts it. Previously the starter awaited it inline, so its own request could not
+  return until the query finished - a client that hit the gateway timeout would have waited out the whole
+  query instead of getting its `504`. Every caller, including the starter, now waits on the fill with its
+  own token.
+- Because a fill is only cancelled once nobody is left waiting, a failure a waiter can still see is one
+  the database really produced. It is now shared with everyone waiting rather than making each of them
+  retry a query that is going to fail again.
+
+### Changed
+
+- **A buffered response starts at the size the endpoint's last one came to.** A cached or captured body
+  was assembled in a `MemoryStream` that started empty and doubled as rows arrived, so a large response
+  was copied through every intermediate size and each intermediate over ~85 KB landed on the large object
+  heap. An endpoint's responses are usually about the same size, so the previous one is a good guess. It
+  stays a hint - the stream still grows if the guess is low, and the buffer is right-sized before it is
+  cached - and it does not bother below 4 KB.
+
+## [1.1.0] - 2026-07-16
+
+### Added
+
+- **The admin console speaks English and Russian.** A resx catalogue behind a generated `AdminStrings`
+  class, a `LanguageService` that resolves the language and stores the choice, and a `LocalizedPage` base
+  that re-renders on a switch. The picker sits in the top bar and on the sign-in card, since signing in
+  happens before there is a session. The language is a per-browser preference kept in `localStorage` and
+  applied before the first paint, so it survives a reload and an offline start; with nothing stored it
+  follows the browser and falls back to English. Switching is instant and never touches the control
+  plane, so two admins on one deployment can each read the console in their own language. Number and date
+  formatting follows the language too.
+- **The logs screen links to the endpoint an entry came from.** A request-log entry that resolved to a
+  known endpoint offers **Test endpoint** and **Edit endpoint**, which open the test console or the
+  editor directly. Parameters and result gain copy and view controls, with the full JSON in a dialog.
+- **The timing breakdown moved into the logs drawer**, where the rest of a call's detail lives. It had
+  been on the dashboard overview, where it swallowed the row click; clicking a row now opens the logs
+  filtered to that endpoint. The logs grid gains per-column filters.
+
+### Fixed
+
+- **Route templates never worked.** A route with a capture - `orders/{id}` - was registered, listed in
+  the admin and described in the generated OpenAPI document, but the catalog resolved routes with an
+  exact dictionary lookup, so `GET /api/orders/123` returned `404`. `ParameterSource.Route` had nothing
+  feeding it either, so even a match would have bound nothing. Routes are now matched segment by segment:
+  a literal route wins over a template that would also match, and between two templates the one with more
+  literal segments wins. Two routes no request could tell apart are reported as a collision at startup.
+- **Output parameters with no configured `Size` got a zero-byte driver buffer**, which truncated
+  `nvarchar(max)` and similar max-capable output values. They now default to the max-size buffer.
+- **A control plane migrated on Windows refused to start in a Linux container.** Migration checksums
+  hashed the script's raw bytes, so CRLF and LF produced different values for the same script. Checksums
+  are now computed over the LF form, and an older CRLF-era record is quietly rewritten to it.
+- **Instances sharing a control database did not serialize their migrations.** The PostgreSQL advisory
+  lock key was derived from `string.GetHashCode`, which is randomized per process, so every instance
+  computed a different key. SQL Server's `sp_getapplock` also treated return code 1 - granted after
+  waiting - as failure, aborting a waiting instance during a rolling deploy. SQL Server migrations now
+  run inside a transaction, matching PostgreSQL.
+- **The per-phase timing breakdown counted streaming twice**: the database phase spanned the whole
+  execute-and-stream block while the streaming phase measured part of the same span.
+- **Switching the admin's language orphaned its grid state.** Flare keys a column's filter and sort by
+  its title unless given an id, and no grid set one - so with localized titles, filtering a grid and then
+  switching language left it filtered while the filter box read empty. Every column now carries a stable
+  id.
+- A batch of audit findings: races in the SQL Server upserts, personal access tokens surviving a password
+  change, introspection / health / circuit-breaker errors handing exception text to clients, CORS
+  allowing any method, PostgreSQL timeout classification reading the wrong exception, and an uncapped
+  import batch.
+
+### Changed
+
+- **Concurrent callers for one cache key now cost one database call, not one each.** They each used to
+  miss and each execute the same procedure, so the cache only began absorbing load once the first
+  response had been stored - the moment it helps least, because none of them can hit it yet. The first
+  caller now runs the procedure and the rest wait for its bytes.
+- **BREAKING (third-party cache implementations): the cache store moved off the response path.**
+  `IResponseCache.SetAsync` now takes a built `CachedResponse` and returns nothing, where it used to take
+  raw bytes and return the entry it had built. The engine computes the entity tag itself, so it can set
+  `ETag` and answer `If-None-Match` without waiting for the store, and hands the entry to the cache
+  without awaiting it. It is passed `CancellationToken.None`: the entry outlives the request that
+  produced it, so one client giving up must not discard a payload others are waiting on.
+- **Hot-path work**, from an audit of the data plane: the metrics rings no longer take a process-wide
+  lock per request; validation regexes are cached, so the sixteenth configured pattern no longer falls
+  off `Regex.Cache` and recompiles on every request; a table-valued parameter's content token is built
+  only when the cache key or parameter capture will read it, instead of walking every cell on every
+  request; column names are pre-encoded once per result set instead of being re-escaped per row; and the
+  route key, claim dictionary, scope check, vary-by sort and per-request service lookups stop allocating.
+- **Flare 0.2.0 -> 0.4.0**, and the logs timing bar is now a `FlareMeter` - the component this project
+  had filed an issue for. 0.4.0's breaking change (`FlareZone` split into `FlareZone` and
+  `FlareMeterSegment`) does not reach Weir, which uses no slider, progress zone, pagination or rating.
+- **The admin no longer hand-rolls browser interop.** Clipboard, downloads, token storage, file upload
+  and the PWA update check all go through Flare's services; `IJSRuntime` is gone from the admin. Token
+  storage now JSON-encodes its values under the same keys, so **upgrading forces a one-time re-login**.
+- Runtime, Flare and test tooling bumped (.NET and Microsoft.Extensions 10.0.9 -> 10.0.10,
+  Microsoft.NET.Test.Sdk 18.8.1, Spectre.Console 0.57.2, Microsoft.SourceLink.GitHub 10.0.301).
+- `NU1900` no longer fails the build. It means the vulnerability-advisory source could not be reached,
+  which is not a defect in the code being built - the same reasoning that already excluded NU1901-NU1904.
 
 ### Security
 
@@ -18,6 +134,105 @@ All notable changes to this project are documented here. The format is based on
   owns a private, bounded memory cache: a size limit applies to a whole `MemoryCache` instance and, once
   set, makes every entry declare a size, so bounding the shared instance would break its other consumers
   (for example the API-key authenticator).
+
+## [1.0.5] - 2026-07-13
+
+### Changed
+
+- Flare (the admin UI component library) updated 0.1.9 -> 0.2.0. The release adds `FlareSlider` colored
+  zones and keyboard events across the field family, restores the field focus indicator, and improves the
+  in-box theme fidelity (Fluent / Material state layers, the Visual Studio switch geometry). Its breaking
+  changes are theme-authoring only (new required `InputTokens` / `StateTokens` fields when a theme
+  constructs those tokens directly); Weir's Command Center theme derives from the in-box Visual Studio
+  theme via `with`, so it inherits them and needed no change.
+
+### Added
+
+- A **sample CLI client and load tester** under `samples/client/Weir.Sample.Client` (`weir-sample`),
+  built on Spectre.Console. It calls the sample endpoints over HTTP with an API key, exactly as an
+  external consumer would. Two command families: the widgets sample (`samples/sqlserver/schema.sql`) -
+  `list`, `get`, `create`, `import` (table-valued parameter) - and the demo / orders sample
+  (`samples/sqlserver/demo-database.sql`, `weir-demo.endpoints.json`) - `products`, `product`, `orders`,
+  `order` (two result sets), `create-order` (table-valued parameter, output params + return value) and
+  `customer-stats` (output params); plus a generic `call` that prints the raw envelope. Launched with just
+  a URL and key (no command) it opens an **interactive shell** that stays open for request-after-request
+  use; given a command up front it runs one-shot for scripts / CI. A `load` command drives concurrent
+  requests against any endpoint (`--concurrency`, `--duration` or `--requests`, `--warmup`) and reports
+  throughput and latency percentiles (p50 / p90 / p95 / p99) plus a status-code breakdown, preflighting one
+  request so a bad URL / key / route fails fast. Not packed or shipped in the image; documented in
+  `samples/README.md`.
+- **Forced cache purge** for cached data-plane responses, from the admin UI and over the admin API for
+  CI/CD. The Endpoints grid gains a **Purge cache** action (shown when caching is enabled) that clears one
+  endpoint's cached responses. `POST /admin/api/endpoints/{id}/cache/purge` does the same by id, and
+  `POST /admin/api/cache/purge` invalidates in bulk with `AND`-combined, case-insensitive filters: `route`,
+  `connection` (a database on a server), `schema`, `object` (procedure / function name) and `provider`
+  (the connector behind an endpoint's connection); with no filter it purges every endpoint. Both return
+  `{ matchedEndpoints, purgedRoutes }`, are `AdminOnly`, and are audited under `cache.purge`. Purging clears
+  rendered responses only - it never changes an endpoint definition - and the cache refills on the next call.
+
+## [1.0.4] - 2026-07-13
+
+### Changed
+
+- NuGet package ids are now prefixed `FrigaT.Weir.*` (for example `FrigaT.Weir.Core`). The bare `Weir`
+  id prefix is reserved on nuget.org by another owner, which silently blocked every publish. Only the
+  package ids change: assemblies, namespaces, project references and the container image stay `Weir.*` /
+  `weir`, so a consumer runs `dotnet add package FrigaT.Weir.Abstractions` and still writes
+  `using Weir.Abstractions`.
+
+## [1.0.3] - 2026-07-13
+
+### Added
+
+- A **SQL Server control-plane provider** (`Weir.ControlPlane.SqlServer`, `Provider=SqlServer`), the third
+  `IControlPlaneStore` backend alongside SQLite and PostgreSQL. It mirrors the PostgreSQL provider in
+  T-SQL (bounded `nvarchar` keys, `bit`/`IDENTITY`, `UPDATE ...; IF @@ROWCOUNT = 0 INSERT` upserts,
+  `OFFSET/FETCH` pagination) and serializes migrations across instances with `sp_getapplock`, so - like
+  PostgreSQL - it is valid for high-availability deployments (the host does not reject it under
+  `Weir:HighAvailability`). Verified end-to-end against a live SQL Server and covered by a
+  Testcontainers.MsSql integration test.
+
+## [1.0.2] - 2026-07-13
+
+### Added
+
+- Published-artifact presentation. Every packable library now embeds a shared brand README and the
+  Weir mark, so the nuget.org pages render a description and an icon instead of warning that the
+  readme is missing; the release workflow syncs `build/dockerhub-overview.md` as the Docker Hub
+  repository overview and short description; and both READMEs carry a Docker Pulls badge. The NuGet
+  changes apply from the next published version, since versions already on nuget.org are immutable.
+
+### Fixed
+
+- The Docker Hub image namespace is `frigat/weir`: the Docker Hub account is `frigat`, not the GitHub
+  owner `jrfrigat`. Corrected in the Docker Hub overview and the NuGet package README; the release
+  workflow already derives the image from the `DOCKERHUB_USERNAME` variable.
+
+### Changed
+
+- The internal design mockups (`design/`, the weir-http and weir-http2 HTML prototypes with their
+  screenshots and support scripts) and the two-plane architecture ADR
+  (`docs/adr/0001-two-plane-architecture.md`) are removed from the repository.
+
+## [1.0.1] - 2026-07-12
+
+### Added
+
+- The release workflow also pushes the container image to Docker Hub alongside GHCR, in the same
+  build. The Docker Hub tags and the Docker Hub login are included only when the `DOCKERHUB_USERNAME`
+  repository variable is set, so a release keeps working with GHCR alone when Docker Hub is not
+  configured.
+
+### Fixed
+
+- The GHCR image name is lowercased in the release workflow. `github.repository` preserves the
+  repository's case (`jrfrigat/Weir`) and GHCR rejects an uppercase repository path, so the image
+  push failed with "repository name must be lowercase".
+
+## [1.0.0] - 2026-07-12
+
+### Security
+
 - The local Claude Code config directory (`.claude/`) is now git-ignored. Its `launch.json` carries a
   machine-specific dev connection string (with a password), so it must not be committed; the demo
   `docker-compose.override.yml` was already ignored for the same reason.
@@ -62,20 +277,15 @@ All notable changes to this project are documented here. The format is based on
   applies a default limit to keys that set none, and the per-key rate limiter now evicts stale windows.
 - Startup options validation (`ValidateOnStart`) for the data-plane limits, audit queue, admin lockout
   and JWT lifetime, so misconfiguration fails fast instead of surfacing as runtime errors.
+- Admin sign-in throttling is keyed by source IP rather than username, so a bad-password flood cannot
+  lock a real admin out; login verifies against a decoy hash for missing accounts to remove the
+  username-enumeration timing oracle; throttle state is bounded to prevent unbounded memory growth.
+- Passwords (bootstrap and API-created) must be at least 8 characters; unknown roles are rejected
+  rather than silently promoted to `Admin`; revoking or creating an API key immediately evicts the
+  authentication cache; in Production the JWT signing key must be at least 32 characters.
 
 ### Changed
 
-- Flare (the admin UI component library) updated 0.1.9 -> 0.2.0. The release adds `FlareSlider` colored
-  zones and keyboard events across the field family, restores the field focus indicator, and improves the
-  in-box theme fidelity (Fluent / Material state layers, the Visual Studio switch geometry). Its breaking
-  changes are theme-authoring only (new required `InputTokens` / `StateTokens` fields when a theme
-  constructs those tokens directly); Weir's Command Center theme derives from the in-box Visual Studio
-  theme via `with`, so it inherits them and needed no change.
-- NuGet package ids are now prefixed `FrigaT.Weir.*` (for example `FrigaT.Weir.Core`). The bare `Weir`
-  id prefix is reserved on nuget.org by another owner, which silently blocked every publish. Only the
-  package ids change: assemblies, namespaces, project references and the container image stay `Weir.*` /
-  `weir`, so a consumer runs `dotnet add package FrigaT.Weir.Abstractions` and still writes
-  `using Weir.Abstractions`.
 - Dependencies updated to their latest stable versions ahead of the first release, including major
   bumps: Microsoft.Data.SqlClient 6 -> 7, Npgsql 9 -> 10, Serilog.AspNetCore 8 -> 10, Serilog.Sinks.File
   6 -> 7, StackExchange.Redis 2 -> 3, Microsoft.NET.Test.Sdk 17 -> 18 and xunit.runner.visualstudio
@@ -138,6 +348,11 @@ All notable changes to this project are documented here. The format is based on
   admin create and password reset, and settings changes join the already-audited key and token actions
   and sign-ins, each recording the acting admin and the affected resource. The data-plane forbidden and
   rate-limit paths, and admin sign-in failures / lockouts, are also logged as security events.
+- Destructive admin actions now confirm before running: deleting an endpoint, revoking an API key and
+  deleting a scope each open a `Discard`/`Delete`-style confirm (via `IDialogService`) naming the target,
+  so a stray click can no longer drop config or break a live caller.
+- The scopes table shows how many keys carry each scope and how many endpoints require it, matching the
+  Command Center design and surfacing whether a scope is safe to delete.
 
 ### Fixed
 
@@ -160,37 +375,32 @@ All notable changes to this project are documented here. The format is based on
   silently ignores - the grid produced rows with no cells, so the page looked empty even though the data
   loaded. Every grid now wraps its columns correctly, so the Database tab and the key/scope/admin lists
   populate as expected.
+- Response cache keys are now collision-resistant: values are type-tagged and every keyed segment is
+  length-prefixed, so distinct binary values (previously all "System.Byte[]") and delimiter-bearing
+  strings no longer collapse to one key and serve the wrong caller's cached response.
+- Editing or deleting an endpoint now evicts its cached responses (new `IResponseCache.RemoveByPrefixAsync`)
+  instead of serving stale JSON until the TTL expires.
+- Duplicate enabled routes are logged on catalog load instead of one endpoint silently disappearing.
+- Connectors drain any unread result sets before completing, so output parameters and the return value
+  are captured even when a response is row-capped (`"truncated": true`).
+- The dashboard requests-per-second is scaled by actual uptime during the first minute; time-series
+  windows are clamped to the ring capacity so a long window no longer double-counts; latency
+  percentiles are computed from a self-consistent counter snapshot.
+- Control-plane stores no longer leak a connection object when opening fails, translate a duplicate
+  method+route into HTTP 409, throttle last-used writes on the hot auth path, and normalize audit
+  timestamps to UTC for correct range queries.
+- Data-plane requests with a chunked body (no `Content-Length`) are read instead of silently dropped;
+  driver and configuration error text is no longer echoed to callers; a mid-stream failure aborts the
+  connection instead of emitting a truncated `200 OK`.
+- Admin PWA hardening: a malformed stored token can no longer brick the app, `returnUrl` is validated
+  against open redirects, the dashboard refresh timer no longer touches a disposed component, and a
+  401 for an authenticated request signs the session out.
+- Endpoint "Test" drawer now shows the response: it was binding the JSON to a non-existent `Code`
+  attribute on `FlareCodeBlock` (the parameter is `Value`), so a successful invoke rendered an empty
+  Response panel. The pretty-printed envelope now appears as expected.
 
 ### Added
 
-- A **sample CLI client and load tester** under `samples/client/Weir.Sample.Client` (`weir-sample`),
-  built on Spectre.Console. It calls the sample endpoints over HTTP with an API key, exactly as an
-  external consumer would. Two command families: the widgets sample (`samples/sqlserver/schema.sql`) -
-  `list`, `get`, `create`, `import` (table-valued parameter) - and the demo / orders sample
-  (`samples/sqlserver/demo-database.sql`, `weir-demo.endpoints.json`) - `products`, `product`, `orders`,
-  `order` (two result sets), `create-order` (table-valued parameter, output params + return value) and
-  `customer-stats` (output params); plus a generic `call` that prints the raw envelope. Launched with just
-  a URL and key (no command) it opens an **interactive shell** that stays open for request-after-request
-  use; given a command up front it runs one-shot for scripts / CI. A `load` command drives concurrent
-  requests against any endpoint (`--concurrency`, `--duration` or `--requests`, `--warmup`) and reports
-  throughput and latency percentiles (p50 / p90 / p95 / p99) plus a status-code breakdown, preflighting one
-  request so a bad URL / key / route fails fast. Not packed or shipped in the image; documented in
-  `samples/README.md`.
-- **Forced cache purge** for cached data-plane responses, from the admin UI and over the admin API for
-  CI/CD. The Endpoints grid gains a **Purge cache** action (shown when caching is enabled) that clears one
-  endpoint's cached responses. `POST /admin/api/endpoints/{id}/cache/purge` does the same by id, and
-  `POST /admin/api/cache/purge` invalidates in bulk with `AND`-combined, case-insensitive filters: `route`,
-  `connection` (a database on a server), `schema`, `object` (procedure / function name) and `provider`
-  (the connector behind an endpoint's connection); with no filter it purges every endpoint. Both return
-  `{ matchedEndpoints, purgedRoutes }`, are `AdminOnly`, and are audited under `cache.purge`. Purging clears
-  rendered responses only - it never changes an endpoint definition - and the cache refills on the next call.
-- A **SQL Server control-plane provider** (`Weir.ControlPlane.SqlServer`, `Provider=SqlServer`), the third
-  `IControlPlaneStore` backend alongside SQLite and PostgreSQL. It mirrors the PostgreSQL provider in
-  T-SQL (bounded `nvarchar` keys, `bit`/`IDENTITY`, `UPDATE ...; IF @@ROWCOUNT = 0 INSERT` upserts,
-  `OFFSET/FETCH` pagination) and serializes migrations across instances with `sp_getapplock`, so - like
-  PostgreSQL - it is valid for high-availability deployments (the host does not reject it under
-  `Weir:HighAvailability`). Verified end-to-end against a live SQL Server and covered by a
-  Testcontainers.MsSql integration test.
 - A "view source" GitHub link in the admin app bar, on the right just before the account menu, opening
   `github.com/jrfrigat/weir` in a new tab. Rendered as authored brand art (`GitHubIcon`), since Material
   Symbols carries no brand glyphs.
@@ -439,49 +649,6 @@ All notable changes to this project are documented here. The format is based on
 - PostgreSQL control-plane integration tests (Testcontainers) - opt-in via `WEIR_CONTAINER_TESTS=1`
   and run in CI, exercising migrations and the full store round-trip against a real database.
 
-### Fixed
-
-- Response cache keys are now collision-resistant: values are type-tagged and every keyed segment is
-  length-prefixed, so distinct binary values (previously all "System.Byte[]") and delimiter-bearing
-  strings no longer collapse to one key and serve the wrong caller's cached response.
-- Editing or deleting an endpoint now evicts its cached responses (new `IResponseCache.RemoveByPrefixAsync`)
-  instead of serving stale JSON until the TTL expires.
-- Duplicate enabled routes are logged on catalog load instead of one endpoint silently disappearing.
-- Connectors drain any unread result sets before completing, so output parameters and the return value
-  are captured even when a response is row-capped (`"truncated": true`).
-- The dashboard requests-per-second is scaled by actual uptime during the first minute; time-series
-  windows are clamped to the ring capacity so a long window no longer double-counts; latency
-  percentiles are computed from a self-consistent counter snapshot.
-- Control-plane stores no longer leak a connection object when opening fails, translate a duplicate
-  method+route into HTTP 409, throttle last-used writes on the hot auth path, and normalize audit
-  timestamps to UTC for correct range queries.
-- Data-plane requests with a chunked body (no `Content-Length`) are read instead of silently dropped;
-  driver and configuration error text is no longer echoed to callers; a mid-stream failure aborts the
-  connection instead of emitting a truncated `200 OK`.
-- Admin PWA hardening: a malformed stored token can no longer brick the app, `returnUrl` is validated
-  against open redirects, the dashboard refresh timer no longer touches a disposed component, and a
-  401 for an authenticated request signs the session out.
-- Endpoint "Test" drawer now shows the response: it was binding the JSON to a non-existent `Code`
-  attribute on `FlareCodeBlock` (the parameter is `Value`), so a successful invoke rendered an empty
-  Response panel. The pretty-printed envelope now appears as expected.
-
-### Changed
-
-- Destructive admin actions now confirm before running: deleting an endpoint, revoking an API key and
-  deleting a scope each open a `Discard`/`Delete`-style confirm (via `IDialogService`) naming the target,
-  so a stray click can no longer drop config or break a live caller.
-- The scopes table shows how many keys carry each scope and how many endpoints require it, matching the
-  Command Center design and surfacing whether a scope is safe to delete.
-
-### Security
-
-- Admin sign-in throttling is keyed by source IP rather than username, so a bad-password flood cannot
-  lock a real admin out; login verifies against a decoy hash for missing accounts to remove the
-  username-enumeration timing oracle; throttle state is bounded to prevent unbounded memory growth.
-- Passwords (bootstrap and API-created) must be at least 8 characters; unknown roles are rejected
-  rather than silently promoted to `Admin`; revoking or creating an API key immediately evicts the
-  authentication cache; in Production the JWT signing key must be at least 32 characters.
-
 ## [0.1.0] - 2026-07-10
 
 Initial release.
@@ -512,5 +679,13 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/jrfrigat/weir/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/jrfrigat/weir/compare/v1.0.5...v1.1.0
+[1.0.5]: https://github.com/jrfrigat/weir/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/jrfrigat/weir/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/jrfrigat/weir/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/jrfrigat/weir/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/jrfrigat/weir/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/jrfrigat/weir/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/jrfrigat/weir/releases/tag/v0.1.0
