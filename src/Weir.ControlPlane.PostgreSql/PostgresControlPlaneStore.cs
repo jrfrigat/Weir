@@ -79,8 +79,12 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
 
         // Serialize migrations across instances. The lock is held on this connection until released.
         // Derive the lock key from the database name so different deployments on the same server
-        // do not contend on the same lock.
-        var lockKey = BaseMigrationLockKey ^ (long)conn.Database!.GetHashCode();
+        // do not contend on the same lock. Use a stable hash of the name: string.GetHashCode() is
+        // randomized per process in .NET, so it would yield a different key on every instance and
+        // defeat the cross-instance serialization this lock exists for.
+        var dbNameHash = System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes(conn.Database ?? string.Empty));
+        var lockKey = BaseMigrationLockKey ^ BitConverter.ToInt64(dbNameHash, 0);
         await conn.ExecuteAsync(new CommandDefinition(
             "SELECT pg_advisory_lock(@Key)", new { Key = lockKey }, cancellationToken: cancellationToken));
         try
@@ -157,8 +161,15 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
             {
                 if (!string.Equals(stored, checksum, StringComparison.Ordinal))
                 {
-                    var canonical = Checksum(PostgresSchema.Migrations[applied - 1].Replace("\r\n", "\n"));
-                    if (string.Equals(stored, canonical, StringComparison.Ordinal))
+                    // An older build hashed the script with its on-disk line endings (CRLF on Windows),
+                    // so a database migrated there recorded the CRLF hash. Checksum() now normalizes to
+                    // LF, so recompute the hash of the CRLF form and, if it matches the stored value,
+                    // update the record to the canonical LF checksum instead of failing. (Comparing
+                    // against the LF form would be pointless: it equals checksum.)
+                    var crlf = PostgresSchema.Migrations[applied - 1].Replace("\r\n", "\n").Replace("\n", "\r\n");
+                    var crlfChecksum = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(crlf)));
+                    if (string.Equals(stored, crlfChecksum, StringComparison.Ordinal))
                     {
                         await conn.ExecuteAsync(new CommandDefinition(
                             "UPDATE SchemaMigrations SET Checksum = @Checksum WHERE Version = @Version",

@@ -128,11 +128,15 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             {
                 if (!string.Equals(stored, checksum, StringComparison.Ordinal))
                 {
-                    // Cross-platform fix: the checksum may have been recorded on a different OS with
-                    // different line endings (CRLF vs LF). If the LF-normalized checksum matches the
-                    // stored value, silently update to the canonical form.
-                    var canonical = Checksum(SqliteSchema.Migrations[applied - 1].Replace("\r\n", "\n"));
-                    if (string.Equals(stored, canonical, StringComparison.Ordinal))
+                    // Cross-platform fix: an older build hashed the script with its on-disk line
+                    // endings (CRLF on Windows), so a database migrated there recorded the CRLF hash.
+                    // Checksum() now normalizes to LF, so recompute the hash of the CRLF form and, if it
+                    // matches the stored value, update the record to the canonical LF checksum instead
+                    // of failing. (Comparing against the LF form would be pointless: it equals checksum.)
+                    var crlf = SqliteSchema.Migrations[applied - 1].Replace("\r\n", "\n").Replace("\n", "\r\n");
+                    var crlfChecksum = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(crlf)));
+                    if (string.Equals(stored, crlfChecksum, StringComparison.Ordinal))
                     {
                         await conn.ExecuteAsync(new CommandDefinition(
                             "UPDATE SchemaMigrations SET Checksum = @Checksum WHERE Version = @Version",

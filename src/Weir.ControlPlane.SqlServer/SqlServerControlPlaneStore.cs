@@ -87,7 +87,9 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         var lockResult = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             "DECLARE @lockResult int; EXEC @lockResult = sp_getapplock @Resource = 'WeirControlPlaneMigration', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 60000; SELECT @lockResult;",
             cancellationToken: cancellationToken));
-        if (lockResult != 0)
+        // sp_getapplock returns 0 (granted) or 1 (granted after waiting); both are success. Only a
+        // negative result (-1 timeout, -2 canceled, -3 deadlock, -999 error) means the lock was not held.
+        if (lockResult < 0)
         {
             throw new ControlPlaneMigrationException("Could not acquire migration lock within timeout.");
         }
@@ -128,14 +130,20 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
 
             for (var i = version.Value; i < SqlServerSchema.Migrations.Length; i++)
             {
-                await conn.ExecuteAsync(new CommandDefinition(SqlServerSchema.Migrations[i], cancellationToken: cancellationToken));
+                // Apply the migration, record its checksum and advance the version pointer atomically.
+                // A crash mid-way must not leave the schema half-applied, which would otherwise break a
+                // non-idempotent step (e.g. ADD COLUMN) on the next start.
+                await using var tx = await conn.BeginTransactionAsync(cancellationToken);
+                await conn.ExecuteAsync(new CommandDefinition(
+                    SqlServerSchema.Migrations[i], transaction: tx, cancellationToken: cancellationToken));
                 await conn.ExecuteAsync(new CommandDefinition(
                     "INSERT INTO SchemaMigrations (Version, Checksum, AppliedAt) VALUES (@Version, @Checksum, @AppliedAt)",
                     new { Version = i + 1, Checksum = Checksum(SqlServerSchema.Migrations[i]), AppliedAt = Iso(_clock.GetUtcNow()) },
-                    cancellationToken: cancellationToken));
+                    transaction: tx, cancellationToken: cancellationToken));
                 await conn.ExecuteAsync(new CommandDefinition(
                     "UPDATE weir_schema_version SET version = @Version WHERE singleton = 1",
-                    new { Version = i + 1 }, cancellationToken: cancellationToken));
+                    new { Version = i + 1 }, transaction: tx, cancellationToken: cancellationToken));
+                await tx.CommitAsync(cancellationToken);
             }
         }
         finally
@@ -168,8 +176,15 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             {
                 if (!string.Equals(stored, checksum, StringComparison.Ordinal))
                 {
-                    var canonical = Checksum(SqlServerSchema.Migrations[applied - 1].Replace("\r\n", "\n"));
-                    if (string.Equals(stored, canonical, StringComparison.Ordinal))
+                    // An older build hashed the script with its on-disk line endings (CRLF on Windows),
+                    // so a database migrated there recorded the CRLF hash. Checksum() now normalizes to
+                    // LF, so recompute the hash of the CRLF form and, if it matches the stored value,
+                    // update the record to the canonical LF checksum instead of failing. (Comparing
+                    // against the LF form would be pointless: it equals checksum.)
+                    var crlf = SqlServerSchema.Migrations[applied - 1].Replace("\r\n", "\n").Replace("\n", "\r\n");
+                    var crlfChecksum = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(crlf)));
+                    if (string.Equals(stored, crlfChecksum, StringComparison.Ordinal))
                     {
                         await conn.ExecuteAsync(new CommandDefinition(
                             "UPDATE SchemaMigrations SET Checksum = @Checksum WHERE Version = @Version",
