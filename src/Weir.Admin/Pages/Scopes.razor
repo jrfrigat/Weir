@@ -36,17 +36,17 @@
     {
         <FlareDataGrid Items="@_scopes" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnScope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="Scope" Id="scope" Title="@AdminStrings.Scopes_ColumnScope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
                     <Template><FlareCode>@context.Name</FlareCode></Template>
                 </FlareColumn>
-                <FlareColumn TItem="Scope" Title="@AdminStrings.Common_Description" Field="@(s => (object?)s.Description)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnKeys" Align="ColumnAlign.End">
+                <FlareColumn TItem="Scope" Id="description" Title="@AdminStrings.Common_Description" Field="@(s => (object?)s.Description)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="Scope" Id="keys" Title="@AdminStrings.Scopes_ColumnKeys" Align="ColumnAlign.End">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@KeyCount(context.Name)</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="Scope" Title="@AdminStrings.Scopes_ColumnEndpoints" Align="ColumnAlign.End">
+                <FlareColumn TItem="Scope" Id="endpoints" Title="@AdminStrings.Scopes_ColumnEndpoints" Align="ColumnAlign.End">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@EndpointCount(context.Name)</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="Scope" Title="" Align="ColumnAlign.End">
+                <FlareColumn TItem="Scope" Id="actions" Title="" Align="ColumnAlign.End">
                     <Template>
                         <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => DeleteAsync(context.Name))">@AdminStrings.Common_Delete</FlareButton>
                     </Template>

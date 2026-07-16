@@ -23,8 +23,8 @@
                 <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
             </ToolbarContent>
             <Columns>
-                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnTime" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
-                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnCategory" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="AuditEntry" Id="time" Title="@AdminStrings.Audit_ColumnTime" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
+                <FlareColumn TItem="AuditEntry" Id="category" Title="@AdminStrings.Audit_ColumnCategory" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
                     <Template>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
                             <FlareIcon Name="fiber_manual_record" Size="0.7rem" Color="@KindColor(context.Category)" />
@@ -32,9 +32,9 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnActor" Field="@(e => (object?)e.Actor)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnDetail" Field="@(e => (object?)(string.IsNullOrEmpty(e.Detail) ? e.Route : e.Detail))" Filterable="true" />
-                <FlareColumn TItem="AuditEntry" Title="@AdminStrings.Audit_ColumnOutcome" Filterable="true">
+                <FlareColumn TItem="AuditEntry" Id="actor" Title="@AdminStrings.Audit_ColumnActor" Field="@(e => (object?)e.Actor)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Id="detail" Title="@AdminStrings.Audit_ColumnDetail" Field="@(e => (object?)(string.IsNullOrEmpty(e.Detail) ? e.Route : e.Detail))" Filterable="true" />
+                <FlareColumn TItem="AuditEntry" Id="outcome" Title="@AdminStrings.Audit_ColumnOutcome" Filterable="true">
                     <Template>
                         <FlareText Element="span" Mono="true" Color="@OutcomeColor(context.Outcome)">@context.Outcome</FlareText>
                     </Template>

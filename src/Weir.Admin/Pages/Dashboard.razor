@@ -129,18 +129,18 @@
         {
             <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
                 <Columns>
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnRoute" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnObject" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnCount" Field="@(e => (object?)e.Count)" Sortable="true" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnErrorPct" Align="ColumnAlign.End">
+                    <FlareColumn TItem="EndpointMetrics" Id="route" Title="@AdminStrings.Dashboard_ColumnRoute" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Id="object" Title="@AdminStrings.Dashboard_ColumnObject" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
+                    <FlareColumn TItem="EndpointMetrics" Id="count" Title="@AdminStrings.Dashboard_ColumnCount" Field="@(e => (object?)e.Count)" Sortable="true" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Id="error-pct" Title="@AdminStrings.Dashboard_ColumnErrorPct" Align="ColumnAlign.End">
                         <Template>
                             <FlareText Element="span" Mono="true" Color="@(context.ErrorRate > 0 ? FlareColor.Error : FlareColor.OnSurfaceVariant)">@Pct2(context.ErrorRate)</FlareText>
                         </Template>
                     </FlareColumn>
-                    <FlareColumn TItem="EndpointMetrics" Title="p50" Field="@(e => (object?)e.P50LatencyMs.ToString("0.0", Invariant))" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="p95" Field="@(e => (object?)e.P95LatencyMs.ToString("0", Invariant))" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnCache" Field="@(e => (object?)e.CacheHitRatio.ToString("0%", Invariant))" Align="ColumnAlign.End" />
-                    <FlareColumn TItem="EndpointMetrics" Title="@AdminStrings.Dashboard_ColumnLast" Field="@(e => (object?)(e.LastCalledAt.HasValue ? e.LastCalledAt.Value.ToLocalTime().ToString("HH:mm:ss") : "-"))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Id="p50" Title="p50" Field="@(e => (object?)e.P50LatencyMs.ToString("0.0", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Id="p95" Title="p95" Field="@(e => (object?)e.P95LatencyMs.ToString("0", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Id="cache" Title="@AdminStrings.Dashboard_ColumnCache" Field="@(e => (object?)e.CacheHitRatio.ToString("0%", Invariant))" Align="ColumnAlign.End" />
+                    <FlareColumn TItem="EndpointMetrics" Id="last" Title="@AdminStrings.Dashboard_ColumnLast" Field="@(e => (object?)(e.LastCalledAt.HasValue ? e.LastCalledAt.Value.ToLocalTime().ToString("HH:mm:ss") : "-"))" Align="ColumnAlign.End" />
                 </Columns>
             </FlareDataGrid>
         }

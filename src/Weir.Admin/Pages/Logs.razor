@@ -42,18 +42,18 @@
     {
         <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" RowClick="@(e => OpenDetail(e))">
             <Columns>
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
+                <FlareColumn TItem="RequestLogEntry" Id="time" Title="@AdminStrings.Logs_Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
+                <FlareColumn TItem="RequestLogEntry" Id="method" Title="@AdminStrings.Logs_Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
                     <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Route" Field="@(e => (object?)e.Route)" Filterable="true" FilterFunc="@FilterLike">
+                <FlareColumn TItem="RequestLogEntry" Id="route" Title="@AdminStrings.Logs_Route" Field="@(e => (object?)e.Route)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true">/@context.Route</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Object" Field="@(e => (object?)e.ObjectName)" Filterable="true" FilterFunc="@FilterLike" />
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Status" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenInt">
+                <FlareColumn TItem="RequestLogEntry" Id="object" Title="@AdminStrings.Logs_Object" Field="@(e => (object?)e.ObjectName)" Filterable="true" FilterFunc="@FilterLike" />
+                <FlareColumn TItem="RequestLogEntry" Id="status" Title="@AdminStrings.Logs_Status" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenInt">
                     <Template><FlareText Element="span" Mono="true" Color="@StatusColor(context.StatusCode)">@(context.StatusCode?.ToString() ?? "-")</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Duration" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenDouble">
+                <FlareColumn TItem="RequestLogEntry" Id="duration" Title="@AdminStrings.Logs_Duration" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenDouble">
                     <Template>
                         <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
                             @if (context.Slow)
@@ -64,9 +64,9 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Db" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" Filterable="true" FilterFunc="@FilterBetweenDoubleNullable" />
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? AdminStrings.Logs_CacheLabel : e.RowsReturned?.ToString() ?? "-"))" Filterable="true" FilterFunc="@FilterLikeRows" />
-                <FlareColumn TItem="RequestLogEntry" Title="@AdminStrings.Logs_Caller" Field="@(e => (object?)e.ApiKeyPrefix)" Filterable="true" FilterFunc="@FilterLike">
+                <FlareColumn TItem="RequestLogEntry" Id="db" Title="@AdminStrings.Logs_Db" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" Filterable="true" FilterFunc="@FilterBetweenDoubleNullable" />
+                <FlareColumn TItem="RequestLogEntry" Id="rows" Title="@AdminStrings.Logs_Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? AdminStrings.Logs_CacheLabel : e.RowsReturned?.ToString() ?? "-"))" Filterable="true" FilterFunc="@FilterLikeRows" />
+                <FlareColumn TItem="RequestLogEntry" Id="caller" Title="@AdminStrings.Logs_Caller" Field="@(e => (object?)e.ApiKeyPrefix)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.ApiKeyPrefix</FlareText></Template>
                 </FlareColumn>
             </Columns>

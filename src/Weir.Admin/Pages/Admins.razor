@@ -40,7 +40,7 @@
     {
         <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
+                <FlareColumn TItem="AdminUserInfo" Id="login" Title="@AdminStrings.Admins_Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
                     <Template>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
                             <FlareAvatar Size="AvatarSize.Sm">@Initials(context.Username)</FlareAvatar>
@@ -48,19 +48,19 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Role">
+                <FlareColumn TItem="AdminUserInfo" Id="role" Title="@AdminStrings.Admins_Role">
                     <Template>
                         <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Role == AdminRoles.Admin ? FlareColor.Primary : FlareColor.Default)" Label="@context.Role" />
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Status">
+                <FlareColumn TItem="AdminUserInfo" Id="status" Title="@AdminStrings.Admins_Status">
                     <Template>
                         <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Error)" Label="@(context.Enabled ? AdminStrings.Admins_StatusEnabled : AdminStrings.Admins_StatusDisabled)" />
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_LastLogin" Field="@(a => (object?)(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
-                <FlareColumn TItem="AdminUserInfo" Title="@AdminStrings.Admins_Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
-                <FlareColumn TItem="AdminUserInfo" Title="" Align="ColumnAlign.End">
+                <FlareColumn TItem="AdminUserInfo" Id="last-login" Title="@AdminStrings.Admins_LastLogin" Field="@(a => (object?)(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Id="created" Title="@AdminStrings.Admins_Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="AdminUserInfo" Id="actions" Title="" Align="ColumnAlign.End">
                     <Template>
                         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">@AdminStrings.Admins_ResetPassword</FlareButton>
                     </Template>

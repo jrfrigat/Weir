@@ -40,20 +40,20 @@
     {
         <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true">
             <Columns>
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Common_Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnKey">
+                <FlareColumn TItem="ApiKeyInfo" Id="name" Title="@AdminStrings.Common_Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="key" Title="@AdminStrings.Keys_ColumnKey">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.Prefix</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_Scopes">
+                <FlareColumn TItem="ApiKeyInfo" Id="scopes" Title="@AdminStrings.Keys_Scopes">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.Primary">@string.Join(", ", context.Scopes)</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ProcedureAccess" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnCreated" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnLastUsed" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
-                <FlareColumn TItem="ApiKeyInfo" Title="@AdminStrings.Keys_ColumnStatus">
+                <FlareColumn TItem="ApiKeyInfo" Id="procedure-access" Title="@AdminStrings.Keys_ProcedureAccess" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="created" Title="@AdminStrings.Keys_ColumnCreated" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="last-used" Title="@AdminStrings.Keys_ColumnLastUsed" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="status" Title="@AdminStrings.Keys_ColumnStatus">
                     <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? AdminStrings.Keys_StatusActive : AdminStrings.Keys_StatusRevoked)" /></Template>
                 </FlareColumn>
-                <FlareColumn TItem="ApiKeyInfo" Title="" Align="ColumnAlign.End">
+                <FlareColumn TItem="ApiKeyInfo" Id="actions" Title="" Align="ColumnAlign.End">
                     <Template>
                         @if (context.Enabled)
                         {

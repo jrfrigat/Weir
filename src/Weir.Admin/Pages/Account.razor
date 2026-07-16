@@ -85,14 +85,14 @@
             {
                 <FlareDataGrid Items="@_tokens" Dense="true" Striped="true">
                     <Columns>
-                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Common_Name" Field="@(t => (object?)t.Name)" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnToken">
+                        <FlareColumn TItem="AdminTokenInfo" Id="name" Title="@AdminStrings.Common_Name" Field="@(t => (object?)t.Name)" />
+                        <FlareColumn TItem="AdminTokenInfo" Id="token" Title="@AdminStrings.Account_ColumnToken">
                             <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.Prefix</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnCreated" Field="@(t => (object?)t.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnExpires" Field="@(t => (object?)(t.ExpiresAt.HasValue ? t.ExpiresAt.Value.ToLocalTime().ToString("yyyy-MM-dd") : AdminStrings.Account_Never))" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="@AdminStrings.Account_ColumnLastUsed" Field="@(t => (object?)(t.LastUsedAt.HasValue ? t.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" />
-                        <FlareColumn TItem="AdminTokenInfo" Title="" Align="ColumnAlign.End">
+                        <FlareColumn TItem="AdminTokenInfo" Id="created" Title="@AdminStrings.Account_ColumnCreated" Field="@(t => (object?)t.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" />
+                        <FlareColumn TItem="AdminTokenInfo" Id="expires" Title="@AdminStrings.Account_ColumnExpires" Field="@(t => (object?)(t.ExpiresAt.HasValue ? t.ExpiresAt.Value.ToLocalTime().ToString("yyyy-MM-dd") : AdminStrings.Account_Never))" />
+                        <FlareColumn TItem="AdminTokenInfo" Id="last-used" Title="@AdminStrings.Account_ColumnLastUsed" Field="@(t => (object?)(t.LastUsedAt.HasValue ? t.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" />
+                        <FlareColumn TItem="AdminTokenInfo" Id="actions" Title="" Align="ColumnAlign.End">
                             <Template>
                                 <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeTokenAsync(context.Id))">@AdminStrings.Account_Revoke</FlareButton>
                             </Template>

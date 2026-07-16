@@ -52,20 +52,20 @@
                 <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu">
                     <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <Columns>
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_StatusColumn">
+                        <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
                             <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? AdminStrings.Common_Enabled : AdminStrings.Endpoints_StatusDisabled)" /></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_MethodLabel" Field="@(e => (object?)e.HttpMethod)" Sortable="true">
+                        <FlareColumn TItem="EndpointDefinition" Id="method" Title="@AdminStrings.Endpoints_MethodLabel" Field="@(e => (object?)e.HttpMethod)" Sortable="true">
                             <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_RouteLabel" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true">
+                        <FlareColumn TItem="EndpointDefinition" Id="route" Title="@AdminStrings.Endpoints_RouteLabel" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true">
                             <Template><FlareText Element="span" Mono="true">/api/@context.Route</FlareText></Template>
                         </FlareColumn>
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ConnectionLabel" Field="@(e => (object?)e.ConnectionName)" Sortable="true" Filterable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Endpoints_ParamsColumn" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
-                        <FlareColumn TItem="EndpointDefinition" Title="@AdminStrings.Common_Actions" Align="ColumnAlign.End">
+                        <FlareColumn TItem="EndpointDefinition" Id="connection" Title="@AdminStrings.Endpoints_ConnectionLabel" Field="@(e => (object?)e.ConnectionName)" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Id="object" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Id="type" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
+                        <FlareColumn TItem="EndpointDefinition" Id="params" Title="@AdminStrings.Endpoints_ParamsColumn" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
+                        <FlareColumn TItem="EndpointDefinition" Id="actions" Title="@AdminStrings.Common_Actions" Align="ColumnAlign.End">
                             <Template>
                                 <FlareStack Row Gap="FlareSpacing.XSmall" Justify="FlareJustifyContent.End">
                                     <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Color="FlareColor.Primary" OnClick="@(() => StartTest(context))">@AdminStrings.Endpoints_Test</FlareButton>
@@ -110,12 +110,12 @@
                         {
                             <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" RowClick="OnObjectRowClick">
                                 <Columns>
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_SchemaLabel" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
+                                    <FlareColumn TItem="DbObjectDescriptor" Id="object-schema" Title="@AdminStrings.Endpoints_SchemaLabel" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Id="object-name" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
                                         <Template><FlareText Element="span" Mono="true">@context.Name</FlareText></Template>
                                     </FlareColumn>
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(o => (object?)ObjectTypeLabel(o.ObjectType))" Sortable="true" />
-                                    <FlareColumn TItem="DbObjectDescriptor" Title="@AdminStrings.Endpoints_EndpointColumn" Align="ColumnAlign.End">
+                                    <FlareColumn TItem="DbObjectDescriptor" Id="object-type" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(o => (object?)ObjectTypeLabel(o.ObjectType))" Sortable="true" />
+                                    <FlareColumn TItem="DbObjectDescriptor" Id="object-endpoint" Title="@AdminStrings.Endpoints_EndpointColumn" Align="ColumnAlign.End">
                                         <Template>
                                             @{
                                                 var mapped = EndpointsForObject(context.Schema, context.Name);
