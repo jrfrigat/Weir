@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using Weir.Abstractions;
@@ -83,6 +84,14 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Per-connection bulkhead and circuit breaker, applied around each database execution.</summary>
     private readonly DataConnectionGuards _guards = new();
 
+    /// <summary>
+    /// Cache fills currently in flight, keyed by cache key. Without this, a burst of concurrent requests
+    /// for the same cache key all miss and all execute the same object: the cache only starts absorbing
+    /// load once the first response has been stored, which is exactly when it is needed least. The first
+    /// caller executes and every other caller for that key waits for its bytes.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, CacheFill> _fills = new(StringComparer.Ordinal);
+
     /// <summary>Creates the engine from its collaborators.</summary>
     /// <param name="binder">Parameter binder.</param>
     /// <param name="registry">Data-connection registry.</param>
@@ -162,6 +171,11 @@ public sealed class WeirEngine : IDisposable
 
         await NotifyAsync(context, static (o, c) => o.OnStartedAsync(c));
 
+        // Set once this call has claimed the in-flight fill for its cache key, so every exit path can
+        // hand the bytes to whoever is waiting, or release them to execute for themselves.
+        CacheFill? fill = null;
+        string? claimedKey = null;
+
         try
         {
             var maxRows = Math.Max(0, _settings.Current.MaxRows);
@@ -203,6 +217,43 @@ public sealed class WeirEngine : IDisposable
                     await NotifyAsync(context, static (o, c) => o.OnCompletedAsync(c));
                     return metadata;
                 }
+
+                // A miss. Either claim the fill for this key or join the one already running: the first
+                // caller executes, the rest wait for its bytes instead of piling the same query onto the
+                // database.
+                var candidate = new CacheFill();
+                var inFlight = _fills.GetOrAdd(cacheKey, candidate);
+                if (ReferenceEquals(inFlight, candidate))
+                {
+                    fill = candidate;
+                    claimedKey = cacheKey;
+                }
+                else if (await inFlight.Task.WaitAsync(cancellationToken) is { } shared)
+                {
+                    if (captureResult)
+                    {
+                        context.CapturedResult = CaptureResult(shared.Payload.Span);
+                    }
+
+                    var streamStart = Stopwatch.GetTimestamp();
+                    metadata = shared.ETag is { } sharedETag
+                        ? await EmitCacheableAsync(output, shared.Payload, sharedETag, cacheHit: true, endpoint.Cache.TtlSeconds, control, cancellationToken)
+                        : await EmitRawAsync(output, shared.Payload, shared.Truncated, cancellationToken);
+                    context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
+
+                    // Counted as a cache hit: this call was served the fill's bytes without touching the
+                    // database, which is what the hit ratio is measuring. Its duration still includes the
+                    // wait, so the latency it reports is the one its client actually saw.
+                    context.CacheHit = true;
+                    context.RowsReturned = shared.RowCount;
+                    context.StatusCode = metadata.NotModified ? 304 : 200;
+                    Finish(context);
+                    await NotifyAsync(context, static (o, c) => o.OnCompletedAsync(c));
+                    return metadata;
+                }
+
+                // The leader gave up (its own client disconnected, or its execution failed). Rather than
+                // inherit a failure that belongs to someone else's request, fall through and execute.
             }
 
             var request = new DbExecutionRequest
@@ -246,17 +297,32 @@ public sealed class WeirEngine : IDisposable
                             context.CapturedResult = CaptureResult(buffer);
                         }
 
-                        // Never cache a truncated (row-capped) response: it would serve partial data as if
-                        // complete for the whole TTL. Stream it to this caller, but skip the cache write, and do
-                        // not attach an ETag (a partial body must not be revalidated against a complete one).
-                        if (cacheKey is not null && !result.Truncated)
+                        if (cacheKey is not null)
                         {
+                            // Never cache a truncated (row-capped) response: it would serve partial data as
+                            // if complete for the whole TTL, and a partial body must not carry an ETag that
+                            // a complete one could be revalidated against. It is still handed to anyone
+                            // waiting on this fill - they would have produced the same partial body.
                             var payload = buffer.ToArray();
-                            // The cache computes and stores the ETag once; reuse it here rather than
-                            // hashing the same payload a second time.
-                            var stored = await _cache.SetAsync(cacheKey, payload, TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cancellationToken);
+                            var etag = result.Truncated ? null : ResponseETag.Compute(payload);
+
+                            // Hand the bytes to the waiters before this call spends any time on its own
+                            // client, so a slow reader here does not hold up everyone behind it.
+                            fill?.Complete(new FilledResponse(payload, etag, result.Truncated, result.RowCount));
+
+                            if (etag is not null)
+                            {
+                                // Not awaited: the response goes out now and the entry lands behind it. The
+                                // in-flight registration is released only once the store completes, so a
+                                // request arriving in that window still joins instead of re-executing.
+                                StoreInBackground(cacheKey, new CachedResponse(payload, etag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), fill);
+                                fill = null;
+                            }
+
                             var streamStart = Stopwatch.GetTimestamp();
-                            metadata = await EmitCacheableAsync(output, stored.Bytes, stored.ETag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken);
+                            metadata = etag is not null
+                                ? await EmitCacheableAsync(output, payload, etag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken)
+                                : await EmitRawAsync(output, payload, result.Truncated, cancellationToken);
                             context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                         }
                         else
@@ -314,7 +380,106 @@ public sealed class WeirEngine : IDisposable
             await NotifyFailAsync(context, ex);
             throw;
         }
+        finally
+        {
+            // Still holding the fill means it produced nothing storable: the execution threw, or the
+            // response was truncated and handed straight to the waiters. Either way, release the key so
+            // the next caller can try again. Abandon is a no-op once the fill has a result.
+            if (fill is not null && claimedKey is not null)
+            {
+                fill.Abandon();
+                Release(claimedKey, fill);
+            }
+        }
     }
+
+    /// <summary>
+    /// Stores a filled entry without the caller waiting for it, then releases the in-flight registration.
+    /// This is what keeps a cache store off the response path: the bytes have already been handed to the
+    /// waiters and are on their way to this call's client, so a store that talks to a network cache costs
+    /// the client nothing. The registration is held until the store lands so that a request arriving in
+    /// between still joins the fill rather than re-executing.
+    /// </summary>
+    /// <param name="key">The cache key.</param>
+    /// <param name="entry">The response bytes and their entity tag.</param>
+    /// <param name="ttl">The endpoint's cache TTL.</param>
+    /// <param name="fill">The in-flight registration to release, if this call owns one.</param>
+    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, CacheFill? fill)
+    {
+        // Deliberately not awaited. An in-process cache completes this synchronously, so there is no
+        // thread-pool hop to pay for; a cache doing I/O suspends at its first await and finishes behind
+        // the response. Task.Run would only add a hop to the common case.
+        _ = StoreAsync();
+
+        async Task StoreAsync()
+        {
+            try
+            {
+                // CancellationToken.None on purpose: the entry outlives the request that produced it, so
+                // that client giving up must not throw away a payload others are already waiting on.
+                await _cache.SetAsync(key, entry, ttl, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // The response is already served; a cache-store failure has nowhere useful to surface and
+                // must not become an unobserved task exception. The entry is simply absent, so the next
+                // caller re-fills it.
+            }
+            finally
+            {
+                if (fill is not null)
+                {
+                    Release(key, fill);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes an in-flight registration, but only if it is still the one this call owns, so a fill that
+    /// has already been replaced by a later one is left alone.
+    /// </summary>
+    /// <param name="key">The cache key.</param>
+    /// <param name="fill">The registration to remove.</param>
+    private void Release(string key, CacheFill fill) =>
+        _fills.TryRemove(new KeyValuePair<string, CacheFill>(key, fill));
+
+    /// <summary>
+    /// One in-flight cache fill. The caller that claims it executes; everyone else for the same key
+    /// awaits <see cref="Task"/> and serves the bytes it produces.
+    /// </summary>
+    private sealed class CacheFill
+    {
+        /// <summary>
+        /// Completed with the filled response, or with null when the owner produced nothing. Continuations
+        /// run asynchronously so that completing the fill never drags a waiter's response-writing onto the
+        /// owner's thread.
+        /// </summary>
+        private readonly TaskCompletionSource<FilledResponse?> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Resolves to the filled response, or to null when the waiter should execute itself.</summary>
+        public Task<FilledResponse?> Task => _completion.Task;
+
+        /// <summary>Publishes the response to every waiter.</summary>
+        /// <param name="response">The bytes the owner produced.</param>
+        public void Complete(FilledResponse response) => _completion.TrySetResult(response);
+
+        /// <summary>
+        /// Releases the waiters with nothing, so each executes for itself. Used when the owner failed or
+        /// its own client disconnected: a failure that belongs to one request must not be dealt out to
+        /// every other client waiting behind it. Faulting the task instead would do exactly that, and
+        /// would fault a task no one may be observing.
+        /// </summary>
+        public void Abandon() => _completion.TrySetResult(null);
+    }
+
+    /// <summary>A response body produced by one execution and shared with everyone waiting on its fill.</summary>
+    /// <param name="Payload">The complete response bytes.</param>
+    /// <param name="ETag">The entity tag, or null when the response is truncated and so not cacheable.</param>
+    /// <param name="Truncated">Whether the row cap was hit.</param>
+    /// <param name="RowCount">Rows across all result sets, reported by each waiter as its own row count.</param>
+    private readonly record struct FilledResponse(ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount);
 
     /// <summary>
     /// Writes (or, on a validator match, skips) a fully buffered cache-eligible body. Uses the
@@ -360,6 +525,25 @@ public sealed class WeirEngine : IDisposable
         }
 
         return metadata;
+    }
+
+    /// <summary>
+    /// Writes a buffered body that carries no cache validator (a truncated response), so no header
+    /// callback runs and no <c>If-None-Match</c> is evaluated.
+    /// </summary>
+    /// <param name="output">Destination stream.</param>
+    /// <param name="payload">The complete response bytes.</param>
+    /// <param name="truncated">Whether the row cap was hit.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The response metadata.</returns>
+    private static async Task<WeirResponseMetadata> EmitRawAsync(
+        Stream output,
+        ReadOnlyMemory<byte> payload,
+        bool truncated,
+        CancellationToken cancellationToken)
+    {
+        await output.WriteAsync(payload, cancellationToken);
+        return new WeirResponseMetadata { Truncated = truncated };
     }
 
     /// <summary>
@@ -464,11 +648,17 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Reads the buffered response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>
     /// <param name="buffer">The buffered response body.</param>
     /// <returns>The (possibly truncated) response text.</returns>
-    private static string CaptureResult(MemoryStream buffer)
+    private static string CaptureResult(MemoryStream buffer) =>
+        CaptureResult(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+
+    /// <summary>Reads a response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>
+    /// <param name="payload">The response body bytes.</param>
+    /// <returns>The (possibly truncated) response text.</returns>
+    private static string CaptureResult(ReadOnlySpan<byte> payload)
     {
-        var length = (int)Math.Min(buffer.Length, MaxCapturedResultBytes);
-        var text = System.Text.Encoding.UTF8.GetString(buffer.GetBuffer(), 0, length);
-        return buffer.Length > MaxCapturedResultBytes ? text + "\n...[truncated]" : text;
+        var length = Math.Min(payload.Length, MaxCapturedResultBytes);
+        var text = System.Text.Encoding.UTF8.GetString(payload[..length]);
+        return payload.Length > MaxCapturedResultBytes ? text + "\n...[truncated]" : text;
     }
 
     private async Task NotifyAsync(WeirCallContext context, Func<IWeirCallObserver, WeirCallContext, ValueTask> action)

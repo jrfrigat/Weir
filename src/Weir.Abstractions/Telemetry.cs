@@ -108,8 +108,29 @@ public sealed class WeirCallContext
     /// <summary>Error detail for a failed call, set by the engine from the thrown exception.</summary>
     public string? Error { get; set; }
 
-    /// <summary>Free-form bag for observers to stash correlation data. Thread-safe for concurrent observers.</summary>
-    public IDictionary<string, object?> Items { get; } = new ConcurrentDictionary<string, object?>();
+    /// <summary>Backing store for <see cref="Items"/>, created only if an observer asks for it.</summary>
+    private IDictionary<string, object?>? _items;
+
+    /// <summary>
+    /// Free-form bag for observers to stash correlation data. Thread-safe for concurrent observers.
+    /// </summary>
+    /// <remarks>
+    /// Allocated on first use. A ConcurrentDictionary is not a cheap object - it eagerly builds its
+    /// bucket array plus one lock object per core - and on a typical call nothing ever reads this bag,
+    /// so a request should not pay for it just by existing.
+    /// </remarks>
+    public IDictionary<string, object?> Items
+    {
+        get
+        {
+            if (_items is null)
+            {
+                Interlocked.CompareExchange(ref _items, new ConcurrentDictionary<string, object?>(), null);
+            }
+
+            return _items;
+        }
+    }
 }
 
 /// <summary>

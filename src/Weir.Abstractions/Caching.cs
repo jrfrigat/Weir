@@ -19,11 +19,19 @@ public interface IResponseCache
     ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stores <paramref name="payload"/> under <paramref name="key"/> for <paramref name="ttl"/> and
-    /// returns the stored entry, whose entity tag is computed once here so the caller can serve the
-    /// response without hashing the same bytes again.
+    /// Stores an already-built <paramref name="entry"/> under <paramref name="key"/> for
+    /// <paramref name="ttl"/>. The engine builds the entry (including its entity tag) and serves the
+    /// response from it, then calls this without awaiting, so a store that does I/O does not sit
+    /// between the database and the client. An implementation must therefore treat the call as
+    /// fire-and-forget: it is not observed, and it must not throw into the caller synchronously.
     /// </summary>
-    ValueTask<CachedResponse> SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default);
+    /// <param name="key">The cache key.</param>
+    /// <param name="entry">The complete response bytes and their entity tag.</param>
+    /// <param name="ttl">How long the entry stays valid.</param>
+    /// <param name="cancellationToken">Cancellation token. The engine passes <see cref="CancellationToken.None"/>:
+    /// the store outlives the request that produced it, so one client disconnecting must not discard a
+    /// payload every other caller is about to reuse.</param>
+    ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default);
 
     /// <summary>Removes a cached entry.</summary>
     ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default);

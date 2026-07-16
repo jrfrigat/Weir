@@ -51,11 +51,15 @@ internal static class WeirResponseWriter
                 // Column names and value-writer kinds are stable across every row of a result set, so
                 // resolve them once here rather than per cell. The kind drives a typed getter in the row
                 // loop (GetInt32 / GetDouble / ...) instead of the boxing GetValue on the streaming path.
-                var names = new string[fieldCount];
+                // The names are pre-encoded: WritePropertyName(string) re-runs JSON escape analysis and a
+                // UTF-16 to UTF-8 transcode on every call, which over a wide result set means repeating
+                // that work per row for the same handful of names. JsonEncodedText does it once per result
+                // set and leaves the row loop copying ready-made UTF-8 bytes.
+                var names = new JsonEncodedText[fieldCount];
                 var kinds = new ColumnKind[fieldCount];
                 for (var i = 0; i < fieldCount; i++)
                 {
-                    names[i] = reader.GetName(i);
+                    names[i] = JsonEncodedText.Encode(reader.GetName(i), options.Encoder);
                     kinds[i] = Classify(reader.GetFieldType(i));
                 }
 

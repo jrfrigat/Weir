@@ -261,10 +261,21 @@ public static class DataPlaneEndpoints
             return true;
         }
 
-        var granted = new HashSet<string>(key.Scopes, StringComparer.Ordinal);
-        foreach (var scope in endpoint.RequiredScopes)
+        // Both sides hold a handful of entries in practice, so a nested scan beats building a hash set
+        // per request: it allocates nothing and, at these sizes, finishes sooner than hashing would.
+        foreach (var required in endpoint.RequiredScopes)
         {
-            if (!granted.Contains(scope))
+            var granted = false;
+            foreach (var scope in key.Scopes)
+            {
+                if (string.Equals(scope, required, StringComparison.Ordinal))
+                {
+                    granted = true;
+                    break;
+                }
+            }
+
+            if (!granted)
             {
                 return false;
             }

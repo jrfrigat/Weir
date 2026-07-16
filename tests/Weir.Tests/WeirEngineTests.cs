@@ -17,8 +17,8 @@ public class WeirEngineTests
         public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<CachedResponse?>(new CachedResponse(payload, ETag: string.Concat("\"", Convert.ToHexString(SHA256.HashData(payload)), "\"")));
 
-        public ValueTask<CachedResponse> SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(new CachedResponse(payload, ETag: string.Concat("\"", Convert.ToHexString(SHA256.HashData(payload.Span)), "\"")));
+        public ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
 
         public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 

@@ -91,23 +91,85 @@ public class ParameterBinderTests
         Assert.Throws<WeirValidationException>(() => new ParameterBinder().Bind(Invocation(endpoint, "{\"code\":\"abc\"}")));
     }
 
+    /// <summary>A TVP parameter definition used by the token tests.</summary>
+    private static EndpointParameter TvpParameter() => new()
+    {
+        Name = "items",
+        DbType = WeirDbType.Structured,
+        TypeName = "dbo.OrderItemType",
+        TableColumns = [new TvpColumn { Name = "sku" }],
+    };
+
     [Fact]
-    public void Tvp_RecordsTokenForCacheKeying()
+    public void Tvp_RecordsTokenForCacheKeying_WhenTheCacheVariesByIt()
     {
         // A TVP must contribute a value to the cache-key map so an endpoint that varies by it keys on
         // the actual rows instead of colliding on NULL. Distinct row sets must yield distinct tokens.
-        var endpoint = Endpoint(new EndpointParameter
+        var endpoint = Endpoint(TvpParameter());
+        endpoint = new EndpointDefinition
         {
-            Name = "items",
-            DbType = WeirDbType.Structured,
-            TypeName = "dbo.OrderItemType",
-            TableColumns = [new TvpColumn { Name = "sku" }],
-        });
+            Route = endpoint.Route,
+            ConnectionName = endpoint.ConnectionName,
+            ObjectName = endpoint.ObjectName,
+            Parameters = endpoint.Parameters,
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = 60, VaryByParameters = ["items"] },
+        };
 
         var a = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\"}]}"));
         var b = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"B2\"}]}"));
         Assert.True(a.Values.ContainsKey("items"));
         Assert.NotEqual(a.Values["items"], b.Values["items"]);
+    }
+
+    [Fact]
+    public void Tvp_VaryByIsMatchedCaseInsensitively()
+    {
+        // CacheKey.Build looks the value up in a case-insensitive map, so a vary-by entry that differs
+        // only in case must still produce a token. If this gate and that lookup ever disagree, the key
+        // silently loses the TVP and distinct row sets collide onto one cached response.
+        var endpoint = new EndpointDefinition
+        {
+            Route = "x",
+            ConnectionName = "default",
+            ObjectName = "usp",
+            Parameters = [TvpParameter()],
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = 60, VaryByParameters = ["ITEMS"] },
+        };
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\"}]}"));
+        Assert.True(result.Values.ContainsKey("items"));
+    }
+
+    [Fact]
+    public void Tvp_SkipsTheTokenWhenNothingReadsIt()
+    {
+        // The token is only ever read by the cache key and by parameter capture. Building it walks every
+        // cell, so an endpoint that does neither must not pay for it. The parameter itself still binds.
+        var endpoint = Endpoint(TvpParameter());
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\"}]}"));
+
+        Assert.False(result.Values.ContainsKey("items"));
+        Assert.Single(result.Parameters);
+        Assert.NotNull(result.Parameters[0].Table);
+    }
+
+    [Fact]
+    public void Tvp_RecordsTokenWhenParametersAreCaptured()
+    {
+        // Parameter capture serializes the whole value map, so an endpoint that opts into it keeps the
+        // TVP in the log exactly as before.
+        var endpoint = new EndpointDefinition
+        {
+            Route = "x",
+            ConnectionName = "default",
+            ObjectName = "usp",
+            Parameters = [TvpParameter()],
+            Logging = new EndpointLogging { Enabled = true, LogParameters = true },
+        };
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\"}]}"));
+        Assert.True(result.Values.ContainsKey("items"));
     }
 
     [Fact]

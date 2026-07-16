@@ -116,7 +116,12 @@ public sealed class ParameterBinder : IParameterBinder
 
             // Record a stable token of the TVP content so an endpoint that varies its cache by this
             // parameter keys on the actual rows instead of colliding on NULL (see CacheKey.Build).
-            values[definition.Name] = TvpToken(table.Rows);
+            // Building it walks every cell and allocates a string per cell, which on a large TVP is the
+            // most expensive thing on the bind path - so only build it when something will read it.
+            if (NeedsTvpToken(invocation.Endpoint, definition.Name))
+            {
+                values[definition.Name] = TvpToken(table.Rows);
+            }
 
             return new WeirParameter
             {
@@ -256,6 +261,40 @@ public sealed class ParameterBinder : IParameterBinder
         }
 
         return new TableParameter { Columns = columns, Rows = rows };
+    }
+
+    /// <summary>
+    /// Whether anything will read a table-valued parameter's content token: the cache key varies by it,
+    /// or the endpoint captures its parameters for the request log. Nothing else consumes the token, and
+    /// building it is O(cells), so an endpoint that neither caches on the TVP nor logs its parameters
+    /// should not pay for it.
+    /// </summary>
+    /// <param name="endpoint">The endpoint being invoked.</param>
+    /// <param name="name">The logical parameter name.</param>
+    /// <returns>True when the token must be built.</returns>
+    private static bool NeedsTvpToken(EndpointDefinition endpoint, string name)
+    {
+        // Matches CacheKey.Build's lookup, which is case-insensitive: a vary-by name that resolves to no
+        // value there disables caching for the call, so this gate has to agree with it exactly.
+        if (endpoint.Logging.LogParameters)
+        {
+            return true;
+        }
+
+        if (!endpoint.Cache.Enabled)
+        {
+            return false;
+        }
+
+        foreach (var varyBy in endpoint.Cache.VaryByParameters)
+        {
+            if (string.Equals(varyBy, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Builds a stable, collision-resistant token from a TVP's rows for cache keying.</summary>
