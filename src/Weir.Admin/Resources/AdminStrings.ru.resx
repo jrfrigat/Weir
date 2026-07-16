@@ -260,7 +260,7 @@
     <value>Истекает</value>
   </data>
   <data name="Account_ColumnLastUsed" xml:space="preserve">
-    <value>Использован</value>
+    <value>Последнее использование</value>
   </data>
   <data name="Account_Never" xml:space="preserve">
     <value>никогда</value>
@@ -389,7 +389,7 @@
     <value>Результат</value>
   </data>
   <data name="Audit_LoadOlder" xml:space="preserve">
-    <value>Загрузить ещё</value>
+    <value>Загрузить ранние</value>
   </data>
   <data name="Audit_EntriesLoaded" xml:space="preserve">
     <value>загружено: {0}</value>
@@ -398,7 +398,7 @@
     <value>// ОБЗОР</value>
   </data>
   <data name="Dashboard_OverviewHeadingLive" xml:space="preserve">
-    <value>// ОБЗОР - ОНЛАЙН</value>
+    <value>// ОБЗОР - LIVE</value>
   </data>
   <data name="Dashboard_StatusStarting" xml:space="preserve">
     <value>ЗАПУСК</value>
@@ -416,7 +416,7 @@
     <value>все системы в норме</value>
   </data>
   <data name="Dashboard_StatusConnectionsDown" xml:space="preserve">
-    <value>{0} из {1} подключений недоступно</value>
+    <value>{0} из {1} подключений не отвечает</value>
   </data>
   <data name="Dashboard_ThroughputCaption" xml:space="preserve">
     <value>пропускная способность req/s</value>
@@ -428,7 +428,7 @@
     <value>в обработке</value>
   </data>
   <data name="Dashboard_UptimeErrorsCaption" xml:space="preserve">
-    <value>аптайм - {0} ошибок ({1})</value>
+    <value>аптайм - ошибок: {0} ({1})</value>
   </data>
   <data name="Dashboard_ConnectionConnected" xml:space="preserve">
     <value>подключено</value>
@@ -476,7 +476,7 @@
     <value>ЗАДЕРЖКА p50</value>
   </data>
   <data name="Dashboard_EndpointsHeading" xml:space="preserve">
-    <value>// ЭНДПОИНТЫ - ОНЛАЙН</value>
+    <value>// ЭНДПОИНТЫ - LIVE</value>
   </data>
   <data name="Dashboard_EndpointsActiveHint" xml:space="preserve">
     <value>{0} активно - нажмите на строку для деталей</value>
@@ -494,7 +494,7 @@
     <value>Кол-во</value>
   </data>
   <data name="Dashboard_ColumnErrorPct" xml:space="preserve">
-    <value>Ошибки%</value>
+    <value>Ошибки, %</value>
   </data>
   <data name="Dashboard_ColumnCache" xml:space="preserve">
     <value>Кэш</value>
@@ -551,7 +551,7 @@
     <value>Статус</value>
   </data>
   <data name="Endpoints_StatusDisabled" xml:space="preserve">
-    <value>Отключён</value>
+    <value>Отключен</value>
   </data>
   <data name="Endpoints_MethodLabel" xml:space="preserve">
     <value>Метод</value>
@@ -755,13 +755,13 @@
     <value>Кэш очищен для /api/{0}.</value>
   </data>
   <data name="Endpoints_ChangeAdded" xml:space="preserve">
-    <value>добавлено: {0}</value>
+    <value>добавлено {0}</value>
   </data>
   <data name="Endpoints_ChangeUpdated" xml:space="preserve">
-    <value>обновлено: {0}</value>
+    <value>обновлено {0}</value>
   </data>
   <data name="Endpoints_ChangeRemoved" xml:space="preserve">
-    <value>удалено: {0}</value>
+    <value>удалено {0}</value>
   </data>
   <data name="Endpoints_ChangeNone" xml:space="preserve">
     <value>без изменений</value>
@@ -794,13 +794,13 @@
     <value>Табл. функция</value>
   </data>
   <data name="Endpoints_ObjectTypeScalarFn" xml:space="preserve">
-    <value>Скаляр. функция</value>
+    <value>Скалярн. функция</value>
   </data>
   <data name="Keys_PageTitle" xml:space="preserve">
     <value>ключи</value>
   </data>
   <data name="Keys_PageDescription" xml:space="preserve">
-    <value>Ключи аутентифицируют вызовы дата-плейна. Скоупы и гранты на процедуры ограничивают каждый ключ.</value>
+    <value>Ключи аутентифицируют вызовы data plane. Скоупы и гранты на процедуры ограничивают каждый ключ.</value>
   </data>
   <data name="Keys_CreateKey" xml:space="preserve">
     <value>Создать ключ</value>
@@ -821,7 +821,7 @@
     <value>API-ключей пока нет</value>
   </data>
   <data name="Keys_EmptyDescription" xml:space="preserve">
-    <value>Создайте ключ, чтобы клиенты могли обращаться к дата-плейну.</value>
+    <value>Создайте ключ, чтобы клиенты могли обращаться к data plane.</value>
   </data>
   <data name="Keys_ColumnKey" xml:space="preserve">
     <value>Ключ</value>
@@ -875,13 +875,13 @@
     <value>все</value>
   </data>
   <data name="Keys_DiscardTitle" xml:space="preserve">
-    <value>Отменить создание ключа?</value>
+    <value>Отбросить ключ?</value>
   </data>
   <data name="Keys_DiscardBody" xml:space="preserve">
-    <value>Ключ ещё не создан. Отменить изменения?</value>
+    <value>Ключ еще не создан. Отбросить изменения?</value>
   </data>
   <data name="Keys_DiscardConfirm" xml:space="preserve">
-    <value>Отменить</value>
+    <value>Отбросить</value>
   </data>
   <data name="Keys_DiscardCancel" xml:space="preserve">
     <value>Продолжить редактирование</value>
@@ -914,7 +914,7 @@
     <value>логи</value>
   </data>
   <data name="Logs_Description" xml:space="preserve">
-    <value>История запросов плоскости данных - тайминги, результаты и медленные вызовы</value>
+    <value>История запросов data plane - тайминги, результаты и медленные вызовы</value>
   </data>
   <data name="Logs_EndpointChip" xml:space="preserve">
     <value>эндпоинт: {0}</value>
@@ -935,10 +935,10 @@
     <value>загружено: {0}</value>
   </data>
   <data name="Logs_EmptyTitle" xml:space="preserve">
-    <value>Запросов пока не залогировано</value>
+    <value>Запросы пока не логировались</value>
   </data>
   <data name="Logs_EmptyDescription" xml:space="preserve">
-    <value>Вызовы появятся здесь, как только плоскость данных начнет их обслуживать (логирование запросов включается в Настройках).</value>
+    <value>Вызовы появятся здесь, как только data plane начнет их обслуживать (лог запросов включается в Настройках).</value>
   </data>
   <data name="Logs_Time" xml:space="preserve">
     <value>Время</value>
@@ -995,7 +995,7 @@
     <value>сред. {0}</value>
   </data>
   <data name="Logs_Connection" xml:space="preserve">
-    <value>Соединение</value>
+    <value>Подключение</value>
   </data>
   <data name="Logs_SlowSuffix" xml:space="preserve">
     <value> (медленно)</value>
@@ -1028,7 +1028,7 @@
     <value>Результат</value>
   </data>
   <data name="Logs_CaptureOffHint" xml:space="preserve">
-    <value>Захват параметров и результата отключен для этого эндпоинта. Включите его для нужного эндпоинта в разделе Логирование редактора эндпоинта.</value>
+    <value>Сохранение параметров и результата отключено для этого эндпоинта. Включите его для нужного эндпоинта в разделе Логирование редактора эндпоинта.</value>
   </data>
   <data name="Logs_SlowHintWithAverage" xml:space="preserve">
     <value>Медленнее обычного: {0} против {1} в среднем</value>
@@ -1068,7 +1068,7 @@
     <value>Эндпоинты</value>
   </data>
   <data name="Scopes_DeleteInUseSuffix" xml:space="preserve">
-    <value> На него всё ещё ссылаются ключей: {0}, эндпоинтов: {1}.</value>
+    <value> На него все еще ссылаются: ключей - {0}, эндпоинтов - {1}.</value>
   </data>
   <data name="Scopes_DeleteConfirmTitle" xml:space="preserve">
     <value>Удалить скоуп?</value>
@@ -1089,7 +1089,7 @@
     <value>Служба настроек не ответила. Попробуйте перезагрузить страницу.</value>
   </data>
   <data name="Settings_SectionDataPlaneLimits" xml:space="preserve">
-    <value>// ЛИМИТЫ ПЛОСКОСТИ ДАННЫХ</value>
+    <value>// ЛИМИТЫ DATA PLANE</value>
   </data>
   <data name="Settings_MaxRowsLabel" xml:space="preserve">
     <value>Максимум строк</value>
@@ -1125,7 +1125,7 @@
     <value>Сброс circuit breaker (с)</value>
   </data>
   <data name="Settings_ConnectionResilienceHelp" xml:space="preserve">
-    <value>Bulkhead на каждое подключение к данным отклоняет избыточную конкурентность с HTTP 503 (ноль = без ограничений). После порога подряд идущих сбоев circuit breaker размыкается и сразу отвечает 503, пока не истечет окно сброса (нулевой порог отключает его).</value>
+    <value>Bulkhead на каждое подключение к данным отклоняет избыточные параллельные запросы с HTTP 503 (ноль = без ограничений). После порога последовательных сбоев circuit breaker размыкается и сразу отвечает 503, пока не истечет окно сброса (нулевой порог отключает его).</value>
   </data>
   <data name="Settings_SectionAudit" xml:space="preserve">
     <value>// АУДИТ</value>
@@ -1137,10 +1137,10 @@
     <value>Записи аудита старше этого срока удаляются в фоне. Ноль хранит историю вечно.</value>
   </data>
   <data name="Settings_SectionRequestLog" xml:space="preserve">
-    <value>// ЖУРНАЛ ЗАПРОСОВ</value>
+    <value>// ЛОГ ЗАПРОСОВ</value>
   </data>
   <data name="Settings_EnableRequestLogLabel" xml:space="preserve">
-    <value>Включить журнал запросов</value>
+    <value>Включить лог запросов</value>
   </data>
   <data name="Settings_SlowThresholdLabel" xml:space="preserve">
     <value>Порог медленных (%)</value>
@@ -1149,7 +1149,7 @@
     <value>Хранение (дней)</value>
   </data>
   <data name="Settings_RequestLogHelp" xml:space="preserve">
-    <value>Записывает каждый вызов плоскости данных (тайминги, строки, кэш). Вызов помечается медленным, когда превышает скользящее среднее эндпоинта на этот процент (эндпоинт может переопределить значение). Захват параметров и результатов включается отдельно для каждого эндпоинта. Нулевое хранение оставляет историю навсегда.</value>
+    <value>Записывает каждый вызов data plane (тайминги, строки, кэш). Вызов помечается медленным, когда превышает скользящее среднее эндпоинта на этот процент (эндпоинт может переопределить значение). Сохранение параметров и результатов включается отдельно для каждого эндпоинта. Нулевое хранение оставляет историю навсегда.</value>
   </data>
   <data name="Settings_SaveButton" xml:space="preserve">
     <value>Сохранить настройки</value>
@@ -1164,7 +1164,7 @@
     <value>Подготовка...</value>
   </data>
   <data name="Settings_BackupExportHelp" xml:space="preserve">
-    <value>Переносимый снимок без секретов: эндпоинты, скоупы, настройки и несекретный список ключей и администраторов. Хэши не включаются; для полного восстановления используйте резервную копию базы данных. Требуется роль администратора.</value>
+    <value>Переносимый снимок без секретов: эндпоинты, скоупы, настройки и несекретный список ключей и администраторов. Хэши не включаются; для полного восстановления используйте резервную копию базы данных. Требуется роль Admin.</value>
   </data>
   <data name="Settings_SectionLogging" xml:space="preserve">
     <value>// ЛОГИРОВАНИЕ (ТРЕБУЕТСЯ ПЕРЕЗАПУСК)</value>
@@ -1203,10 +1203,10 @@
     <value>Применяется при старте из конфигурации (Weir:Logging); измените значение в конфиге и перезапустите, чтобы оно вступило в силу.</value>
   </data>
   <data name="Settings_ExportRejected" xml:space="preserve">
-    <value>Экспорт отклонен. Экспортировать control plane могут только полные администраторы.</value>
+    <value>Экспорт отклонен. Экспортировать control plane могут только администраторы с ролью Admin.</value>
   </data>
   <data name="Settings_ExportDownloaded" xml:space="preserve">
-    <value>Файл weir-control-plane.json загружен.</value>
+    <value>Скачан weir-control-plane.json.</value>
   </data>
   <data name="Settings_ExportServiceUnavailable" xml:space="preserve">
     <value>Служба экспорта не ответила.</value>
@@ -1215,7 +1215,7 @@
     <value>Значения не должны быть отрицательными.</value>
   </data>
   <data name="Settings_UpdateRejected" xml:space="preserve">
-    <value>Обновление отклонено. Изменять настройки могут только полные администраторы.</value>
+    <value>Обновление отклонено. Изменять настройки могут только администраторы с ролью Admin.</value>
   </data>
   <data name="Settings_SavedAndApplied" xml:space="preserve">
     <value>Настройки сохранены и применены.</value>
