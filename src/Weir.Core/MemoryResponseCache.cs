@@ -27,7 +27,7 @@ public sealed class MemoryResponseCache : IResponseCache
             : null);
 
     /// <inheritdoc />
-    public ValueTask SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default)
+    public ValueTask<CachedResponse> SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default)
     {
         // Reuse the caller's array when the memory already wraps a standalone array (the engine passes
         // an owned byte[] from a MemoryStream), avoiding a second full-size copy on the hot path.
@@ -47,7 +47,7 @@ public sealed class MemoryResponseCache : IResponseCache
 
         _keys[key] = 0;
         _cache.Set(key, entry, options);
-        return ValueTask.CompletedTask;
+        return ValueTask.FromResult(entry);
     }
 
     /// <inheritdoc />

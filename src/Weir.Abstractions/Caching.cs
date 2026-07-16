@@ -18,8 +18,12 @@ public interface IResponseCache
     /// <summary>Returns the cached payload for <paramref name="key"/>, or null on a miss.</summary>
     ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default);
 
-    /// <summary>Stores <paramref name="payload"/> under <paramref name="key"/> for <paramref name="ttl"/>.</summary>
-    ValueTask SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Stores <paramref name="payload"/> under <paramref name="key"/> for <paramref name="ttl"/> and
+    /// returns the stored entry, whose entity tag is computed once here so the caller can serve the
+    /// response without hashing the same bytes again.
+    /// </summary>
+    ValueTask<CachedResponse> SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default);
 
     /// <summary>Removes a cached entry.</summary>
     ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default);

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Weir.Abstractions;
 using Weir.Contracts;
@@ -222,7 +221,6 @@ public sealed class WeirEngine : IDisposable
             var guard = _guards.For(endpoint.ConnectionName);
             guard.EnsureClosed(settings.CircuitBreakerFailureThreshold);
 
-            var dbStart = Stopwatch.GetTimestamp();
             WeirResponseWriter.WriteResult result;
             using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
             {
@@ -233,10 +231,15 @@ public sealed class WeirEngine : IDisposable
                     if (cacheKey is not null || captureResult)
                     {
                         using var buffer = new MemoryStream();
+                        // DB phase: execute and drain all rows into the buffer. Streaming to the client
+                        // is measured separately below, so the two phases do not overlap.
+                        var dbStart = Stopwatch.GetTimestamp();
                         await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
                         {
                             result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, cancellationToken);
                         }
+
+                        context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
 
                         if (captureResult)
                         {
@@ -249,10 +252,11 @@ public sealed class WeirEngine : IDisposable
                         if (cacheKey is not null && !result.Truncated)
                         {
                             var payload = buffer.ToArray();
-                            await _cache.SetAsync(cacheKey, payload, TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cancellationToken);
-                            var etag = ComputeETag(payload);
+                            // The cache computes and stores the ETag once; reuse it here rather than
+                            // hashing the same payload a second time.
+                            var stored = await _cache.SetAsync(cacheKey, payload, TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cancellationToken);
                             var streamStart = Stopwatch.GetTimestamp();
-                            metadata = await EmitCacheableAsync(output, payload, etag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken);
+                            metadata = await EmitCacheableAsync(output, stored.Bytes, stored.ETag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken);
                             context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                         }
                         else
@@ -266,10 +270,13 @@ public sealed class WeirEngine : IDisposable
                     }
                     else
                     {
-                        var streamStart = Stopwatch.GetTimestamp();
+                        // DB and streaming are fused on the direct-to-output path (rows are written to
+                        // the client as they are read), so they cannot be separated; attribute the whole
+                        // span to the DB phase and leave StreamingDurationMs at zero.
+                        var dbStart = Stopwatch.GetTimestamp();
                         await using var execution = await connector.ExecuteAsync(request, cancellationToken);
                         result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, cancellationToken);
-                        context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
+                        context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                         metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                     }
 
@@ -282,7 +289,6 @@ public sealed class WeirEngine : IDisposable
                 }
             }
 
-            context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
             context.RowsReturned = result.RowCount;
             context.StatusCode = metadata.NotModified ? 304 : 200;
             Finish(context);
@@ -357,17 +363,6 @@ public sealed class WeirEngine : IDisposable
     }
 
     /// <summary>
-    /// Computes a quoted strong entity tag from a response body. Uses SHA-256 which is
-    /// slightly heavier than a non-cryptographic hash (e.g. xxHash3 or FarmHash) but is
-    /// well-tested, available without additional dependencies, and the cost is negligible
-    /// relative to the DB execution that produced the payload.
-    /// </summary>
-    /// <param name="payload">The complete response bytes.</param>
-    /// <returns>A quoted hex SHA-256 tag, e.g. <c>"1A2B..."</c>.</returns>
-    private static string ComputeETag(ReadOnlySpan<byte> payload) =>
-        string.Concat("\"", Convert.ToHexString(SHA256.HashData(payload)), "\"");
-
-    /// <summary>
     /// Evaluates an <c>If-None-Match</c> header against an entity tag using the weak comparison function
     /// (RFC 7232): <c>*</c> matches any tag, a comma-separated list matches if any member matches, and the
     /// weak indicator <c>W/</c> is ignored on both sides. Tags are quoted per the spec, so a naive
@@ -424,16 +419,18 @@ public sealed class WeirEngine : IDisposable
     private static void Finish(WeirCallContext context) =>
         context.DurationMs = Stopwatch.GetElapsedTime(context.StartTimestamp).TotalMilliseconds;
 
-    /// <summary>Upper bound on the captured parameters JSON, so parameter logging cannot hold unbounded memory.</summary>
-    private const int MaxCapturedParameterBytes = 64 * 1024;
+    /// <summary>Upper bound (in UTF-16 chars) on the captured parameters JSON, so parameter logging cannot hold unbounded memory.</summary>
+    private const int MaxCapturedParameterChars = 64 * 1024;
 
     /// <summary>Upper bound on the captured response body, so result logging cannot hold large payloads.</summary>
     private const int MaxCapturedResultBytes = 16 * 1024;
 
     /// <summary>
     /// Serializes the bound scalar input values to JSON for the request log (best-effort).
-    /// The output is capped at <see cref="MaxCapturedParameterBytes"/> to prevent unbounded
-    /// memory growth from large TVP tokens or many parameters.
+    /// The output is capped at <see cref="MaxCapturedParameterChars"/> to prevent unbounded
+    /// memory growth from large TVP tokens or many parameters. The cap can leave the JSON
+    /// syntactically incomplete; the admin log viewer already falls back to raw text on a parse
+    /// failure, and the marker below makes the truncation explicit.
     /// </summary>
     /// <param name="values">The bound input values keyed by logical name.</param>
     /// <returns>A JSON object, or null if the values could not be serialized.</returns>
@@ -442,9 +439,17 @@ public sealed class WeirEngine : IDisposable
         try
         {
             var json = JsonSerializer.Serialize(values);
-            if (json.Length > MaxCapturedParameterBytes)
+            if (json.Length > MaxCapturedParameterChars)
             {
-                return json[..MaxCapturedParameterBytes] + "\n...[truncated]";
+                // Back off one char if the cut would split a UTF-16 surrogate pair, so the result
+                // never ends in a lone surrogate.
+                var cut = MaxCapturedParameterChars;
+                if (char.IsHighSurrogate(json[cut - 1]))
+                {
+                    cut--;
+                }
+
+                return json[..cut] + "\n...[truncated]";
             }
 
             return json;
