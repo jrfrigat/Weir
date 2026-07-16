@@ -36,9 +36,9 @@ html, body {
     float: right;
 }
 
-/* PWA offline banner, toggled by register-sw.js. Kept here (not Flare) because it must work outside
-   the Blazor render tree, like the boot splash and error bar above. The "new version" update notice
-   is a Flare snackbar (see the PwaUpdater component), not a banner. */
+/* PWA offline banner, toggled by offline-banner.js. Kept here (not Flare) because it must work
+   outside the Blazor render tree, like the boot splash and error bar above. The "new version" update
+   notice is a Flare snackbar (see the PwaUpdater component), not a banner. */
 .weir-banner {
     position: fixed;
     top: 0;
@@ -52,24 +52,6 @@ html, body {
     background: var(--flare-color-surface-container-high, #21262d);
     border-bottom: 1px solid var(--flare-color-outline-variant, #30363d);
     z-index: 1100;
-}
-
-/* Switch fix (workaround for a Flare theme bug - see docs/en/known-issues and the Flare issue
-   switch-broken-visualstudio-theme). The Visual Studio / Command Center design reference sets a
-   compact FluentUI2-size track (2.5rem x 1.25rem = 40x20px) but leaves the Material Design thumb
-   sizes (1rem off / 1.5rem on), so the 24px "on" handle is taller than the 20px track and the toggle
-   renders broken (the ball bulges out of the rail). Here we set thumb tokens consistent with the
-   FluentUI2 switch (a small circular thumb that fits the rail, same size on and off) on the switch
-   root, so they win over the inherited design-token values. Scoped to the default size only, so the
-   xs/sm/lg/xl variants keep their own consistent tokens. This is token configuration, not a
-   restyle, and is removed once Flare ships a consistent VS switch. */
-.flare-switch:not(.flare-switch--xs):not(.flare-switch--sm):not(.flare-switch--lg):not(.flare-switch--xl) {
-    --flare-switch-thumb-off-size: 0.875rem;
-    --flare-switch-thumb-on-size: 0.875rem;
-    --flare-switch-thumb-off-left: 0.1875rem;
-    --flare-switch-thumb-on-left: calc(100% - 1.0625rem);
-    --flare-switch-thumb-pressed-off-size: 1rem;
-    --flare-switch-thumb-pressed-on-size: 1rem;
 }
 
 /* Overlay drawer (Edit endpoint / Test / log detail) side padding. Flare's default gives the drawer
