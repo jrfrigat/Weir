@@ -95,8 +95,9 @@ account's password inline. See [Security](security.md) for what each role can do
 
 ## Account
 
-Reached from the **Account** link in the sidebar footer. Shows your username and role, and lets you
-change your own password (any role can change their own; it verifies your current password first).
+Reached from the **Account** item in the account menu, under your username at the top right. Shows your
+username and role, and lets you change your own password (any role can change their own; it verifies
+your current password first).
 
 It also manages your **access tokens** - long-lived tokens that call the admin API as you, for
 scripts and CI/CD. Give a token a name and an optional expiry; the secret is shown once on creation,

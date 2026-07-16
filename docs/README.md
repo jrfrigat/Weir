@@ -14,6 +14,7 @@
 | [Deployment](en/deployment.md) | Docker image, docker-compose, hosting |
 | [Admin UI](en/admin-ui.md) | Dashboard and management pages |
 | [Extending](en/extending.md) | Writing connectors and loading them as plugins |
+| [Roadmap](en/roadmap.md) | The code review that shaped Weir, and the phased plan from it |
 
 ## Russkiy
 
@@ -27,3 +28,4 @@
 | [Деплой](ru/deployment.md) | Docker-образ, docker-compose, хостинг |
 | [Админка](ru/admin-ui.md) | Дашборд и страницы управления |
 | [Расширение](ru/extending.md) | Написание коннекторов и загрузка их как плагинов |
+| [План развития](ru/roadmap.md) | Ревью кода, сформировавшее Weir, и вытекающий из него поэтапный план |

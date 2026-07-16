@@ -28,10 +28,11 @@ append "output" / "returnValue" / "rowsAffected" / "messages".
 ### Control plane (metadata)
 
 Weir's own state - endpoint definitions, API keys (hashes only), scopes, admin users, audit, and a
-single-row runtime-settings document - lives in a **separate** store behind IControlPlaneStore. Two
-providers ship: SQLite (default, single node) and PostgreSQL (a shared store for high-availability
-deployments where several instances run against one control database). Each owns an idempotent,
-transactional migration runner; the provider is selected by `Weir:ControlPlane:Provider`.
+single-row runtime-settings document - lives in a **separate** store behind IControlPlaneStore. Three
+providers ship: SQLite (default, single node), PostgreSQL and SQL Server (each a shared server
+database for high-availability deployments where several instances run against one control database).
+Each owns an idempotent, transactional migration runner; the provider is selected by
+`Weir:ControlPlane:Provider`.
 
 ### Runtime settings
 
@@ -53,6 +54,7 @@ Weir.Abstractions     server ports: IDbConnector, IControlPlaneStore, IWeirCallO
     Weir.Diagnostics             ActivitySource "Weir", Meter "Weir", in-memory aggregator
     Weir.ControlPlane.Sqlite     IControlPlaneStore impl + migrations
     Weir.ControlPlane.PostgreSql IControlPlaneStore impl + migrations (shared store for HA)
+    Weir.ControlPlane.SqlServer  IControlPlaneStore impl + migrations (shared store for HA)
     connectors/Weir.Connectors.SqlServer    IDbConnector impl (SqlClient + Dapper)
     connectors/Weir.Connectors.PostgreSql   IDbConnector impl (Npgsql)
 
@@ -64,8 +66,9 @@ Weir.Abstractions     server ports: IDbConnector, IControlPlaneStore, IWeirCallO
 
 Everything depends only on Weir.Contracts / Weir.Abstractions. Drivers and stores implement the
 ports; Weir.Host composes the concrete set via DI (AddWeirSqlServer(), AddWeirPostgreSql(),
-AddWeirControlPlaneSqlite(), AddWeirControlPlanePostgres()). Both connectors retry only transient
-connection-open failures, so a procedure is never invoked more than once.
+AddWeirControlPlaneSqlite(), AddWeirControlPlanePostgres(), AddWeirControlPlaneSqlServer()). Both
+connectors retry only transient connection-open failures, so a procedure is never invoked more than
+once.
 
 The same ports are the plugin surface: a third-party connector implements IDbConnector and is either
 compiled into a custom host or dropped into a running image via the plugin loader
@@ -79,10 +82,13 @@ therefore serves many servers / databases / schemas simultaneously.
 
 ## Caching
 
-Per-endpoint CachePolicy (Enabled, TtlSeconds, VaryByParameters, VaryByApiKey) is set in the admin
-UI. The cache key is the endpoint route plus the normalized values of the vary-by parameters (and,
-optionally, the API key). Rendered JSON bytes are cached via IResponseCache (IMemoryCache now; the
-abstraction allows a distributed backend later). Cache is server-controlled; clients do not opt out.
+Per-endpoint CachePolicy (Enabled, TtlSeconds, VaryByParameters, VaryByApiKey, CoalesceRequests) is
+set in the admin UI. The cache key is the endpoint route plus the normalized values of the vary-by
+parameters (and, optionally, the API key); with CoalesceRequests on (the default), callers that arrive
+while a response for the same key is already being produced wait for its bytes instead of each running
+the object. Rendered JSON bytes are cached via IResponseCache (in memory now, bounded by
+`ResponseCacheMaxBytes` - the least recently used entries are evicted once it is full; the abstraction
+allows a distributed backend later). Cache is server-controlled; clients do not opt out.
 
 ## Telemetry
 

@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="Weir - высокопроизводительный HTTP-шлюз; бизнес-логика базы данных как сервис" width="760">
 </p>
 
-<p align="center">🌐 <a href="README.md">English</a> · <b>Русский</b></p>
+<p align="center"><a href="README.md">English</a> - <b>Русский</b></p>
 
 <p align="center">
   <a href="https://github.com/jrfrigat/weir/actions/workflows/ci.yml"><img src="https://github.com/jrfrigat/weir/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -32,7 +32,8 @@
   retention, плюс встроенный in-memory агрегатор, который питает real-time (SignalR) дашборд в админке.
 - **Управляемость.** Настройки рантайма (лимиты data-plane, rate-limit, retention аудита) правятся из
   админ-панели без перезапуска; каждое действие админа аудируется; сессии админов отзываемы; админка -
-  устанавливаемое PWA.
+  устанавливаемое PWA. Она поставляется на английском и русском, язык выбирается для каждого браузера -
+  см. [Админку](docs/ru/admin-ui.md#язык).
 
 ## Две плоскости
 
@@ -58,7 +59,7 @@ src/
   Weir.Host/                 Хост ASP.NET Core: динамические роуты, API-key auth, admin API, отдача PWA
   Weir.Admin/                Blazor WASM PWA админка и дашборд (на Flare)
 tests/
-docs/                        документация en/ и ru/, плюс adr/
+docs/                        документация en/ и ru/
 build/                       Dockerfile, CI
 samples/                     Примеры схем и сидов эндпоинтов, а также CLI-клиент / нагрузочный тестер
 ```
@@ -86,6 +87,7 @@ Content-Type: application/json
   "output": { "newOrderId": 1001, "totalCount": 57 },
   "returnValue": 0,
   "rowsAffected": 1,
+  "truncated": false,
   "messages": [ { "text": "Order created", "severity": 0, "number": 50000, "line": 12 } ]
 }
 ```
@@ -105,6 +107,7 @@ Content-Type: application/json
 | [Конфигурация](docs/ru/configuration.md) | Все настройки и переменные окружения |
 | [Деплой](docs/ru/deployment.md) | Docker-образ и docker-compose |
 | [Админка](docs/ru/admin-ui.md) | Дашборд и страницы управления |
+| [План развития](docs/ru/roadmap.md) | Ревью кода, сформировавшее Weir, и вытекающий из него поэтапный план |
 
 ## Установка
 

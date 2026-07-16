@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="Weir - high-performance HTTP gateway; your database business logic, as a service" width="760">
 </p>
 
-<p align="center">🌐 <b>English</b> · <a href="README.ru.md">Русский</a></p>
+<p align="center"><b>English</b> - <a href="README.ru.md">Russian / Russkiy</a></p>
 
 <p align="center">
   <a href="https://github.com/jrfrigat/weir/actions/workflows/ci.yml"><img src="https://github.com/jrfrigat/weir/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -31,7 +31,8 @@ mapping, caching, telemetry and serialization.
   plus a built-in in-memory aggregator that powers a real-time (SignalR) dashboard in the admin PWA.
 - **Operable.** Runtime settings (data-plane limits, rate limits, audit retention) are edited from the
   admin panel without a restart; every admin action is audited; admin sessions are revocable; the admin
-  is an installable PWA.
+  is an installable PWA. It ships English and Russian, chosen per browser - see
+  [Admin UI](docs/en/admin-ui.md#language).
 
 ## Two planes
 
@@ -57,7 +58,7 @@ src/
   Weir.Host/                 ASP.NET Core host: dynamic routes, API-key auth, admin API, serves PWA
   Weir.Admin/                Blazor WASM PWA admin and dashboard (built on Flare)
 tests/
-docs/                        en/ and ru/ documentation, plus adr/
+docs/                        en/ and ru/ documentation
 build/                       Dockerfile, CI
 samples/                     Example schemas + endpoint seeds, and a CLI client / load tester
 ```
@@ -84,6 +85,7 @@ Content-Type: application/json
   "output": { "newOrderId": 1001, "totalCount": 57 },
   "returnValue": 0,
   "rowsAffected": 1,
+  "truncated": false,
   "messages": [ { "text": "Order created", "severity": 0, "number": 50000, "line": 12 } ]
 }
 ```
@@ -103,6 +105,7 @@ Full docs live in **[docs/](docs/README.md)** (English and Russian):
 | [Configuration](docs/en/configuration.md) | Every setting and environment variable |
 | [Deployment](docs/en/deployment.md) | Docker image and docker-compose |
 | [Admin UI](docs/en/admin-ui.md) | Dashboard and management pages |
+| [Roadmap](docs/en/roadmap.md) | The code review that shaped Weir, and the phased plan from it |
 
 ## Install
 

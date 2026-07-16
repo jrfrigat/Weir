@@ -93,6 +93,15 @@ The edited values are stored in the control plane, so they survive restarts and 
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to
 the web server at startup and needs a restart to change.
 
+Three further settings exist only at runtime - they have no `appsettings.json` seed and are edited in
+the same place, under the **Request log** group:
+
+| Setting | Default | Meaning |
+| :-- | :-- | :-- |
+| RequestLogEnabled | `true` | Master switch for the data-plane request log (the per-call history shown in the admin panel). When off, no request-log rows are written regardless of per-endpoint settings. Basic call metadata is recorded when on; parameter and result capture remain per-endpoint opt-ins. |
+| SlowRequestThresholdPercent | `20` | Default "slow" threshold, as a percentage above an endpoint's rolling average duration: a logged request is flagged slow when its duration exceeds the endpoint's recent average by at least this much (for example `20` means "20% slower than usual"). An endpoint may override it. Zero or less disables slow flagging. |
+| RequestLogRetentionDays | `7` | How many days of request-log history to keep; older rows are pruned by a background service. Zero or less keeps history forever (not recommended - the log can grow quickly). |
+
 ### `Weir:Security`
 
 | Key | Default | Meaning |
@@ -151,8 +160,9 @@ when the allowed-origins list is non-empty.
 ## Rate limiting
 
 Each API key can carry a `RateLimitPerMinute` (set in the admin UI). Requests beyond the limit
-receive HTTP 429 with a `Retry-After` header. The limiter is per-instance (in-memory); a
-multi-instance deployment would need a distributed limiter.
+receive HTTP 429 with a `Retry-After` header. The limiter is per-instance (in-memory) by default; set
+[`Weir:RateLimit:RedisConnectionString`](#weirratelimit) to count in Redis instead, so one limit
+applies across every instance of a multi-instance deployment.
 
 ## Auditing
 

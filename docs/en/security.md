@@ -165,6 +165,15 @@ to the file log (see [Configuration](configuration.md#logging)), each request ca
 - Data-plane guards ship with safe non-zero defaults: a row cap, a gateway timeout, a table-valued
   parameter row cap and a request body-size limit (see [Configuration](configuration.md)). An API key
   with no rate limit of its own can be given a default via `Weir:DataPlane:DefaultApiKeyRateLimitPerMinute`.
+- The data-plane request log records call metadata only. Capturing a call's request **parameters** or
+  its response **result** - either of which can hold PII - is off by default and opted into per
+  endpoint, in the endpoint editor's **Logging** section. When on, the bound scalar parameter values
+  (as JSON) and the response body (as text) are stored in the control-plane request log and shown in
+  the **Logs** detail panel. Both are size-capped - roughly 64 KB of parameter JSON and 16 KB of
+  response body, cut short and marked when longer - so capture cannot hold whole payloads. How long
+  they are kept is governed by the runtime `RequestLogRetentionDays` setting, and `RequestLogEnabled`
+  turns the request log off entirely (see
+  [Configuration](configuration.md#runtime-settings)).
 - Security-relevant options are validated at startup, so a misconfiguration fails fast.
 - The shipped default connection string does not disable TLS certificate validation.
 

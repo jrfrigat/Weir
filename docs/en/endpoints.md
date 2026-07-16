@@ -17,9 +17,12 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 | ResultMode | MultiRow, SingleRow, Scalar, NonQuery, or MultiResultSet (informational). |
 | CommandTimeoutSeconds | Optional per-command timeout. |
 | Enabled | Whether the endpoint is served. |
+| SuppressMessages | Omit SQL informational (`PRINT` / notice) messages from the response envelope - `messages` is written as an empty array. Off by default (see below). |
 | Cache | Result-cache policy (see below). |
+| Logging | Request-logging policy: whether this endpoint's calls are written to the request log at all, whether to capture the request's scalar parameter values and the response body (both can hold PII, so both are off by default and capped in size), and an optional per-endpoint override of the global slow-request threshold. |
 | Parameters | Parameter definitions (see below). |
 | RequiredScopes | Scopes an API key must hold. Empty means any authenticated key. |
+| Description | Human-readable description shown in the admin UI and generated docs. |
 
 ## Route templates
 

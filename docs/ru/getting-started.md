@@ -92,6 +92,7 @@ Content-Type: application/json
   "output": null,
   "returnValue": 0,
   "rowsAffected": -1,
+  "truncated": false,
   "messages": []
 }
 ```
