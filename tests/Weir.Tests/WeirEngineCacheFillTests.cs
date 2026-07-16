@@ -399,7 +399,7 @@ public class WeirEngineCacheFillTests
         var body = System.Text.Encoding.UTF8.GetString(second.ToArray());
         Assert.StartsWith("{\"data\":[[", body, StringComparison.Ordinal);
         Assert.EndsWith("}", body, StringComparison.Ordinal);
-        Assert.Equal(secondRows, System.Text.RegularExpressions.Regex.Matches(body, "\"id\":").Count);
+        Assert.Equal(secondRows, System.Text.RegularExpressions.Regex.Count(body, "\"id\":"));
         Assert.Contains($"row-{secondRows - 1}-", body, StringComparison.Ordinal);
 
         // The ETag is computed over the payload, so a body padded by an oversized buffer would not match
