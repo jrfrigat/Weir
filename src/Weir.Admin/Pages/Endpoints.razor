@@ -459,6 +459,14 @@
     /// <summary>Connection names for the toolbar and editor selectors.</summary>
     private IEnumerable<string> ConnectionNames => _connections?.Select(c => c.Name) ?? [];
 
+    /// <summary>Optional endpoint id from the query string: open its test console on load (deep link from Logs).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "test")]
+    public Guid? TestParam { get; set; }
+
+    /// <summary>Optional endpoint id from the query string: open its editor on load (deep link from Logs).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "edit")]
+    public Guid? EditParam { get; set; }
+
     /// <summary>Loads endpoints, scopes, connections and keys (keys drive the "reachable by key" filter).</summary>
     protected override async Task OnInitializedAsync()
     {
@@ -470,6 +478,16 @@
             ?? _connections?.FirstOrDefault()?.Name
             ?? string.Empty;
         RebuildLinked();
+
+        // Deep links from the request log open the test console or editor for a specific endpoint.
+        if (TestParam is { } testId && _endpoints?.FirstOrDefault(e => e.Id == testId) is { } toTest)
+        {
+            StartTest(toTest);
+        }
+        else if (EditParam is { } editId && _endpoints?.FirstOrDefault(e => e.Id == editId) is { } toEdit)
+        {
+            Edit(toEdit);
+        }
     }
 
     // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------

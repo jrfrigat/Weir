@@ -4,6 +4,7 @@
 @using System.Text.Json
 @inject WeirApiClient Api
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="logs" Description="Data-plane request history - timing, results and slow calls">
@@ -99,24 +100,32 @@
         @if (_selected is not null)
         {
             <FlareStack Gap="FlareSpacing.Medium">
-                @* Timing breakdown *@
+                @* Deep links back to the endpoints page so an operator can re-run or edit the call. *@
+                @if (_selected.EndpointId is { } endpointId)
+                {
+                    <FlareStack Row Gap="FlareSpacing.Small" Wrap="true">
+                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointTest(endpointId))">Test endpoint</FlareButton>
+                        <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => OpenEndpointEdit(endpointId))">Edit endpoint</FlareButton>
+                    </FlareStack>
+                }
+
+                @* Timing breakdown. Segment widths are normalized so the bar always fills the full width. *@
                 @{
                     var total = _selected.DurationMs;
                     var db = _selected.DbDurationMs ?? 0;
                     var overhead = Math.Max(0, total - db);
-                    var maxBar = Math.Max(total, 1);
+                    var denom = db + overhead;
+                    var dbPct = denom > 0 ? db / denom * 100 : 0;
+                    var overheadPct = denom > 0 ? overhead / denom * 100 : 100;
                 }
                 <FlareCard Variant="CardVariant.Outlined">
                     <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// TIMING BREAKDOWN</FlareText>
-                    <div style="display:flex;gap:2px;height:24px;border-radius:4px;overflow:hidden;margin:0.5rem 0;">
-                        @if (db > 0)
+                    <div style="display:flex;width:100%;height:24px;border-radius:4px;overflow:hidden;margin:0.5rem 0;background:var(--flare-color-surface-variant);">
+                        @if (dbPct > 0)
                         {
-                            <div style="width:@(db / maxBar * 100)%;background:var(--flare-color-error);min-width:2px;" title="DB: @Ms(db)"></div>
+                            <div style="width:@Pct(dbPct)%;background:var(--flare-color-error);" title="DB @Ms(db)"></div>
                         }
-                        @if (overhead > 0)
-                        {
-                            <div style="width:@(overhead / maxBar * 100)%;background:var(--flare-color-on-surface-variant);min-width:2px;" title="Other: @Ms(overhead)"></div>
-                        }
+                        <div style="width:@Pct(overheadPct)%;background:var(--flare-color-on-surface-variant);" title="Other @Ms(overhead)"></div>
                     </div>
                     <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
                         @if (db > 0)
@@ -164,14 +173,28 @@
 
                 @if (!string.IsNullOrEmpty(_selected.Parameters))
                 {
-                    <FlareDivider Text="Parameters" TextAlign="DividerTextAlign.Left" />
-                    <FlareCodeBlock Value="@Pretty(_selected.Parameters)" Language="json" ReadOnly="true" />
+                    <FlareDivider />
+                    <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
+                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// PARAMETERS</FlareText>
+                        <FlareStack Row Gap="FlareSpacing.XSmall">
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => CopyAsync(_selected!.Parameters!))">Copy</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson("Parameters", _selected!.Parameters!))">View</FlareButton>
+                        </FlareStack>
+                    </FlareStack>
+                    <FlareCodeBlock Value="@Preview(_selected.Parameters)" Language="json" ReadOnly="true" />
                 }
 
                 @if (!string.IsNullOrEmpty(_selected.Result))
                 {
-                    <FlareDivider Text="Result" TextAlign="DividerTextAlign.Left" />
-                    <FlareCodeBlock Value="@Pretty(_selected.Result)" Language="json" ReadOnly="true" />
+                    <FlareDivider />
+                    <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
+                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// RESULT</FlareText>
+                        <FlareStack Row Gap="FlareSpacing.XSmall">
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => CopyAsync(_selected!.Result!))">Copy</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson("Result", _selected!.Result!))">View</FlareButton>
+                        </FlareStack>
+                    </FlareStack>
+                    <FlareCodeBlock Value="@Preview(_selected.Result)" Language="json" ReadOnly="true" />
                 }
 
                 @if (string.IsNullOrEmpty(_selected.Parameters) && string.IsNullOrEmpty(_selected.Result))
@@ -184,6 +207,19 @@
         }
     </ChildContent>
 </FlareDrawer>
+
+@* ===== Full-JSON viewer ===== *@
+<FlareDialog @bind-Visible="_showJson" Title="@_jsonTitle" Size="DialogSize.Md" ShowCloseButton="true">
+    <ChildContent>
+        <div style="max-height:70vh;overflow:auto;">
+            <FlareCodeBlock Value="@_jsonBody" Language="json" ReadOnly="true" />
+        </div>
+    </ChildContent>
+    <Actions>
+        <FlareButton Variant="ButtonVariant.Text" OnClick="@(() => CopyTextAsync(_jsonBody))">Copy</FlareButton>
+        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => _showJson = false)">Close</FlareButton>
+    </Actions>
+</FlareDialog>
 
 @code {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
@@ -200,6 +236,14 @@
     private bool _hasMore;
 
     private string? _route;
+
+    // Full-JSON viewer dialog state.
+    private bool _showJson;
+    private string _jsonTitle = string.Empty;
+    private string _jsonBody = string.Empty;
+
+    /// <summary>Character cap for the JSON preview shown inline in the drawer; the full JSON is available via View.</summary>
+    private const int DrawerJsonPreviewChars = 2000;
 
     /// <summary>Optional endpoint id from the query string, to pre-filter the log to one endpoint.</summary>
     [Parameter, SupplyParameterFromQuery(Name = "endpoint")]
@@ -294,6 +338,67 @@
     }
 
     private void OpenDetail(RequestLogEntry entry) => _selected = entry;
+
+    /// <summary>Navigates to the endpoints page and opens the test console for this endpoint.</summary>
+    /// <param name="endpointId">The endpoint to test.</param>
+    private void OpenEndpointTest(Guid endpointId) => Nav.NavigateTo($"endpoints?test={endpointId}");
+
+    /// <summary>Navigates to the endpoints page and opens the editor for this endpoint.</summary>
+    /// <param name="endpointId">The endpoint to edit.</param>
+    private void OpenEndpointEdit(Guid endpointId) => Nav.NavigateTo($"endpoints?edit={endpointId}");
+
+    /// <summary>Opens the full-JSON dialog for a captured parameters/result payload.</summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="raw">The raw captured JSON.</param>
+    private void ViewJson(string title, string raw)
+    {
+        _jsonTitle = title;
+        _jsonBody = Pretty(raw);
+        _showJson = true;
+    }
+
+    /// <summary>Pretty-prints then copies a captured JSON string to the clipboard (best-effort).</summary>
+    /// <param name="raw">The raw captured JSON.</param>
+    private Task CopyAsync(string raw) => CopyTextAsync(Pretty(raw));
+
+    /// <summary>Copies text to the clipboard, ignoring failures (e.g. no clipboard permission).</summary>
+    /// <param name="text">The text to copy.</param>
+    private async Task CopyTextAsync(string text)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        }
+        catch (JSException)
+        {
+            // Clipboard unavailable; the JSON is still visible and selectable on screen.
+        }
+    }
+
+    /// <summary>Pretty-prints a captured JSON string and truncates it for the drawer preview.</summary>
+    /// <param name="raw">The raw captured JSON.</param>
+    /// <returns>The pretty-printed JSON, truncated with a marker when it exceeds the preview cap.</returns>
+    private static string Preview(string raw)
+    {
+        var pretty = Pretty(raw);
+        if (pretty.Length <= DrawerJsonPreviewChars)
+        {
+            return pretty;
+        }
+
+        var cut = DrawerJsonPreviewChars;
+        if (char.IsHighSurrogate(pretty[cut - 1]))
+        {
+            cut--;
+        }
+
+        return pretty[..cut] + "\n... (truncated - use View for the full JSON)";
+    }
+
+    /// <summary>Formats a percentage for a CSS width, invariant culture.</summary>
+    /// <param name="value">The percentage (0-100).</param>
+    /// <returns>The formatted number.</returns>
+    private static string Pct(double value) => value.ToString("0.###", Invariant);
 
     /// <summary>Formats a millisecond duration with up to one decimal.</summary>
     private static string Ms(double ms) => ms.ToString("0.#", Invariant) + "ms";
