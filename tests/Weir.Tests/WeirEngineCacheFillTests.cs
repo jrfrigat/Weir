@@ -47,17 +47,22 @@ public class WeirEngineCacheFillTests
             Task.FromResult<IReadOnlyList<DbParameterDescriptor>>([]);
     }
 
-    /// <summary>A one-row result, backed by DataTableReader so the engine sees a real DbDataReader.</summary>
+    /// <summary>A result of a caller-chosen size, backed by DataTableReader so the engine sees a real DbDataReader.</summary>
     private sealed class FakeExecution : IDbExecution
     {
         private readonly DataTable _table;
         private readonly DbDataReader _reader;
 
-        public FakeExecution()
+        public FakeExecution(int rows = 1)
         {
             _table = new DataTable();
             _table.Columns.Add("id", typeof(int));
-            _table.Rows.Add(1);
+            _table.Columns.Add("text", typeof(string));
+            for (var i = 0; i < rows; i++)
+            {
+                _table.Rows.Add(i, $"row-{i}-{new string('x', 64)}");
+            }
+
             _reader = _table.CreateDataReader();
         }
 
@@ -103,6 +108,40 @@ public class WeirEngineCacheFillTests
             StoreEntered.TrySetResult();
             await _storeGate.Task;
         }
+
+        public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+
+        public ValueTask RemoveByPrefixAsync(string keyPrefix, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    }
+
+    /// <summary>A connector returning however many rows it is currently told to, so body size can be varied per call.</summary>
+    private sealed class SizedConnector : IDbConnector
+    {
+        /// <summary>Rows the next execution returns.</summary>
+        public int Rows { get; set; } = 1;
+
+        public string ProviderName => "test";
+
+        public Task<IDbExecution> ExecuteAsync(DbExecutionRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IDbExecution>(new FakeExecution(Rows));
+
+        public Task ProbeAsync(string connectionName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<DbObjectDescriptor>> ListObjectsAsync(string connectionName, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DbObjectDescriptor>>([]);
+
+        public Task<IReadOnlyList<DbParameterDescriptor>> DescribeParametersAsync(string connectionName, string schema, string objectName, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DbParameterDescriptor>>([]);
+    }
+
+    /// <summary>A cache that never hits and discards what it is given, so every call re-executes and re-buffers.</summary>
+    private sealed class NeverHitsCache : IResponseCache
+    {
+        public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<CachedResponse?>(null);
+
+        public ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
 
         public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
@@ -195,6 +234,43 @@ public class WeirEngineCacheFillTests
         // Exactly one caller executed; the others were served the bytes it produced.
         Assert.Equal(callers - 1, results.Count(r => r.CacheHit));
         Assert.All(results, r => Assert.Equal(results[0].ETag, r.ETag));
+    }
+
+    /// <summary>
+    /// The engine seeds each response buffer from the size the endpoint's last one came to, to avoid
+    /// growing a large body through every intermediate size. That is a hint, not a promise: the body must
+    /// come out identical whether the guess was absent, too low or too high.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 400)]    // first call has no hint at all, then a much larger body: guess too low
+    [InlineData(400, 1)]    // large body first, then a tiny one: guess far too high
+    [InlineData(400, 400)]  // steady state: the guess is right
+    public async Task Buffered_Body_Is_Correct_Whatever_The_Size_Hint_Was(int firstRows, int secondRows)
+    {
+        var connector = new SizedConnector();
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], new NeverHitsCache(), [], new FixedSettings());
+
+        // The cache never hits, so each call re-executes and re-buffers through the seeded path.
+        connector.Rows = firstRows;
+        using var first = new MemoryStream();
+        await engine.ExecuteAsync(NewInvocation(), first);
+
+        connector.Rows = secondRows;
+        using var second = new MemoryStream();
+        var metadata = await engine.ExecuteAsync(NewInvocation(), second);
+
+        // Same endpoint, so the second call ran with the first call's size as its hint.
+        var body = System.Text.Encoding.UTF8.GetString(second.ToArray());
+        Assert.StartsWith("{\"data\":[[", body, StringComparison.Ordinal);
+        Assert.EndsWith("}", body, StringComparison.Ordinal);
+        Assert.Equal(secondRows, System.Text.RegularExpressions.Regex.Matches(body, "\"id\":").Count);
+        Assert.Contains($"row-{secondRows - 1}-", body, StringComparison.Ordinal);
+
+        // The ETag is computed over the payload, so a body padded by an oversized buffer would not match
+        // a freshly hashed copy of the same bytes.
+        Assert.Equal(ResponseETag.Compute(second.ToArray()), metadata.ETag);
+        Assert.NotEqual(0, first.Length);
     }
 
     [Fact]

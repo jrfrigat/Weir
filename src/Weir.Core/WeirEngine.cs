@@ -281,7 +281,7 @@ public sealed class WeirEngine : IDisposable
                     // request log (an explicit opt-in); otherwise stream straight to the output.
                     if (cacheKey is not null || captureResult)
                     {
-                        using var buffer = new MemoryStream();
+                        using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
                         // DB phase: execute and drain all rows into the buffer. Streaming to the client
                         // is measured separately below, so the two phases do not overlap.
                         var dbStart = Stopwatch.GetTimestamp();
@@ -291,6 +291,7 @@ public sealed class WeirEngine : IDisposable
                         }
 
                         context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
+                        RecordBufferSize(endpoint.Id, buffer.Length);
 
                         if (captureResult)
                         {
@@ -390,6 +391,43 @@ public sealed class WeirEngine : IDisposable
                 fill.Abandon();
                 Release(claimedKey, fill);
             }
+        }
+    }
+
+    /// <summary>Upper bound on a seeded buffer, so one huge response cannot make every later call pre-allocate megabytes.</summary>
+    private const int MaxSeededBufferBytes = 4 * 1024 * 1024;
+
+    /// <summary>Smallest seed worth asking for; below this MemoryStream's own growth is cheap enough.</summary>
+    private const int MinSeededBufferBytes = 4 * 1024;
+
+    /// <summary>
+    /// The last buffered body size per endpoint, used to size the next one. Not a metric - only a hint.
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, int> _bufferSizes = new();
+
+    /// <summary>
+    /// Suggests an initial capacity for an endpoint's response buffer, from the size its last response
+    /// came to. A default MemoryStream starts at nothing and doubles as rows arrive, so a large response
+    /// is assembled by copying itself through every intermediate size, and each intermediate over ~85 KB
+    /// lands on the large object heap. An endpoint's responses are usually about the same size, so the
+    /// previous one is a good guess and turns that chain into a single allocation. It is only a hint: the
+    /// stream still grows if the guess is low, and the buffer is right-sized by ToArray before it is cached.
+    /// </summary>
+    /// <param name="endpointId">The endpoint whose response is about to be buffered.</param>
+    /// <returns>The capacity to start the buffer at, or zero to let it grow from scratch.</returns>
+    private int BufferCapacityFor(Guid endpointId) =>
+        _bufferSizes.TryGetValue(endpointId, out var last) && last >= MinSeededBufferBytes
+            ? Math.Min(last, MaxSeededBufferBytes)
+            : 0;
+
+    /// <summary>Records the size an endpoint's response came to, as the hint for its next one.</summary>
+    /// <param name="endpointId">The endpoint id.</param>
+    /// <param name="length">The buffered body length in bytes.</param>
+    private void RecordBufferSize(Guid endpointId, long length)
+    {
+        if (endpointId != Guid.Empty)
+        {
+            _bufferSizes[endpointId] = (int)Math.Min(length, MaxSeededBufferBytes);
         }
     }
 
