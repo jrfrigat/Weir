@@ -1319,7 +1319,25 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Endpoints_CacheVaryByApiKeyLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Coalesce concurrent calls.
+        /// </summary>
+        public static string Endpoints_CacheCoalesceLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_CacheCoalesceLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Callers that arrive while a response for the same cache key is  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Endpoints_CacheCoalesceHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_CacheCoalesceHelp", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на Vary cache by parameters.
         /// </summary>

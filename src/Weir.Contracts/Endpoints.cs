@@ -225,4 +225,20 @@ public sealed record CachePolicy
 
     /// <summary>Whether the calling API key is part of the cache key (per-key isolation).</summary>
     public bool VaryByApiKey { get; init; }
+
+    /// <summary>
+    /// Whether callers that arrive while a response for the same cache key is already being produced wait
+    /// for it instead of each running the object themselves. On by default, and only meaningful while
+    /// <see cref="Enabled"/> is set: the cache key is what identifies two calls as asking the same
+    /// question, so without one there is nothing to wait on.
+    /// <para>
+    /// Leaving it on is what stops a burst on a cold or just-expired key from becoming one database call
+    /// per caller - the case a cache helps least with, because none of them can hit it yet. It changes no
+    /// semantics a cached endpoint does not already have: a cached endpoint's object already does not run
+    /// for every call. Turn it off for an endpoint that must run its object per call even when it is
+    /// cached, or as an escape hatch if waiting turns out to behave worse than executing for some
+    /// particular endpoint.
+    /// </para>
+    /// </summary>
+    public bool CoalesceRequests { get; init; } = true;
 }

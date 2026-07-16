@@ -123,8 +123,8 @@ execution. For stored procedures the integer RETURN value is always captured in 
 ## Caching
 
 Set a per-endpoint cache policy: `Enabled`, `TtlSeconds`, `VaryByParameters` (the input parameters
-whose values form the cache key), and `VaryByApiKey`. The rendered JSON is cached in memory; clients
-cannot bypass it. Caching is best suited to read-only endpoints. Editing or deleting an endpoint
+whose values form the cache key), `VaryByApiKey`, and `CoalesceRequests`. The rendered JSON is cached
+in memory; clients cannot bypass it. Caching is best suited to read-only endpoints. Editing or deleting an endpoint
 evicts its cached responses immediately, so a change never serves stale data. You can also force a
 purge at any time - per endpoint from the admin UI, or by filter over the admin API for CI/CD (see
 [Purging the cache](#purging-the-cache) below).
@@ -135,6 +135,25 @@ response bytes and `Cache-Control: private, max-age=<TtlSeconds>`. A client that
 unchanged, saving the transfer. `304` is answered before any bytes are streamed. A truncated response
 (one that hit the `MaxRows` cap) is never cached and carries no `ETag`, so a partial body is never
 revalidated against a complete one.
+
+### Concurrent calls for the same key
+
+`CoalesceRequests` (on by default) decides what happens when calls for the same cache key arrive while
+a response for it is already being produced - on a cold key, or the moment one expires. With it on, the
+first caller runs the procedure and the rest wait for its bytes, so the burst costs one database call
+instead of one per caller. That is the moment a cache helps least on its own, because none of them can
+hit it yet.
+
+The query belongs to everyone waiting on it, not to whoever arrived first. A client hanging up, or
+hitting the gateway timeout, ends that caller's request and nothing else - the query keeps running for
+the callers still queued behind it. It is dropped only once the last of them has gone, so it lives
+exactly as long as somebody still wants the answer. A caller served this way is counted as a cache hit
+(it did not touch the database) and its reported duration includes its wait, which is the latency its
+client actually saw.
+
+Turn it off for an endpoint that must run its procedure for every call even while it is cached, or as
+an escape hatch. Caching must be on for the setting to mean anything: the cache key is what identifies
+two calls as asking the same question, so without one there is nothing to wait on.
 
 ## Managing endpoints via the admin API
 

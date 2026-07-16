@@ -640,6 +640,12 @@
   <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
     <value>Vary by API key</value>
   </data>
+  <data name="Endpoints_CacheCoalesceLabel" xml:space="preserve">
+    <value>Coalesce concurrent calls</value>
+  </data>
+  <data name="Endpoints_CacheCoalesceHelp" xml:space="preserve">
+    <value>Callers that arrive while a response for the same cache key is already being produced wait for it instead of each running the procedure. Keeps a burst on a cold or just-expired key from becoming one database call per caller. Turn it off to have every call run the procedure for itself.</value>
+  </data>
   <data name="Endpoints_CacheVaryByParams" xml:space="preserve">
     <value>Vary cache by parameters</value>
   </data>

@@ -215,7 +215,12 @@
                     <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="@AdminStrings.Endpoints_EnableCacheLabel" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Style="max-width:9rem;" />
                     <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="@AdminStrings.Endpoints_CacheVaryByApiKeyLabel" />
+                    <FlareSwitch Value="_editing.CacheCoalesceRequests" ValueChanged="@(v => _editing.CacheCoalesceRequests = v)" Label="@AdminStrings.Endpoints_CacheCoalesceLabel" />
                 </FlareStack>
+                @if (_editing.CacheEnabled)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_CacheCoalesceHelp</FlareText>
+                }
                 @if (_editing.CacheEnabled)
                 {
                     <div>
@@ -1115,6 +1120,7 @@
         public int CacheTtlSeconds { get; set; } = 60;
         public HashSet<string> CacheVaryBy { get; } = new(StringComparer.OrdinalIgnoreCase);
         public bool CacheVaryByApiKey { get; set; }
+        public bool CacheCoalesceRequests { get; set; } = true;
         public HashSet<string> Scopes { get; } = new(StringComparer.Ordinal);
         public List<ParamEditModel> Parameters { get; } = [];
 
@@ -1141,6 +1147,7 @@
                 CacheEnabled = endpoint.Cache.Enabled,
                 CacheTtlSeconds = endpoint.Cache.TtlSeconds,
                 CacheVaryByApiKey = endpoint.Cache.VaryByApiKey,
+                CacheCoalesceRequests = endpoint.Cache.CoalesceRequests,
             };
 
             foreach (var scope in endpoint.RequiredScopes)
@@ -1190,6 +1197,7 @@
                 // parameter cannot leave a dangling cache-key name (which would disable caching).
                 VaryByParameters = CacheVaryBy.Where(name => Parameters.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))).ToList(),
                 VaryByApiKey = CacheVaryByApiKey,
+                CoalesceRequests = CacheCoalesceRequests,
             },
             RequiredScopes = Scopes.ToList(),
             Parameters = Parameters.Select(parameter => parameter.ToParameter()).ToList(),

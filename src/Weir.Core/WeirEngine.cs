@@ -230,11 +230,11 @@ public sealed class WeirEngine : IDisposable
 
                 // A miss. Either claim the fill for this key or join the one already running: the first
                 // caller starts the query, the rest wait for its bytes instead of piling the same query
-                // onto the database.
-                var candidate = new CacheFill();
-                var inFlight = _fills.GetOrAdd(cacheKey, candidate);
-                participation = inFlight.TryJoin(cancellationToken);
-                if (participation is not null)
+                // onto the database. The endpoint can opt out, in which case every caller runs its own.
+                var candidate = endpoint.Cache.CoalesceRequests ? new CacheFill() : null;
+                var inFlight = candidate is null ? null : _fills.GetOrAdd(cacheKey, candidate);
+                participation = inFlight?.TryJoin(cancellationToken);
+                if (inFlight is not null && participation is not null)
                 {
                     var owned = ReferenceEquals(inFlight, candidate);
                     if (owned)
@@ -242,7 +242,7 @@ public sealed class WeirEngine : IDisposable
                         // Started, not awaited inline. This call waits on the fill exactly like every other
                         // caller, so its own token can end its wait - a disconnect, or the gateway timeout -
                         // without ending the query the others are still waiting for.
-                        _ = RunFillAsync(cacheKey, candidate, connector, request, endpoint, maxRows);
+                        _ = RunFillAsync(cacheKey, inFlight, connector, request, endpoint, maxRows);
                     }
 
                     var shared = await inFlight.Task.WaitAsync(cancellationToken);
@@ -270,15 +270,17 @@ public sealed class WeirEngine : IDisposable
                     return metadata;
                 }
 
-                // The fill was given up on between being found and being joined - everyone waiting on it had
-                // gone, so its query was dropped. Fall through and run this call's own.
+                // Either the endpoint does not coalesce, or the fill this call found was given up on between
+                // being found and being joined - everyone waiting on it had gone, so its query was dropped.
+                // Fall through and run this call's own.
             }
 
             if (cacheKey is not null)
             {
-                // A cache-eligible call that could not join a fill, because the one it found was given up on
-                // as it arrived. Run it for this caller alone, on this caller's own token - there is nobody
-                // else waiting on it - and still store what it produces.
+                // A cache-eligible call running on its own: the endpoint opted out of coalescing, or the
+                // fill it found was given up on as it arrived. Either way nobody else is waiting on this
+                // one, so this caller's own token is the right lifetime - and it still stores what it
+                // produces, so the next caller can hit the cache.
                 var built = await BuildAsync(connector, request, endpoint, maxRows, cancellationToken);
                 context.DbDurationMs = built.DbDurationMs;
 

@@ -640,6 +640,12 @@
   <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
     <value>Различать по API-ключу</value>
   </data>
+  <data name="Endpoints_CacheCoalesceLabel" xml:space="preserve">
+    <value>Объединять одновременные вызовы</value>
+  </data>
+  <data name="Endpoints_CacheCoalesceHelp" xml:space="preserve">
+    <value>Вызовы, пришедшие пока ответ для того же ключа кэша уже готовится, ждут его, а не запускают процедуру каждый сам. Не дает всплеску на холодном или только что истекшем ключе превратиться в отдельный запрос к БД на каждый вызов. Выключите, чтобы каждый вызов выполнял процедуру для себя.</value>
+  </data>
   <data name="Endpoints_CacheVaryByParams" xml:space="preserve">
     <value>Различать кэш по параметрам</value>
   </data>

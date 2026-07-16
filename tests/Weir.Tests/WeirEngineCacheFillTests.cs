@@ -191,7 +191,7 @@ public class WeirEngineCacheFillTests
         public Task UpdateAsync(WeirSystemSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private static WeirInvocation NewInvocation() => new()
+    private static WeirInvocation NewInvocation(bool coalesce = true) => new()
     {
         Endpoint = new EndpointDefinition
         {
@@ -199,7 +199,7 @@ public class WeirEngineCacheFillTests
             HttpMethod = "GET",
             ConnectionName = "default",
             ObjectName = "usp_list",
-            Cache = new CachePolicy { Enabled = true, TtlSeconds = 60 },
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = 60, CoalesceRequests = coalesce },
         },
         ApiKeyPrefix = "abc",
     };
@@ -246,6 +246,44 @@ public class WeirEngineCacheFillTests
         // Exactly one caller executed; the others were served the bytes it produced.
         Assert.Equal(callers - 1, results.Count(r => r.CacheHit));
         Assert.All(results, r => Assert.Equal(results[0].ETag, r.ETag));
+    }
+
+    [Fact]
+    public async Task Coalescing_Can_Be_Turned_Off_Per_Endpoint()
+    {
+        // The same burst as Concurrent_Callers_For_One_Cache_Key_Execute_The_Object_Once, differing only in
+        // the endpoint's CoalesceRequests flag - so the two together pin what the flag actually decides.
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        using var cache = new MemoryResponseCache(new FixedSettings());
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+
+        var invocation = NewInvocation(coalesce: false);
+        const int callers = 20;
+        var outputs = new MemoryStream[callers];
+        var calls = new Task<WeirResponseMetadata>[callers];
+        for (var i = 0; i < callers; i++)
+        {
+            outputs[i] = new MemoryStream();
+            calls[i] = engine.ExecuteAsync(invocation, outputs[i]);
+        }
+
+        // Nobody waits on anybody: with the query held open, every caller is inside its own execution
+        // rather than queued behind the first one. This is the stampede - opted into deliberately.
+        await WaitUntil(() => connector.Executions == callers);
+
+        gate.SetResult();
+        var results = await Task.WhenAll(calls).WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(callers, connector.Executions);
+        Assert.All(results, r => Assert.NotNull(r.ETag));
+        Assert.All(results, r => Assert.False(r.CacheHit));
+        foreach (var output in outputs)
+        {
+            Assert.NotEqual(0, output.Length);
+            output.Dispose();
+        }
     }
 
     [Fact]
