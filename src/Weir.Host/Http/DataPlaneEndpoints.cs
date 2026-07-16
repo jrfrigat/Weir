@@ -29,23 +29,44 @@ public static class DataPlaneEndpoints
         return endpoints;
     }
 
-    /// <summary>Handles one data-plane request end to end.</summary>
+    /// <summary>
+    /// Handles one data-plane request end to end. The collaborators are handler parameters rather than
+    /// per-request <c>GetRequiredService</c> lookups: they are all singletons, and letting the endpoint's
+    /// compiled request delegate resolve them once at build time takes the whole category of lookups off
+    /// the request path.
+    /// </summary>
     /// <param name="context">The HTTP context.</param>
     /// <param name="route">The captured route beneath <c>/api/</c>.</param>
+    /// <param name="auditor">Data-plane auditor.</param>
+    /// <param name="catalog">Endpoint catalog used to resolve the route.</param>
+    /// <param name="authenticator">API-key authenticator.</param>
+    /// <param name="engine">The data-plane engine.</param>
+    /// <param name="settings">Runtime settings (the gateway timeout).</param>
+    /// <param name="rateLimiter">Per-key rate limiter.</param>
+    /// <param name="loggerFactory">Factory for the security / error loggers.</param>
     /// <returns>A task that completes when the response is written.</returns>
-    private static async Task HandleAsync(HttpContext context, string route)
+    private static async Task HandleAsync(
+        HttpContext context,
+        string route,
+        IDataPlaneAuditor auditor,
+        IEndpointCatalog catalog,
+        IApiKeyAuthenticator authenticator,
+        WeirEngine engine,
+        IRuntimeSettings settings,
+        IApiKeyRateLimiter rateLimiter,
+        ILoggerFactory loggerFactory)
     {
-        var services = context.RequestServices;
-        var auditor = services.GetRequiredService<IDataPlaneAuditor>();
-        var stopwatch = auditor.Enabled ? Stopwatch.StartNew() : null;
+        // A timestamp rather than a Stopwatch instance: the class would be an allocation per audited
+        // request for a value two longs can carry.
+        var startTimestamp = auditor.Enabled ? Stopwatch.GetTimestamp() : 0;
         string? actor = null;
         try
         {
-            actor = await HandleCoreAsync(context, route, services);
+            actor = await HandleCoreAsync(context, route, catalog, authenticator, engine, settings, rateLimiter, loggerFactory);
         }
         finally
         {
-            if (stopwatch is not null)
+            if (auditor.Enabled)
             {
                 var status = context.Response.StatusCode;
                 auditor.Enqueue(new AuditEntry
@@ -55,7 +76,7 @@ public static class DataPlaneEndpoints
                     Route = route,
                     StatusCode = status,
                     Outcome = status >= 400 ? OutcomeCodes.Error : OutcomeCodes.Ok,
-                    DurationMs = stopwatch.Elapsed.TotalMilliseconds,
+                    DurationMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
                 });
             }
         }
@@ -64,14 +85,24 @@ public static class DataPlaneEndpoints
     /// <summary>Runs the request and returns the calling API key prefix (the audit actor), or null.</summary>
     /// <param name="context">The HTTP context.</param>
     /// <param name="route">The captured route beneath <c>/api/</c>.</param>
-    /// <param name="services">The request services.</param>
+    /// <param name="catalog">Endpoint catalog used to resolve the route.</param>
+    /// <param name="authenticator">API-key authenticator.</param>
+    /// <param name="engine">The data-plane engine.</param>
+    /// <param name="settings">Runtime settings (the gateway timeout).</param>
+    /// <param name="rateLimiter">Per-key rate limiter.</param>
+    /// <param name="loggerFactory">Factory for the security / error loggers.</param>
     /// <returns>The authenticated key prefix, or null when the request was not authenticated.</returns>
-    private static async Task<string?> HandleCoreAsync(HttpContext context, string route, IServiceProvider services)
+    private static async Task<string?> HandleCoreAsync(
+        HttpContext context,
+        string route,
+        IEndpointCatalog catalog,
+        IApiKeyAuthenticator authenticator,
+        WeirEngine engine,
+        IRuntimeSettings settings,
+        IApiKeyRateLimiter rateLimiter,
+        ILoggerFactory loggerFactory)
     {
-        var catalog = services.GetRequiredService<IEndpointCatalog>();
-        var authenticator = services.GetRequiredService<IApiKeyAuthenticator>();
-        var engine = services.GetRequiredService<WeirEngine>();
-        var timeoutSeconds = services.GetRequiredService<IRuntimeSettings>().Current.RequestTimeoutSeconds;
+        var timeoutSeconds = settings.Current.RequestTimeoutSeconds;
 
         // Apply an overall gateway timeout when configured, linked to the client's abort token.
         using var timeoutCts = timeoutSeconds > 0
@@ -80,12 +111,14 @@ public static class DataPlaneEndpoints
         timeoutCts?.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         var cancellationToken = timeoutCts?.Token ?? context.RequestAborted;
 
-        if (!catalog.TryResolve(context.Request.Method, route, out var endpoint))
+        if (!catalog.TryResolve(context.Request.Method, route, out var match))
         {
             await ProblemResults.WriteAsync(context, StatusCodes.Status404NotFound, "Endpoint not found",
                 $"No endpoint is mapped to {context.Request.Method} /api/{route}.");
             return null;
         }
+
+        var endpoint = match.Endpoint;
 
         var key = await authenticator.AuthenticateAsync(context, cancellationToken);
         if (key is null)
@@ -98,16 +131,16 @@ public static class DataPlaneEndpoints
 
         if (!HasRequiredScopes(endpoint, key) || !IsGrantedResource(endpoint, key))
         {
-            var securityLog = services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane");
+            var securityLog = loggerFactory.CreateLogger("Weir.DataPlane");
             Log.DataPlaneForbidden(securityLog, key.Prefix, route);
             await ProblemResults.WriteAsync(context, StatusCodes.Status403Forbidden, "Forbidden",
                 "The API key is not authorized for this endpoint.");
             return key.Prefix;
         }
 
-        if (!await services.GetRequiredService<IApiKeyRateLimiter>().TryAcquireAsync(key, cancellationToken))
+        if (!await rateLimiter.TryAcquireAsync(key, cancellationToken))
         {
-            var rateLog = services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane");
+            var rateLog = loggerFactory.CreateLogger("Weir.DataPlane");
             Log.RateLimited(rateLog, key.Prefix);
             context.Response.Headers.RetryAfter = "60";
             await ProblemResults.WriteAsync(context, StatusCodes.Status429TooManyRequests, "Too many requests",
@@ -129,12 +162,9 @@ public static class DataPlaneEndpoints
                 Body = body?.RootElement ?? default,
                 HasBody = body is not null,
                 Query = new QueryValueSource(context.Request.Query),
+                Route = match.RouteValues,
                 Header = new HeaderValueSource(context.Request.Headers),
-                Claim = new DictionaryValueSource(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sub"] = key.Prefix,
-                    ["key"] = key.Name,
-                }),
+                Claim = new ApiKeyClaimSource(key),
                 ApiKeyPrefix = key.Prefix,
             };
 
@@ -161,14 +191,14 @@ public static class DataPlaneEndpoints
         catch (WeirConfigurationException ex) when (!context.Response.HasStarted)
         {
             // Configuration detail (provider / connection names) is internal; log it, return a generic message.
-            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
+            Log.DataPlaneError(loggerFactory.CreateLogger("Weir.DataPlane"), ex, route);
             await ProblemResults.WriteAsync(context, StatusCodes.Status500InternalServerError, "Configuration error",
                 "The endpoint is misconfigured.");
         }
         catch (WeirConnectionUnavailableException ex) when (!context.Response.HasStarted)
         {
             // The connection's circuit breaker is open or its bulkhead is full; ask the caller to retry.
-            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
+            Log.DataPlaneError(loggerFactory.CreateLogger("Weir.DataPlane"), ex, route);
             context.Response.Headers.RetryAfter = "5";
             await ProblemResults.WriteAsync(context, StatusCodes.Status503ServiceUnavailable, "Service unavailable",
                 "The data connection is temporarily unavailable. Please retry.");
@@ -176,13 +206,13 @@ public static class DataPlaneEndpoints
         catch (DbException ex) when (!context.Response.HasStarted)
         {
             // Driver messages can disclose schema/server internals; log them, return a generic message.
-            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
+            Log.DataPlaneError(loggerFactory.CreateLogger("Weir.DataPlane"), ex, route);
             await ProblemResults.WriteAsync(context, StatusCodes.Status400BadRequest, "Database error",
                 "The database could not process the request.");
         }
         catch (Exception ex) when (!context.Response.HasStarted)
         {
-            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
+            Log.DataPlaneError(loggerFactory.CreateLogger("Weir.DataPlane"), ex, route);
             await ProblemResults.WriteAsync(context, StatusCodes.Status500InternalServerError, "Internal error",
                 "An unexpected error occurred.");
         }
@@ -190,7 +220,7 @@ public static class DataPlaneEndpoints
         {
             // The response has already begun streaming, so a clean problem+json is impossible. Abort the
             // connection so the client observes a broken response instead of a silently truncated 200.
-            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
+            Log.DataPlaneError(loggerFactory.CreateLogger("Weir.DataPlane"), ex, route);
             context.Abort();
         }
         finally

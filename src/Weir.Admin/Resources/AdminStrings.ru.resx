@@ -1103,6 +1103,15 @@
   <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
     <value>Ноль означает без ограничений. Ответ сверх лимита строк усекается и не кэшируется.</value>
   </data>
+  <data name="Settings_SectionResponseCache" xml:space="preserve">
+    <value>// КЭШ ОТВЕТОВ</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxBytesLabel" xml:space="preserve">
+    <value>Лимит кэша (байты)</value>
+  </data>
+  <data name="Settings_ResponseCacheHelp" xml:space="preserve">
+    <value>Сколько памяти могут занимать кэшированные ответы. При заполнении вытесняются самые давно использованные записи; ответ больше лимита не кэшируется никогда. Ноль означает без ограничений: тогда эндпоинт с множеством комбинаций параметров может растить кэш, пока в процессе не кончится память. Изменение значения очищает кэш.</value>
+  </data>
   <data name="Settings_SectionRateLimiting" xml:space="preserve">
     <value>// ОГРАНИЧЕНИЕ ЧАСТОТЫ</value>
   </data>

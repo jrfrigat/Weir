@@ -3399,7 +3399,25 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_RequestTimeoutLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Total memory cached responses may occupy. Once full, the least recently used entries are evicted to make room; a response larger than the cap is never cached. Zero means unlimited, which lets an endpoint with many parameter combinations grow the cache until the process runs out of memory. Changing this clears the cache..
+        /// </summary>
+        public static string Settings_ResponseCacheHelp {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Cache size cap (bytes).
+        /// </summary>
+        public static string Settings_ResponseCacheMaxBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheMaxBytesLabel", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на all.
         /// </summary>
@@ -3507,7 +3525,16 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_SectionRequestLog", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на // RESPONSE CACHE.
+        /// </summary>
+        public static string Settings_SectionResponseCache {
+            get {
+                return ResourceManager.GetString("Settings_SectionResponseCache", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на The settings service did not respond..
         /// </summary>

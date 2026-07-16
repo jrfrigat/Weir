@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Weir.Contracts;
 using Weir.Core;
@@ -89,6 +91,126 @@ public class ParameterBinderTests
     {
         var endpoint = Endpoint(new EndpointParameter { Name = "code", DbType = WeirDbType.String, ValidationRegex = "^[A-Z]{3}$" });
         Assert.Throws<WeirValidationException>(() => new ParameterBinder().Bind(Invocation(endpoint, "{\"code\":\"abc\"}")));
+    }
+
+    [Fact]
+    public void ValidationRegex_Accepts_GoodValue()
+    {
+        var endpoint = Endpoint(new EndpointParameter { Name = "code", DbType = WeirDbType.String, ValidationRegex = "^[A-Z]{3}$" });
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"code\":\"ABC\"}"));
+        Assert.Equal("ABC", result.Parameters[0].Value);
+    }
+
+    [Fact]
+    public void ValidationRegex_Applies_ToNonStringParameter()
+    {
+        // The regex is matched against the canonical invariant form of the coerced value, so it still
+        // guards parameters that bound to a non-string CLR type instead of being silently skipped.
+        var endpoint = Endpoint(new EndpointParameter { Name = "year", DbType = WeirDbType.Int32, ValidationRegex = "^[0-9]{4}$" });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"year\":2026}"));
+        Assert.Equal(2026, result.Parameters[0].Value);
+
+        Assert.Throws<WeirValidationException>(() => new ParameterBinder().Bind(Invocation(endpoint, "{\"year\":42}")));
+    }
+
+    [Theory]
+    [InlineData(WeirDbType.Guid, "^[0-9a-f-]{36}$", "\"e6f1d0c2-1111-4222-8333-444455556666\"")]
+    [InlineData(WeirDbType.Int64, "^-?[0-9]+$", "-9007199254740993")]
+    [InlineData(WeirDbType.Boolean, "^True$", "true")]
+    [InlineData(WeirDbType.Decimal, "^12\\.50$", "12.50")]
+    public void ValidationRegex_MatchesCanonicalInvariantForm_OfCoercedTypes(WeirDbType dbType, string pattern, string bodyValue)
+    {
+        // Each of these coerces to an ISpanFormattable CLR type, which the binder renders without
+        // allocating. The rendered text must stay exactly what Convert.ToString(value, InvariantCulture)
+        // produced, or an operator's existing pattern would quietly stop matching.
+        var endpoint = Endpoint(new EndpointParameter { Name = "v", DbType = dbType, ValidationRegex = pattern });
+        var result = new ParameterBinder().Bind(Invocation(endpoint, $"{{\"v\":{bodyValue}}}"));
+        Assert.Single(result.Parameters);
+    }
+
+    [Fact]
+    public void ValidationRegex_HandlesManyDistinctPatterns_OnOneBinder()
+    {
+        // The cliff scenario. Regex.Cache holds 15 entries by default, so more distinct patterns than
+        // that used to thrash it and re-parse per request; the binder now owns the cache. Well past that
+        // bound, every parameter must still be matched against its OWN pattern - no mix-ups, no leakage
+        // between parameters that share a binder.
+        const int patternCount = 60;
+        var parameters = new EndpointParameter[patternCount];
+        for (var i = 0; i < patternCount; i++)
+        {
+            // A distinct pattern per parameter, each accepting only its own index.
+            parameters[i] = new EndpointParameter
+            {
+                Name = $"p{i}",
+                DbType = WeirDbType.String,
+                ValidationRegex = $"^value-{i}$",
+            };
+        }
+
+        var endpoint = Endpoint(parameters);
+        var binder = new ParameterBinder();
+
+        var body = new StringBuilder("{");
+        for (var i = 0; i < patternCount; i++)
+        {
+            body.Append(i == 0 ? "" : ",").Append(CultureInfo.InvariantCulture, $"\"p{i}\":\"value-{i}\"");
+        }
+
+        body.Append('}');
+
+        // Every parameter matches its own pattern.
+        var result = binder.Bind(Invocation(endpoint, body.ToString()));
+        Assert.Equal(patternCount, result.Parameters.Count);
+
+        // Each pattern still rejects a value that belongs to a different parameter, proving the cache
+        // returns the right regex per pattern rather than whichever was constructed last.
+        for (var i = 0; i < patternCount; i++)
+        {
+            var wrong = new StringBuilder("{");
+            for (var j = 0; j < patternCount; j++)
+            {
+                var value = j == i ? $"value-{(i + 1) % patternCount}" : $"value-{j}";
+                wrong.Append(j == 0 ? "" : ",").Append(CultureInfo.InvariantCulture, $"\"p{j}\":\"{value}\"");
+            }
+
+            wrong.Append('}');
+
+            var ex = Assert.Throws<WeirValidationException>(() => binder.Bind(Invocation(endpoint, wrong.ToString())));
+            var failed = Assert.Single(ex.Errors);
+            Assert.Equal($"p{i}", failed.Key);
+        }
+    }
+
+    [Fact]
+    public void ValidationRegex_ReportsEveryFailure_InTheErrorMap()
+    {
+        // The error map is built lazily now, so a bind with several failures must still carry one entry
+        // per offending parameter, keyed by name.
+        var endpoint = Endpoint(
+            new EndpointParameter { Name = "a", DbType = WeirDbType.String, ValidationRegex = "^[A-Z]$" },
+            new EndpointParameter { Name = "b", DbType = WeirDbType.String, ValidationRegex = "^[0-9]$" },
+            new EndpointParameter { Name = "ok", DbType = WeirDbType.String, ValidationRegex = "^[a-z]$" });
+
+        var ex = Assert.Throws<WeirValidationException>(() =>
+            new ParameterBinder().Bind(Invocation(endpoint, "{\"a\":\"1\",\"b\":\"x\",\"ok\":\"z\"}")));
+
+        Assert.Equal("One or more parameters are invalid.", ex.Message);
+        Assert.Equal(2, ex.Errors.Count);
+        Assert.Contains("a", ex.Errors.Keys);
+        Assert.Contains("b", ex.Errors.Keys);
+        Assert.DoesNotContain("ok", ex.Errors.Keys);
+    }
+
+    [Fact]
+    public void Bind_Succeeds_WhenNoParameterFails()
+    {
+        // Guards the lazy error map from the other side: a clean bind must not manufacture an exception.
+        var endpoint = Endpoint(new EndpointParameter { Name = "code", DbType = WeirDbType.String, ValidationRegex = "^[A-Z]{3}$" });
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"code\":\"XYZ\"}"));
+        Assert.Single(result.Parameters);
+        Assert.Equal("XYZ", result.Values["code"]);
     }
 
     /// <summary>A TVP parameter definition used by the token tests.</summary>

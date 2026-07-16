@@ -1103,6 +1103,15 @@
   <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
     <value>Zero means unlimited. A response beyond the row cap is truncated and not cached.</value>
   </data>
+  <data name="Settings_SectionResponseCache" xml:space="preserve">
+    <value>// RESPONSE CACHE</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxBytesLabel" xml:space="preserve">
+    <value>Cache size cap (bytes)</value>
+  </data>
+  <data name="Settings_ResponseCacheHelp" xml:space="preserve">
+    <value>Total memory cached responses may occupy. Once full, the least recently used entries are evicted to make room; a response larger than the cap is never cached. Zero means unlimited, which lets an endpoint with many parameter combinations grow the cache until the process runs out of memory. Changing this clears the cache.</value>
+  </data>
   <data name="Settings_SectionRateLimiting" xml:space="preserve">
     <value>// RATE LIMITING</value>
   </data>

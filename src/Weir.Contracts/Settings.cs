@@ -75,6 +75,25 @@ public sealed record WeirSystemSettings
     /// service. Zero or less keeps history forever (not recommended - the log can grow quickly).
     /// </summary>
     public int RequestLogRetentionDays { get; init; } = 7;
+
+    /// <summary>
+    /// Total size, in bytes, that cached response payloads may occupy in memory. Once the cache is
+    /// full, the least recently used entries are evicted to make room for a new one. Zero or less
+    /// means unlimited: entries then leave only when their TTL expires, so an endpoint with a
+    /// high-cardinality <c>VaryByParameters</c> can grow the cache until the process runs out of
+    /// memory. Treat unlimited as a deliberate opt-out, not a default.
+    /// <para>
+    /// Defaults to 128 MiB: large enough to hold a useful working set (roughly 13,000 responses of
+    /// 10 KB), a modest fraction of a typical container's memory, and comfortably larger than any
+    /// single response the default <see cref="MaxRows"/> cap can produce. A payload larger than this
+    /// limit is never cached, so one oversized response cannot flush the whole cache.
+    /// </para>
+    /// <para>
+    /// Changing this rebuilds the response cache, which discards the entries currently held; the next
+    /// calls to the affected endpoints repopulate it.
+    /// </para>
+    /// </summary>
+    public long ResponseCacheMaxBytes { get; init; } = 134_217_728;
 }
 
 /// <summary>

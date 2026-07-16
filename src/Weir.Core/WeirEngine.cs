@@ -162,7 +162,7 @@ public sealed class WeirEngine : IDisposable
             EndpointId = endpoint.Id,
             HttpMethod = endpoint.HttpMethod,
             ConnectionName = endpoint.ConnectionName,
-            ObjectName = $"{endpoint.Schema}.{endpoint.ObjectName}",
+            ObjectName = endpoint.QualifiedName,
             ApiKeyPrefix = invocation.ApiKeyPrefix,
             StartTimestamp = Stopwatch.GetTimestamp(),
             LogRequests = endpoint.Logging.Enabled,

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +27,21 @@ public sealed class ParameterBinder : IParameterBinder
     /// <summary>Upper bound on validation-regex evaluation, guarding against catastrophic backtracking.</summary>
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(200);
 
+    /// <summary>
+    /// Constructed validation regexes, keyed by pattern. The static <c>Regex.IsMatch</c> overloads go
+    /// through <c>Regex.Cache</c>, which holds only <c>Regex.CacheSize</c> (15 by default) entries: at 16
+    /// or more distinct patterns across all endpoints the cache thrashes and every request re-parses and
+    /// re-constructs its regex on the hot path. Owning the cache here removes that cliff entirely, so the
+    /// count of configured patterns stops being a silent performance boundary.
+    /// <para>
+    /// Static rather than per-instance so the cache cannot be defeated by the binder's DI lifetime (it is
+    /// a singleton today, but a transient registration would otherwise reintroduce the cliff). Growth is
+    /// bounded by the number of distinct patterns in operator-authored endpoint config - never by client
+    /// input - so there is nothing for a caller to inflate.
+    /// </para>
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.Ordinal);
+
     /// <summary>Runtime settings; the table-valued-parameter row cap is read from here on each bind.</summary>
     private readonly IRuntimeSettings? _settings;
 
@@ -50,7 +66,11 @@ public sealed class ParameterBinder : IParameterBinder
         var endpoint = invocation.Endpoint;
         var parameters = new List<WeirParameter>(endpoint.Parameters.Count);
         var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+        // Left null until a parameter actually fails: nearly every bind succeeds, and an eagerly created
+        // dictionary would allocate itself plus its buckets and entries on every request only to be thrown
+        // away empty.
+        Dictionary<string, string[]>? errors = null;
 
         foreach (var definition in endpoint.Parameters)
         {
@@ -65,15 +85,17 @@ public sealed class ParameterBinder : IParameterBinder
             }
             catch (WeirValidationException ex)
             {
+                errors ??= new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
                 errors[definition.Name] = [ex.Message];
             }
             catch (Exception ex) when (ex is FormatException or OverflowException or JsonException or InvalidOperationException or ArgumentException)
             {
+                errors ??= new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
                 errors[definition.Name] = [$"Invalid value for '{definition.Name}'."];
             }
         }
 
-        if (errors.Count > 0)
+        if (errors is { Count: > 0 })
         {
             throw new WeirValidationException("One or more parameters are invalid.", errors);
         }
@@ -144,16 +166,9 @@ public sealed class ParameterBinder : IParameterBinder
             value = definition.DefaultValue;
         }
 
-        // Apply a configured validation regex to the canonical string form of the value, so it also
-        // guards parameters that coerced to a non-string CLR type (int, Guid, ...) rather than being
-        // silently skipped for anything but strings.
-        if (definition.ValidationRegex is { } pattern && value is not null)
+        if (definition.ValidationRegex is { } pattern && value is not null && !MatchesValidationRegex(pattern, value))
         {
-            var text = value as string ?? Convert.ToString(value, CultureInfo.InvariantCulture);
-            if (text is not null && !Regex.IsMatch(text, pattern, RegexOptions.None, RegexTimeout))
-            {
-                throw new WeirValidationException($"Parameter '{definition.Name}' does not match the required format.");
-            }
+            throw new WeirValidationException($"Parameter '{definition.Name}' does not match the required format.");
         }
 
         values[definition.Name] = value;
@@ -170,6 +185,67 @@ public sealed class ParameterBinder : IParameterBinder
             Value = value,
         };
     }
+
+    /// <summary>
+    /// Matches a value against an endpoint's validation regex. Non-string values are matched on their
+    /// canonical invariant string form, so the regex also guards parameters that coerced to a non-string
+    /// CLR type (int, Guid, ...) rather than being silently skipped for anything but strings.
+    /// </summary>
+    /// <param name="pattern">The configured validation pattern.</param>
+    /// <param name="value">The bound value, never null.</param>
+    /// <returns>True when the value satisfies the pattern (or has no string form to test).</returns>
+    private static bool MatchesValidationRegex(string pattern, object value)
+    {
+        var regex = RegexFor(pattern);
+
+        if (value is string text)
+        {
+            return regex.IsMatch(text);
+        }
+
+        // Every non-string type ValueCoercion yields except Binary (the numerics, Boolean, Guid and the
+        // date/time types) is ISpanFormattable, so the canonical form renders into a stack buffer instead
+        // of allocating a string per request. The default format plus the invariant culture reproduce
+        // exactly what Convert.ToString(value, InvariantCulture) returns; anything else - Binary, or a
+        // value somehow too long for the buffer - falls back to it.
+        if (value is ISpanFormattable formattable)
+        {
+            Span<char> buffer = stackalloc char[128];
+            if (formattable.TryFormat(buffer, out var written, default, CultureInfo.InvariantCulture))
+            {
+                return regex.IsMatch(buffer[..written]);
+            }
+        }
+
+        var formatted = Convert.ToString(value, CultureInfo.InvariantCulture);
+        return formatted is null || regex.IsMatch(formatted);
+    }
+
+    /// <summary>
+    /// Returns the constructed regex for a validation pattern, building it once per distinct pattern.
+    /// </summary>
+    /// <remarks>
+    /// The match timeout is baked into the instance, so it keeps guarding every evaluation against
+    /// catastrophic backtracking exactly as the static overload's timeout argument did.
+    /// <para>
+    /// Deliberately not <see cref="RegexOptions.Compiled"/>. Compilation emits IL per pattern, which is
+    /// orders of magnitude dearer than constructing the interpreted engine and would land on whichever
+    /// request first uses the pattern - trading the old every-request cliff for a first-request one - and
+    /// its output is never reclaimed. Validation patterns are small and run against short scalars, so the
+    /// interpreted engine already costs a rounding error next to the database round-trip that follows.
+    /// </para>
+    /// <para>
+    /// Keying on the pattern alone (rather than on the pattern plus culture, as <c>Regex.Cache</c> does)
+    /// is safe because the options are fixed: culture is captured at construction and only affects
+    /// case-insensitive matching, and the host never varies culture per request.
+    /// </para>
+    /// </remarks>
+    /// <param name="pattern">The configured validation pattern.</param>
+    /// <returns>The cached regex for the pattern.</returns>
+    private static Regex RegexFor(string pattern) =>
+        // An invalid pattern throws ArgumentException out of the factory and is not cached, so a
+        // misconfigured endpoint keeps failing per request exactly as it did before.
+        RegexCache.GetOrAdd(pattern, static p => new Regex(p, RegexOptions.None, RegexTimeout));
 
     /// <summary>Reads a parameter's raw value from its configured source and coerces it to the target type.</summary>
     /// <param name="invocation">The current invocation.</param>

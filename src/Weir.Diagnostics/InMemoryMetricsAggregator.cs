@@ -80,24 +80,27 @@ public sealed class InMemoryMetricsAggregator : IMetricsAggregator, IWeirCallObs
         var now = _clock.GetUtcNow();
         var second = now.ToUnixTimeSeconds();
 
-        // Enforce the cardinality cap: once we reach MaxTrackedRoutes distinct routes, stop adding
-        // new entries so unbounded route parameters cannot grow memory without limit.
-        if (!_endpoints.ContainsKey(context.Route) && _endpoints.Count >= MaxTrackedRoutes)
+        // Look the route up once. In the steady state every route is already known, so the hot path
+        // hashes the route string a single time; only a miss pays for the cardinality check and insert.
+        if (!_endpoints.TryGetValue(context.Route, out var stats))
         {
-            _global.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
-                context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
-            Interlocked.Increment(ref _totalRequests);
-            if (isError)
+            // Enforce the cardinality cap: once we reach MaxTrackedRoutes distinct routes, stop adding
+            // new entries so unbounded route parameters cannot grow memory without limit. Calls to an
+            // untracked route still count towards the service-wide totals, they just get no per-route
+            // breakdown. A route that is already tracked keeps recording even once the cap is reached.
+            if (_endpoints.Count < MaxTrackedRoutes)
             {
-                Interlocked.Increment(ref _totalErrors);
+                stats = _endpoints.GetOrAdd(context.Route, static _ => new EndpointStats());
             }
-            return;
         }
 
-        var stats = _endpoints.GetOrAdd(context.Route, static _ => new EndpointStats());
-        stats.ObjectName = context.ObjectName;
-        stats.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
-            context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
+        if (stats is not null)
+        {
+            stats.ObjectName = context.ObjectName;
+            stats.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
+                context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
+        }
+
         _global.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
             context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
 

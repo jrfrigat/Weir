@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Weir.Abstractions;
 using Weir.Core;
 
 namespace Weir.Host.Http;
@@ -60,4 +61,37 @@ public sealed class DictionaryValueSource : IValueSource
 
     /// <inheritdoc />
     public bool TryGet(string key, out string? value) => _values.TryGetValue(key, out value);
+}
+
+/// <summary>
+/// The claims an API key contributes to a data-plane call. Reads the two values straight off the key
+/// record: an endpoint only consults this if it declares a claim-sourced parameter, which is rare, so
+/// building a dictionary for every request to answer at most two fixed keys is not worth it.
+/// </summary>
+public sealed class ApiKeyClaimSource : IValueSource
+{
+    private readonly ApiKeyRecord _key;
+
+    /// <summary>Creates the source over the authenticated key.</summary>
+    /// <param name="key">The API key record backing the claims.</param>
+    public ApiKeyClaimSource(ApiKeyRecord key) => _key = key;
+
+    /// <inheritdoc />
+    public bool TryGet(string key, out string? value)
+    {
+        if (string.Equals(key, "sub", StringComparison.OrdinalIgnoreCase))
+        {
+            value = _key.Prefix;
+            return true;
+        }
+
+        if (string.Equals(key, "key", StringComparison.OrdinalIgnoreCase))
+        {
+            value = _key.Name;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
 }

@@ -55,6 +55,7 @@ public sealed class RuntimeSettings : IRuntimeSettings
             MaxConcurrentRequestsPerConnection = seed.MaxConcurrentRequestsPerConnection,
             CircuitBreakerFailureThreshold = seed.CircuitBreakerFailureThreshold,
             CircuitBreakerResetSeconds = seed.CircuitBreakerResetSeconds,
+            ResponseCacheMaxBytes = seed.ResponseCacheMaxBytes,
         };
     }
 

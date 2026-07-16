@@ -15,8 +15,11 @@
       NuGet audit findings (NU1901-NU1904) stay visible as warnings but do not break the build:
       they depend on an external advisory DB and can flip a green build red with no code change.
       Track them with the "dotnet list package" vulnerable report and remediate by pinning fixes.
+      NU1900 is the same class of problem one step earlier: it means the advisory source itself could
+      not be reached, so without it here any restore behind an offline or proxied network fails the
+      build outright - the audit not running is not a defect in the code being built.
     -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

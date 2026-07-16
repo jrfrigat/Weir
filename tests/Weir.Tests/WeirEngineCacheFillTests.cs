@@ -158,9 +158,9 @@ public class WeirEngineCacheFillTests
     {
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var connector = new GatedConnector(gate);
-        using var memory = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new MemoryResponseCache(new FixedSettings());
         using var engine = new WeirEngine(
-            new ParameterBinder(), new SingleRegistry(), [connector], new MemoryResponseCache(memory), [], new FixedSettings());
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
 
         const int callers = 20;
         var outputs = new MemoryStream[callers];

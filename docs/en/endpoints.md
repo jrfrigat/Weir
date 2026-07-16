@@ -9,7 +9,7 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 
 | Field | Meaning |
 | :-- | :-- |
-| Route | Path under `/api`, e.g. `orders/create`. Unique per HTTP method. |
+| Route | Path under `/api`, e.g. `orders/create`. May contain captures, e.g. `orders/{id}` - see below. Unique per HTTP method. |
 | HttpMethod | GET / POST / PUT / PATCH / DELETE. |
 | ConnectionName | The named data connection to run against. |
 | ObjectType | StoredProcedure, TableValuedFunction, or ScalarFunction. |
@@ -20,6 +20,22 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 | Cache | Result-cache policy (see below). |
 | Parameters | Parameter definitions (see below). |
 | RequiredScopes | Scopes an API key must hold. Empty means any authenticated key. |
+
+## Route templates
+
+A route may capture a whole segment: `orders/{id}` matches `GET /api/orders/123` and makes `123`
+available to any parameter declared with `Source = Route` and `Name = id` (the name is matched
+ignoring case). A capture takes exactly one segment, so `orders/{id}` does not match
+`orders/123/lines`, and it never matches an empty segment.
+
+A capture is the whole segment or nothing: `{id}` is a capture, while `v{id}` is a literal segment
+that happens to contain braces.
+
+Resolution is deterministic. A literal route always wins over a template that would also match, so
+`orders/count` and `orders/{id}` can coexist. Between two templates, the one with more literal
+segments wins: `orders/{id}/lines` is tried before `orders/{id}/{part}`. Two routes that no request
+could tell apart - `orders/{id}` and `orders/{orderId}` - are a collision: the later definition is
+served and the gateway logs a warning at startup.
 
 ## Parameters
 

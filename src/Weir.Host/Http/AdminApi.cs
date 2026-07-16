@@ -111,7 +111,7 @@ public static class AdminApi
             if (update.MaxRows < 0 || update.RequestTimeoutSeconds < 0 || update.MaxTvpRows < 0 ||
                 update.DefaultApiKeyRateLimitPerMinute < 0 || update.AuditRetentionDays < 0 ||
                 update.MaxConcurrentRequestsPerConnection < 0 || update.CircuitBreakerFailureThreshold < 0 ||
-                update.CircuitBreakerResetSeconds < 0)
+                update.CircuitBreakerResetSeconds < 0 || update.ResponseCacheMaxBytes < 0)
             {
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid settings",
                     detail: "Settings values must not be negative.");

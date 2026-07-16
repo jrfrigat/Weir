@@ -33,6 +33,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IEndpointCatalog, EndpointCatalog>();
         services.TryAddSingleton<IParameterBinder, ParameterBinder>();
 
+        // The shared memory cache is registered for other consumers (e.g. the host's API-key
+        // authenticator); the response cache deliberately owns a private, size-bounded instance.
         services.AddMemoryCache();
         services.TryAddSingleton<IResponseCache, MemoryResponseCache>();
 

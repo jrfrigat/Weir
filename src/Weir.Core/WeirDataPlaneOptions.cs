@@ -58,4 +58,12 @@ public sealed class WeirDataPlaneOptions
     /// <see cref="Weir.Contracts.WeirSystemSettings.CircuitBreakerResetSeconds"/>.
     /// </summary>
     public int CircuitBreakerResetSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Total bytes cached response payloads may occupy; the least recently used entries are evicted
+    /// once the cache is full. Zero or less means unlimited (an unbounded cache). Defaults to a safe
+    /// non-zero cap so a high-cardinality <c>VaryByParameters</c> cannot exhaust memory.
+    /// Runtime-tunable; seeds <see cref="Weir.Contracts.WeirSystemSettings.ResponseCacheMaxBytes"/>.
+    /// </summary>
+    public long ResponseCacheMaxBytes { get; set; } = 134_217_728;
 }

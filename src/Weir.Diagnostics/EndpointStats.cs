@@ -90,8 +90,10 @@ internal sealed class EndpointStats
 
         Interlocked.Add(ref _sumMicros, (long)(durationMs * 1000));
         Interlocked.Exchange(ref _lastTicks, nowTicks);
-        // The latency histogram now lives in the per-second ring, so percentiles read a decaying window
-        // (expired seconds fall out) under the ring's lock rather than a lifetime cumulative view.
+        // The latency histogram lives in the per-second ring, so percentiles read a decaying window
+        // (expired seconds fall out) rather than a lifetime cumulative view. Recording into a ring is
+        // lock-free once the second's slot is live, so this whole method takes no lock in the steady
+        // state - see TimeRing for the roll-over ordering that makes that safe.
         var bucketIdx = BucketIndex(durationMs);
         _ring.Add(second, durationMs, isError, cacheHit, bucketIdx, dbDurationMs);
 

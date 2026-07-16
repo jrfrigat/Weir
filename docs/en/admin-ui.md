@@ -133,6 +133,8 @@ It is the tool for answering "which request was slow, and why".
 Runtime system settings, editable without a restart (Admin role required; changes are audited):
 
 - **Data-plane limits** - the row cap, request timeout and table-valued-parameter row cap.
+- **Response cache** - the total memory cached responses may occupy. Once full, the least recently used
+  entries are evicted to make room; zero means unlimited. Changing it clears the cache.
 - **Rate limiting** - the default per-key request limit for keys that set none of their own.
 - **Audit** - how many days of audit history to keep (a background service prunes older entries;
   zero keeps history forever).

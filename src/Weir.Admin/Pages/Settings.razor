@@ -36,6 +36,14 @@
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
+                <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Style="max-width:16rem;" />
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ResponseCacheHelp</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRateLimiting</FlareText>
                 <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RateLimitingHelp</FlareText>
@@ -135,6 +143,7 @@
     private bool _requestLogEnabled;
     private int _slowThresholdPercent;
     private int _requestLogRetentionDays;
+    private long _responseCacheMaxBytes;
     private long _maxRequestBodyBytes;
     private WeirLoggingInfo? _logging;
     private bool _exporting;
@@ -166,6 +175,7 @@
             _requestLogEnabled = view.Settings.RequestLogEnabled;
             _slowThresholdPercent = view.Settings.SlowRequestThresholdPercent;
             _requestLogRetentionDays = view.Settings.RequestLogRetentionDays;
+            _responseCacheMaxBytes = view.Settings.ResponseCacheMaxBytes;
             _maxRequestBodyBytes = view.MaxRequestBodyBytes;
             _logging = view.Logging;
         }
@@ -214,7 +224,7 @@
     {
         if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
             _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
-            _slowThresholdPercent < 0 || _requestLogRetentionDays < 0)
+            _slowThresholdPercent < 0 || _requestLogRetentionDays < 0 || _responseCacheMaxBytes < 0)
         {
             _status = AdminStrings.Settings_ValuesMustNotBeNegative;
             _statusError = true;
@@ -238,6 +248,7 @@
                 RequestLogEnabled = _requestLogEnabled,
                 SlowRequestThresholdPercent = _slowThresholdPercent,
                 RequestLogRetentionDays = _requestLogRetentionDays,
+                ResponseCacheMaxBytes = _responseCacheMaxBytes,
             });
 
             if (applied is null)

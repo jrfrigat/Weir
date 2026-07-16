@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format is based on
 
 ### Security
 
+- The response cache is now bounded. It always computed a size per entry, but the backing memory cache
+  was created without a size limit, which makes that size inert - so entries only ever left on TTL and an
+  endpoint with a high-cardinality `VaryByParameters` could grow the cache until the process ran out of
+  memory. A new runtime setting, `ResponseCacheMaxBytes` (default 128 MiB; zero means unlimited, now an
+  explicit opt-out rather than an accident), caps the total bytes cached payloads may occupy; it is seeded
+  from `Weir:DataPlane` and editable on the admin **Settings** screen. Once full, the least recently used
+  entries are evicted to make room, and a payload larger than the cap is never cached. The response cache
+  owns a private, bounded memory cache: a size limit applies to a whole `MemoryCache` instance and, once
+  set, makes every entry declare a size, so bounding the shared instance would break its other consumers
+  (for example the API-key authenticator).
 - The local Claude Code config directory (`.claude/`) is now git-ignored. Its `launch.json` carries a
   machine-specific dev connection string (with a password), so it must not be committed; the demo
   `docker-compose.override.yml` was already ignored for the same reason.

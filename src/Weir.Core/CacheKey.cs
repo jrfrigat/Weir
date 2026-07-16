@@ -32,8 +32,14 @@ public static class CacheKey
         Append(builder, endpoint.HttpMethod);
         Append(builder, endpoint.Route);
 
-        foreach (var name in endpoint.Cache.VaryByParameters.OrderBy(x => x, StringComparer.Ordinal))
+        // Sorted once per policy instance rather than per request: the ordering only exists to make the
+        // key independent of the order the names were configured in, and the set cannot change while the
+        // definition lives. Indexed rather than foreach-ed so iterating the interface allocates nothing.
+        var varyBy = endpoint.Cache.SortedVaryByParameters;
+        for (var i = 0; i < varyBy.Count; i++)
         {
+            var name = varyBy[i];
+
             // A vary-by parameter that never reached the values map (an output/return parameter, a TVP
             // with no token, or a name that matches no parameter) would otherwise encode as NULL for
             // every caller and collapse distinct requests onto one entry - a cross-caller disclosure.

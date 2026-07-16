@@ -118,7 +118,7 @@ public class DataPlaneEndToEndIntegrationTests
         await SeedAsync(container.GetConnectionString());
 
         var settings = new FixedSettings();
-        var cache = new MemoryResponseCache(new MemoryCache(new MemoryCacheOptions()));
+        using var cache = new MemoryResponseCache(settings);
         using var engine = new WeirEngine(
             new ParameterBinder(settings),
             new TestRegistry(container.GetConnectionString()),
