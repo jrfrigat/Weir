@@ -168,8 +168,19 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             {
                 if (!string.Equals(stored, checksum, StringComparison.Ordinal))
                 {
-                    throw new ControlPlaneMigrationException(
-                        $"Control-plane migration {applied} checksum mismatch: the shipped script differs from the one recorded when it was applied. Shipped migrations must never be edited.");
+                    var canonical = Checksum(SqlServerSchema.Migrations[applied - 1].Replace("\r\n", "\n"));
+                    if (string.Equals(stored, canonical, StringComparison.Ordinal))
+                    {
+                        await conn.ExecuteAsync(new CommandDefinition(
+                            "UPDATE SchemaMigrations SET Checksum = @Checksum WHERE Version = @Version",
+                            new { Version = (long)applied, Checksum = checksum },
+                            cancellationToken: cancellationToken));
+                    }
+                    else
+                    {
+                        throw new ControlPlaneMigrationException(
+                            $"Control-plane migration {applied} checksum mismatch: the shipped script differs from the one recorded when it was applied. Shipped migrations must never be edited.");
+                    }
                 }
             }
             else
@@ -186,7 +197,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     /// <param name="script">The migration SQL.</param>
     /// <returns>The uppercase hex digest.</returns>
     private static string Checksum(string script) =>
-        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(script)));
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(script.Replace("\r\n", "\n"))));
 
     // ===== Endpoints =============================================================================
 
