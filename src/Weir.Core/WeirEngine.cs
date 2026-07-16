@@ -171,10 +171,10 @@ public sealed class WeirEngine : IDisposable
 
         await NotifyAsync(context, static (o, c) => o.OnStartedAsync(c));
 
-        // Set once this call has claimed the in-flight fill for its cache key, so every exit path can
-        // hand the bytes to whoever is waiting, or release them to execute for themselves.
-        CacheFill? fill = null;
-        string? claimedKey = null;
+        // This call's stake in a fill, whether it started one or is waiting on someone else's. Held for as
+        // long as this call wants the answer; dropping it is what eventually stops the query, once every
+        // other caller has dropped theirs too.
+        CacheFill.Participation? participation = null;
 
         try
         {
@@ -196,6 +196,16 @@ public sealed class WeirEngine : IDisposable
             }
 
             var captureResult = logEnabled && endpoint.Logging.LogResult;
+
+            var request = new DbExecutionRequest
+            {
+                ConnectionName = endpoint.ConnectionName,
+                Schema = endpoint.Schema,
+                ObjectName = endpoint.ObjectName,
+                ObjectType = endpoint.ObjectType,
+                CommandTimeoutSeconds = endpoint.CommandTimeoutSeconds ?? descriptor.DefaultCommandTimeoutSeconds,
+                Parameters = binding.Parameters,
+            };
 
             WeirResponseMetadata metadata;
             if (cacheKey is not null)
@@ -219,17 +229,24 @@ public sealed class WeirEngine : IDisposable
                 }
 
                 // A miss. Either claim the fill for this key or join the one already running: the first
-                // caller executes, the rest wait for its bytes instead of piling the same query onto the
-                // database.
+                // caller starts the query, the rest wait for its bytes instead of piling the same query
+                // onto the database.
                 var candidate = new CacheFill();
                 var inFlight = _fills.GetOrAdd(cacheKey, candidate);
-                if (ReferenceEquals(inFlight, candidate))
+                participation = inFlight.TryJoin(cancellationToken);
+                if (participation is not null)
                 {
-                    fill = candidate;
-                    claimedKey = cacheKey;
-                }
-                else if (await inFlight.Task.WaitAsync(cancellationToken) is { } shared)
-                {
+                    var owned = ReferenceEquals(inFlight, candidate);
+                    if (owned)
+                    {
+                        // Started, not awaited inline. This call waits on the fill exactly like every other
+                        // caller, so its own token can end its wait - a disconnect, or the gateway timeout -
+                        // without ending the query the others are still waiting for.
+                        _ = RunFillAsync(cacheKey, candidate, connector, request, endpoint, maxRows);
+                    }
+
+                    var shared = await inFlight.Task.WaitAsync(cancellationToken);
+
                     if (captureResult)
                     {
                         context.CapturedResult = CaptureResult(shared.Payload.Span);
@@ -237,14 +254,15 @@ public sealed class WeirEngine : IDisposable
 
                     var streamStart = Stopwatch.GetTimestamp();
                     metadata = shared.ETag is { } sharedETag
-                        ? await EmitCacheableAsync(output, shared.Payload, sharedETag, cacheHit: true, endpoint.Cache.TtlSeconds, control, cancellationToken)
+                        ? await EmitCacheableAsync(output, shared.Payload, sharedETag, cacheHit: !owned, endpoint.Cache.TtlSeconds, control, cancellationToken)
                         : await EmitRawAsync(output, shared.Payload, shared.Truncated, cancellationToken);
                     context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
 
-                    // Counted as a cache hit: this call was served the fill's bytes without touching the
-                    // database, which is what the hit ratio is measuring. Its duration still includes the
-                    // wait, so the latency it reports is the one its client actually saw.
-                    context.CacheHit = true;
+                    // A caller that waited is counted as a cache hit: it was served the fill's bytes without
+                    // touching the database, which is what the hit ratio measures. Its duration still
+                    // includes the wait, so the latency it reports is the one its client actually saw.
+                    context.CacheHit = !owned;
+                    context.DbDurationMs = shared.DbDurationMs;
                     context.RowsReturned = shared.RowCount;
                     context.StatusCode = metadata.NotModified ? 304 : 200;
                     Finish(context);
@@ -252,19 +270,40 @@ public sealed class WeirEngine : IDisposable
                     return metadata;
                 }
 
-                // The leader gave up (its own client disconnected, or its execution failed). Rather than
-                // inherit a failure that belongs to someone else's request, fall through and execute.
+                // The fill was given up on between being found and being joined - everyone waiting on it had
+                // gone, so its query was dropped. Fall through and run this call's own.
             }
 
-            var request = new DbExecutionRequest
+            if (cacheKey is not null)
             {
-                ConnectionName = endpoint.ConnectionName,
-                Schema = endpoint.Schema,
-                ObjectName = endpoint.ObjectName,
-                ObjectType = endpoint.ObjectType,
-                CommandTimeoutSeconds = endpoint.CommandTimeoutSeconds ?? descriptor.DefaultCommandTimeoutSeconds,
-                Parameters = binding.Parameters,
-            };
+                // A cache-eligible call that could not join a fill, because the one it found was given up on
+                // as it arrived. Run it for this caller alone, on this caller's own token - there is nobody
+                // else waiting on it - and still store what it produces.
+                var built = await BuildAsync(connector, request, endpoint, maxRows, cancellationToken);
+                context.DbDurationMs = built.DbDurationMs;
+
+                if (captureResult)
+                {
+                    context.CapturedResult = CaptureResult(built.Payload.Span);
+                }
+
+                if (built.ETag is { } builtETag)
+                {
+                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds));
+                }
+
+                var builtStreamStart = Stopwatch.GetTimestamp();
+                metadata = built.ETag is { } emitETag
+                    ? await EmitCacheableAsync(output, built.Payload, emitETag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken)
+                    : await EmitRawAsync(output, built.Payload, built.Truncated, cancellationToken);
+                context.StreamingDurationMs = Stopwatch.GetElapsedTime(builtStreamStart).TotalMilliseconds;
+
+                context.RowsReturned = built.RowCount;
+                context.StatusCode = metadata.NotModified ? 304 : 200;
+                Finish(context);
+                await NotifyAsync(context, static (o, c) => o.OnCompletedAsync(c));
+                return metadata;
+            }
 
             // Per-connection resilience: reject fast if the breaker is open, then take a bulkhead permit
             // held for the whole execution (including streaming), so a saturated connection is not piled on.
@@ -277,9 +316,9 @@ public sealed class WeirEngine : IDisposable
             {
                 try
                 {
-                    // Buffer the body when caching, or when this endpoint captures its result for the
-                    // request log (an explicit opt-in); otherwise stream straight to the output.
-                    if (cacheKey is not null || captureResult)
+                    // Buffer the body when this endpoint captures its result for the request log (an
+                    // explicit opt-in); otherwise stream straight to the output.
+                    if (captureResult)
                     {
                         using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
                         // DB phase: execute and drain all rows into the buffer. Streaming to the client
@@ -292,48 +331,13 @@ public sealed class WeirEngine : IDisposable
 
                         context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                         RecordBufferSize(endpoint.Id, buffer.Length);
+                        context.CapturedResult = CaptureResult(buffer);
 
-                        if (captureResult)
-                        {
-                            context.CapturedResult = CaptureResult(buffer);
-                        }
-
-                        if (cacheKey is not null)
-                        {
-                            // Never cache a truncated (row-capped) response: it would serve partial data as
-                            // if complete for the whole TTL, and a partial body must not carry an ETag that
-                            // a complete one could be revalidated against. It is still handed to anyone
-                            // waiting on this fill - they would have produced the same partial body.
-                            var payload = buffer.ToArray();
-                            var etag = result.Truncated ? null : ResponseETag.Compute(payload);
-
-                            // Hand the bytes to the waiters before this call spends any time on its own
-                            // client, so a slow reader here does not hold up everyone behind it.
-                            fill?.Complete(new FilledResponse(payload, etag, result.Truncated, result.RowCount));
-
-                            if (etag is not null)
-                            {
-                                // Not awaited: the response goes out now and the entry lands behind it. The
-                                // in-flight registration is released only once the store completes, so a
-                                // request arriving in that window still joins instead of re-executing.
-                                StoreInBackground(cacheKey, new CachedResponse(payload, etag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), fill);
-                                fill = null;
-                            }
-
-                            var streamStart = Stopwatch.GetTimestamp();
-                            metadata = etag is not null
-                                ? await EmitCacheableAsync(output, payload, etag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken)
-                                : await EmitRawAsync(output, payload, result.Truncated, cancellationToken);
-                            context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
-                        }
-                        else
-                        {
-                            var streamStart = Stopwatch.GetTimestamp();
-                            buffer.Position = 0;
-                            await buffer.CopyToAsync(output, cancellationToken);
-                            context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
-                            metadata = new WeirResponseMetadata { Truncated = result.Truncated };
-                        }
+                        var streamStart = Stopwatch.GetTimestamp();
+                        buffer.Position = 0;
+                        await buffer.CopyToAsync(output, cancellationToken);
+                        context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
+                        metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                     }
                     else
                     {
@@ -383,14 +387,9 @@ public sealed class WeirEngine : IDisposable
         }
         finally
         {
-            // Still holding the fill means it produced nothing storable: the execution threw, or the
-            // response was truncated and handed straight to the waiters. Either way, release the key so
-            // the next caller can try again. Abandon is a no-op once the fill has a result.
-            if (fill is not null && claimedKey is not null)
-            {
-                fill.Abandon();
-                Release(claimedKey, fill);
-            }
+            // Drops this call's stake in the fill. If it was the last one, the query behind it stops - there
+            // is no longer anybody to answer. The fill itself is owned by RunFillAsync, not by this request.
+            participation?.Dispose();
         }
     }
 
@@ -432,6 +431,115 @@ public sealed class WeirEngine : IDisposable
     }
 
     /// <summary>
+    /// Runs one cache fill, detached from any single request. Nothing awaits this: the caller that started
+    /// it waits on the fill like everyone else, so its own request can end - a disconnect, or the gateway
+    /// timeout reaching its client - without taking the query down with it. The query stops only when the
+    /// last caller waiting for it has gone, which is what <see cref="CacheFill.Token"/> tracks.
+    /// </summary>
+    /// <param name="key">The cache key being filled.</param>
+    /// <param name="fill">The fill to publish into.</param>
+    /// <param name="connector">The connector for the endpoint's connection.</param>
+    /// <param name="request">The execution request.</param>
+    /// <param name="endpoint">The endpoint being called.</param>
+    /// <param name="maxRows">The row cap.</param>
+    /// <returns>A task that completes once the fill has been published and stored.</returns>
+    private async Task RunFillAsync(
+        string key,
+        CacheFill fill,
+        IDbConnector connector,
+        DbExecutionRequest request,
+        EndpointDefinition endpoint,
+        int maxRows)
+    {
+        try
+        {
+            var filled = await BuildAsync(connector, request, endpoint, maxRows, fill.Token);
+
+            // Publish before storing: everyone waiting can start writing to their clients while the entry
+            // is still on its way into the cache.
+            fill.Complete(filled);
+
+            if (filled.ETag is { } etag)
+            {
+                try
+                {
+                    // CancellationToken.None on purpose: the entry outlives the request that produced it,
+                    // so a client giving up must not throw away a payload others are already waiting on.
+                    await _cache.SetAsync(key, new CachedResponse(filled.Payload, etag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), CancellationToken.None);
+                }
+                catch (Exception)
+                {
+                    // The response is already served; a cache-store failure has nowhere useful to surface.
+                    // The entry is simply absent, so the next caller re-fills it.
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            fill.Fail(ex);
+        }
+        finally
+        {
+            // Held until the store lands, so a caller arriving in that window still joins the fill instead
+            // of missing both it and the cache.
+            Release(key, fill);
+        }
+    }
+
+    /// <summary>
+    /// Executes the endpoint and renders the whole response into memory, under the connection's bulkhead
+    /// and circuit breaker.
+    /// </summary>
+    /// <param name="connector">The connector for the endpoint's connection.</param>
+    /// <param name="request">The execution request.</param>
+    /// <param name="endpoint">The endpoint being called.</param>
+    /// <param name="maxRows">The row cap.</param>
+    /// <param name="cancellationToken">The lifetime of the execution.</param>
+    /// <returns>The rendered body, its entity tag when cacheable, and what it cost.</returns>
+    private async Task<FilledResponse> BuildAsync(
+        IDbConnector connector,
+        DbExecutionRequest request,
+        EndpointDefinition endpoint,
+        int maxRows,
+        CancellationToken cancellationToken)
+    {
+        var settings = _settings.Current;
+        var guard = _guards.For(endpoint.ConnectionName);
+        guard.EnsureClosed(settings.CircuitBreakerFailureThreshold);
+
+        using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
+        {
+            try
+            {
+                using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
+                var dbStart = Stopwatch.GetTimestamp();
+                WeirResponseWriter.WriteResult result;
+                await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
+                {
+                    result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, cancellationToken);
+                }
+
+                var dbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
+                RecordBufferSize(endpoint.Id, buffer.Length);
+                guard.RecordSuccess();
+
+                // Never cache a truncated (row-capped) response: it would serve partial data as if complete
+                // for the whole TTL, and a partial body must not carry an ETag that a complete one could be
+                // revalidated against. It is still handed to anyone waiting - they would have produced the
+                // same partial body.
+                var payload = buffer.ToArray();
+                var etag = result.Truncated ? null : ResponseETag.Compute(payload);
+                return new FilledResponse(payload, etag, result.Truncated, result.RowCount, dbDurationMs);
+            }
+            catch (Exception ex) when (TripsBreaker(ex))
+            {
+                guard.RecordFailure(settings.CircuitBreakerFailureThreshold, settings.CircuitBreakerResetSeconds);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
     /// Stores a filled entry without the caller waiting for it, then releases the in-flight registration.
     /// This is what keeps a cache store off the response path: the bytes have already been handed to the
     /// waiters and are on their way to this call's client, so a store that talks to a network cache costs
@@ -441,8 +549,7 @@ public sealed class WeirEngine : IDisposable
     /// <param name="key">The cache key.</param>
     /// <param name="entry">The response bytes and their entity tag.</param>
     /// <param name="ttl">The endpoint's cache TTL.</param>
-    /// <param name="fill">The in-flight registration to release, if this call owns one.</param>
-    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, CacheFill? fill)
+    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl)
     {
         // Deliberately not awaited. An in-process cache completes this synchronously, so there is no
         // thread-pool hop to pay for; a cache doing I/O suspends at its first await and finishes behind
@@ -463,13 +570,6 @@ public sealed class WeirEngine : IDisposable
                 // must not become an unobserved task exception. The entry is simply absent, so the next
                 // caller re-fills it.
             }
-            finally
-            {
-                if (fill is not null)
-                {
-                    Release(key, fill);
-                }
-            }
         }
     }
 
@@ -479,37 +579,184 @@ public sealed class WeirEngine : IDisposable
     /// </summary>
     /// <param name="key">The cache key.</param>
     /// <param name="fill">The registration to remove.</param>
-    private void Release(string key, CacheFill fill) =>
+    private void Release(string key, CacheFill fill)
+    {
         _fills.TryRemove(new KeyValuePair<string, CacheFill>(key, fill));
+        fill.Dispose();
+    }
 
     /// <summary>
     /// One in-flight cache fill. The caller that claims it executes; everyone else for the same key
     /// awaits <see cref="Task"/> and serves the bytes it produces.
+    /// <para>
+    /// The execution runs on <see cref="Token"/>, not on any one caller's request token, because the work
+    /// belongs to everyone waiting on it rather than to whoever happened to arrive first. A client hanging
+    /// up cancels its own request and nothing else: the query keeps running for the callers still queued
+    /// behind it, and they get the answer it was already most of the way to producing. The token fires only
+    /// once the last of them has gone - disconnected, or timed out - so the query lives exactly as long as
+    /// somebody still wants its result, and no longer.
+    /// </para>
     /// </summary>
-    private sealed class CacheFill
+    private sealed class CacheFill : IDisposable
     {
         /// <summary>
         /// Completed with the filled response, or with null when the owner produced nothing. Continuations
         /// run asynchronously so that completing the fill never drags a waiter's response-writing onto the
         /// owner's thread.
         /// </summary>
-        private readonly TaskCompletionSource<FilledResponse?> _completion =
+        private readonly TaskCompletionSource<FilledResponse> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        /// <summary>Resolves to the filled response, or to null when the waiter should execute itself.</summary>
-        public Task<FilledResponse?> Task => _completion.Task;
+        /// <summary>Cancelled once nobody is waiting for this fill any more.</summary>
+        private readonly CancellationTokenSource _abandoned = new();
+
+        /// <summary>Guards the waiter count against the disposal of <see cref="_abandoned"/>.</summary>
+        private readonly Lock _gate = new();
+
+        /// <summary>How many callers still want this fill's result.</summary>
+        private int _waiting;
+
+        /// <summary>Set once the fill has been given up on, so no later caller waits for an answer that is not coming.</summary>
+        private bool _closed;
+
+        /// <summary>Whether <see cref="Dispose"/> has already run.</summary>
+        private bool _disposed;
+
+        /// <summary>Resolves to the filled response, or faults with whatever the execution failed on.</summary>
+        public Task<FilledResponse> Task => _completion.Task;
+
+        /// <summary>The token the execution runs on; it fires when the last waiter gives up.</summary>
+        public CancellationToken Token => _abandoned.Token;
+
+        /// <summary>
+        /// Registers a caller as waiting for this fill for as long as its own request is alive. Dispose the
+        /// result once the caller no longer needs the answer - because it got one, or because it gave up.
+        /// </summary>
+        /// <param name="cancellationToken">The caller's request token; when it fires, this caller stops waiting.</param>
+        /// <returns>The caller's participation, or null when the fill has already been given up on and
+        /// cannot be waited for.</returns>
+        public Participation? TryJoin(CancellationToken cancellationToken)
+        {
+            lock (_gate)
+            {
+                if (_closed)
+                {
+                    return null;
+                }
+
+                _waiting++;
+            }
+
+            return new Participation(this, cancellationToken);
+        }
 
         /// <summary>Publishes the response to every waiter.</summary>
-        /// <param name="response">The bytes the owner produced.</param>
+        /// <param name="response">The bytes the execution produced.</param>
         public void Complete(FilledResponse response) => _completion.TrySetResult(response);
 
         /// <summary>
-        /// Releases the waiters with nothing, so each executes for itself. Used when the owner failed or
-        /// its own client disconnected: a failure that belongs to one request must not be dealt out to
-        /// every other client waiting behind it. Faulting the task instead would do exactly that, and
-        /// would fault a task no one may be observing.
+        /// Hands the execution's failure to everyone waiting. Sharing it is right here: a fill is only ever
+        /// cancelled once nobody is left waiting, so any failure a waiter can still see is one the database
+        /// really produced - it would have produced the same for each of them had they all run it.
         /// </summary>
-        public void Abandon() => _completion.TrySetResult(null);
+        /// <param name="exception">The failure the execution raised.</param>
+        public void Fail(Exception exception)
+        {
+            if (_completion.TrySetException(exception))
+            {
+                // Everyone may already have gone, in which case nothing awaits this task and its exception
+                // would surface later as an unobserved-task crash. Observe it here; a waiter that does await
+                // still sees it too.
+                _completion.Task.ContinueWith(
+                    static faulted => _ = faulted.Exception,
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+        }
+
+        /// <summary>Disposes the abandonment source once the fill is finished with.</summary>
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _abandoned.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Drops one waiter, cancelling the execution when it was the last. Cancelling inside the lock is
+        /// what keeps it from racing <see cref="Dispose"/> onto a disposed source; the section stays short
+        /// because the only registrations on this token belong to the running execution.
+        /// </summary>
+        private void Leave()
+        {
+            lock (_gate)
+            {
+                if (--_waiting > 0)
+                {
+                    return;
+                }
+
+                // The answer already exists, so there is nothing to cancel and no reason to turn away a
+                // caller arriving now - the fill is still registered until its store lands, and serving
+                // them from it beats making them re-run the query.
+                if (_completion.Task.IsCompleted)
+                {
+                    return;
+                }
+
+                _closed = true;
+                if (!_disposed)
+                {
+                    _abandoned.Cancel();
+                }
+            }
+        }
+
+        /// <summary>
+        /// One caller's stake in a fill. Ends when the caller stops caring, whether that is because it has
+        /// its answer or because its own request was cancelled first.
+        /// </summary>
+        internal sealed class Participation : IDisposable
+        {
+            private readonly CacheFill _fill;
+            private readonly CancellationTokenRegistration _registration;
+
+            /// <summary>Guards against leaving twice: the request token can fire before or after disposal.</summary>
+            private int _left;
+
+            /// <summary>Registers the caller and hooks its request token.</summary>
+            /// <param name="fill">The fill being waited on.</param>
+            /// <param name="cancellationToken">The caller's request token.</param>
+            public Participation(CacheFill fill, CancellationToken cancellationToken)
+            {
+                _fill = fill;
+                _registration = cancellationToken.Register(static state => ((Participation)state!).Leave(), this);
+            }
+
+            /// <summary>Ends this caller's stake in the fill.</summary>
+            public void Dispose()
+            {
+                _registration.Dispose();
+                Leave();
+            }
+
+            /// <summary>Leaves the fill exactly once, however many times this is reached.</summary>
+            private void Leave()
+            {
+                if (Interlocked.Exchange(ref _left, 1) == 0)
+                {
+                    _fill.Leave();
+                }
+            }
+        }
     }
 
     /// <summary>A response body produced by one execution and shared with everyone waiting on its fill.</summary>
@@ -517,7 +764,9 @@ public sealed class WeirEngine : IDisposable
     /// <param name="ETag">The entity tag, or null when the response is truncated and so not cacheable.</param>
     /// <param name="Truncated">Whether the row cap was hit.</param>
     /// <param name="RowCount">Rows across all result sets, reported by each waiter as its own row count.</param>
-    private readonly record struct FilledResponse(ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount);
+    /// <param name="DbDurationMs">How long the execution took, reported by everyone it served.</param>
+    private readonly record struct FilledResponse(
+        ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount, double DbDurationMs);
 
     /// <summary>
     /// Writes (or, on a validator match, skips) a fully buffered cache-eligible body. Uses the

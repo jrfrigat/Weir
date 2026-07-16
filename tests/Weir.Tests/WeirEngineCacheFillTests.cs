@@ -28,13 +28,25 @@ public class WeirEngineCacheFillTests
         /// <summary>Completes once the first caller is inside the execution and blocked on the gate.</summary>
         public Task Started => _started.Task;
 
+        /// <summary>Completes if an execution is cancelled while waiting on the gate.</summary>
+        public TaskCompletionSource ExecutionCancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public string ProviderName => "test";
 
         public async Task<IDbExecution> ExecuteAsync(DbExecutionRequest request, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _executions);
             _started.TrySetResult();
-            await _gate.Task.WaitAsync(cancellationToken);
+            try
+            {
+                await _gate.Task.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                ExecutionCancelled.TrySetResult();
+                throw;
+            }
+
             return new FakeExecution();
         }
 
@@ -234,6 +246,91 @@ public class WeirEngineCacheFillTests
         // Exactly one caller executed; the others were served the bytes it produced.
         Assert.Equal(callers - 1, results.Count(r => r.CacheHit));
         Assert.All(results, r => Assert.Equal(results[0].ETag, r.ETag));
+    }
+
+    [Fact]
+    public async Task Leader_Disconnecting_Does_Not_Cancel_The_Work_Other_Callers_Are_Waiting_On()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        using var cache = new MemoryResponseCache(new FixedSettings());
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+
+        // The first caller claims the fill and starts the query.
+        using var leaderAborted = new CancellationTokenSource();
+        using var leaderOutput = new MemoryStream();
+        var leader = engine.ExecuteAsync(NewInvocation(), leaderOutput, default, leaderAborted.Token);
+        await connector.Started.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // A second caller queues up behind it.
+        using var waiterOutput = new MemoryStream();
+        var waiter = engine.ExecuteAsync(NewInvocation(), waiterOutput);
+        await WaitUntil(() => connector.Executions == 1 && !waiter.IsCompleted);
+
+        // The first caller's client hangs up while the query is still running. That is its request ending,
+        // not the query's: the second caller is still waiting for this answer.
+        leaderAborted.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => leader).WaitAsync(TimeSpan.FromSeconds(10));
+
+        gate.SetResult();
+        var metadata = await waiter.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The query the leader started ran to completion and served the caller behind it.
+        Assert.Equal(1, connector.Executions);
+        Assert.NotEqual(0, waiterOutput.Length);
+        Assert.True(metadata.CacheHit);
+        Assert.NotNull(metadata.ETag);
+    }
+
+    [Fact]
+    public async Task Work_Is_Cancelled_Once_The_Last_Caller_Has_Gone()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        using var cache = new MemoryResponseCache(new FixedSettings());
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+
+        // Two callers on one fill: one owns it, one waits.
+        using var leaderAborted = new CancellationTokenSource();
+        using var waiterAborted = new CancellationTokenSource();
+        using var leaderOutput = new MemoryStream();
+        using var waiterOutput = new MemoryStream();
+        var leader = engine.ExecuteAsync(NewInvocation(), leaderOutput, default, leaderAborted.Token);
+        await connector.Started.WaitAsync(TimeSpan.FromSeconds(10));
+        var waiter = engine.ExecuteAsync(NewInvocation(), waiterOutput, default, waiterAborted.Token);
+        await WaitUntil(() => connector.Executions == 1 && !waiter.IsCompleted);
+
+        // Both clients hang up. With nobody left to serve, keeping the query alive would be pure waste, so
+        // the fill drops it - the connector's execution sees the cancellation and never completes.
+        leaderAborted.Cancel();
+        waiterAborted.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => leader).WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiter).WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The gate is never opened: if the execution had not been cancelled it would still be sitting on it.
+        Assert.True(connector.ExecutionCancelled.Task.IsCompleted ||
+            await System.Threading.Tasks.Task.WhenAny(connector.ExecutionCancelled.Task, System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10))) == connector.ExecutionCancelled.Task);
+        Assert.Equal(1, connector.Executions);
+    }
+
+    /// <summary>Spins until a condition holds, so a test never depends on a fixed sleep.</summary>
+    /// <param name="condition">The condition to wait for.</param>
+    /// <returns>A task that completes once the condition holds.</returns>
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!condition())
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("The condition did not hold within the timeout.");
+            }
+
+            await System.Threading.Tasks.Task.Delay(10);
+        }
     }
 
     /// <summary>
