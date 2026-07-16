@@ -12,10 +12,7 @@
     <PageHeader Title="endpoints" Description="HTTP routes mapped to stored procedures and functions">
         <Actions>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">Sync all</FlareButton>
-            <label style="position:relative;display:inline-flex">
-                <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm">Import</FlareButton>
-                <InputFile OnChange="ImportAsync" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer" />
-            </label>
+            <FlareFileUpload Variant="FileUploadVariant.Button" Accept=".json" ButtonText="Import" OnFilesChanged="ImportFilesAsync" />
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="ExportAsync">Export</FlareButton>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="BuildOpenApiAsync" Loading="_openApiBusy">OpenAPI</FlareButton>
             <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">New endpoint</FlareButton>
@@ -823,12 +820,19 @@
         _notice = IsFiltered ? $"Downloaded {FilteredEndpoints.Count} filtered endpoint(s)." : "Downloaded endpoints.json.";
     }
 
-    private async Task ImportAsync(InputFileChangeEventArgs args)
+    /// <summary>Imports endpoint definitions from the file the user picked via the Flare upload button.</summary>
+    /// <param name="files">The selected files; only the first is read.</param>
+    private async Task ImportFilesAsync(IReadOnlyList<IBrowserFile> files)
     {
+        if (files.FirstOrDefault() is not { } file)
+        {
+            return;
+        }
+
         _notice = null;
         try
         {
-            await using var stream = args.File.OpenReadStream(5 * 1024 * 1024);
+            await using var stream = file.OpenReadStream(5 * 1024 * 1024);
             var endpoints = await JsonSerializer.DeserializeAsync<List<EndpointDefinition>>(stream, new JsonSerializerOptions(JsonSerializerDefaults.Web));
             if (endpoints is { Count: > 0 })
             {

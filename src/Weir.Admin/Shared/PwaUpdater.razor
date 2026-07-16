@@ -1,72 +1,46 @@
-@* Surfaces a service-worker update as a Flare snackbar toast (Weir's Command Center design), the way
-   the Flare Gallery does it - a popup with an "Update" action - instead of a full-width top banner.
-   The service-worker plumbing must run before Blazor starts, so it lives in js/register-sw.js
-   (window.weirPwa); this component is only the bridge that renders the notice. Renders no markup. *@
+@* Surfaces a newly deployed build as a Flare snackbar toast (Weir's Command Center design), driven by
+   Flare's IVersionCheckService in service-worker mode. Flare registers the service worker, polls the
+   deployed asset manifest and raises NewVersionAvailable; this component only renders the notice and
+   wires the "Update" action to the service. Renders no markup. *@
 @implements IDisposable
 @inject ISnackbarService Snackbar
-@inject IJSRuntime JS
+@inject IVersionCheckService VersionCheck
 
 @code {
-    /// <summary>Reference passed to JS so the service-worker script can call back when an update lands.</summary>
-    private DotNetObjectReference<PwaUpdater>? _selfRef;
-
     /// <summary>Whether the update toast has already been shown, so a repeated signal does not stack toasts.</summary>
     private bool _shown;
 
-    /// <summary>Registers this component with the service-worker bridge after the first render.</summary>
-    /// <param name="firstRender">True on the first render.</param>
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    /// <summary>Subscribes to version-check notifications and starts the polling loop.</summary>
+    protected override void OnInitialized()
     {
-        if (!firstRender)
-        {
-            return;
-        }
-
-        _selfRef = DotNetObjectReference.Create(this);
-        try
-        {
-            // If an update was already detected before Blazor started, the bridge notifies us immediately.
-            await JS.InvokeVoidAsync("weirPwa.init", _selfRef);
-        }
-        catch (JSException)
-        {
-            // No service worker (e.g. plain dev run) - nothing to surface.
-        }
+        VersionCheck.NewVersionAvailable += OnNewVersionAsync;
+        VersionCheck.Start();
     }
 
     /// <summary>
-    /// Called from the service-worker bridge when a new build has installed and is waiting. Shows one
-    /// persistent, actionable snackbar; the action applies the waiting worker and reloads onto it.
+    /// Raised by the version-check service when a newer deployed build is detected. Shows one persistent,
+    /// actionable snackbar; the action applies the waiting worker and reloads onto the new build.
     /// </summary>
-    [JSInvokable]
-    public void OnUpdateAvailable()
-    {
-        if (_shown)
+    /// <param name="info">The current and newly detected versions.</param>
+    /// <returns>A task that completes once the toast has been shown on the UI thread.</returns>
+    private Task OnNewVersionAsync(VersionCheckInfo info) =>
+        InvokeAsync(() =>
         {
-            return;
-        }
+            if (_shown)
+            {
+                return;
+            }
 
-        _shown = true;
-        // Persistent (durationMs: 0) info toast with an Update action, rendered by FlareSnackbarProvider
-        // in the app's theme - the Command Center popup, not a bespoke banner.
-        Snackbar.Show("A new version of Weir Admin is available.", SnackbarSeverity.Info, 0, "Update", ApplyUpdateAsync, true);
-    }
+            _shown = true;
+            // Persistent (durationMs: 0) info toast with an Update action, rendered by FlareSnackbarProvider
+            // in the app's theme - the Command Center popup, not a bespoke banner.
+            Snackbar.Show("A new version of Weir Admin is available.", SnackbarSeverity.Info, 0, "Update", ApplyUpdateAsync, true);
+        });
 
     /// <summary>Applies the waiting service worker (which triggers a one-time reload onto the new build).</summary>
-    /// <returns>A task that completes once the apply message has been posted.</returns>
-    private async Task ApplyUpdateAsync()
-    {
-        try
-        {
-            await JS.InvokeVoidAsync("weirPwa.apply");
-        }
-        catch (JSException)
-        {
-            // If the bridge is unavailable, fall back to a plain reload.
-            await JS.InvokeVoidAsync("location.reload");
-        }
-    }
+    /// <returns>A task that completes once the apply has been requested.</returns>
+    private async Task ApplyUpdateAsync() => await VersionCheck.ApplyUpdateAsync();
 
-    /// <summary>Releases the JS callback reference.</summary>
-    public void Dispose() => _selfRef?.Dispose();
+    /// <summary>Unsubscribes from version-check notifications; the service itself is owned by DI.</summary>
+    public void Dispose() => VersionCheck.NewVersionAvailable -= OnNewVersionAsync;
 }

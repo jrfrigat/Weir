@@ -27,6 +27,16 @@ builder.Services.AddFlare(options =>
 builder.Services.AddFlareTheme(new CommandCenterTheme());
 builder.Services.AddFlareIde();
 
+// PWA update detection: Flare's version-check service registers the service worker and polls the
+// deployed asset manifest for a new build, raising NewVersionAvailable (surfaced by PwaUpdater as a
+// snackbar). Replaces the bespoke register-sw.js update bridge.
+builder.Services.AddFlareVersionCheck(options =>
+{
+    options.UseServiceWorker = true;
+    options.ServiceWorkerPath = "service-worker.js";
+    options.Interval = TimeSpan.FromMinutes(30);
+});
+
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<TokenStore>();
 builder.Services.AddScoped<WeirAuthStateProvider>();

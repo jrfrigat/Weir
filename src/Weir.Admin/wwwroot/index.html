@@ -37,13 +37,14 @@
         <span class="dismiss">x</span>
     </div>
 
-    <!-- Offline banner, toggled by register-sw.js (kept outside Blazor so it works before/around the app).
-         The "new version available" notice is a Flare snackbar rendered by the PwaUpdater component. -->
+    <!-- Offline banner, toggled by offline-banner.js (kept outside Blazor so it works before/around the app).
+         The service worker and the "new version available" notice are owned by Flare's version-check
+         service, surfaced as a Flare snackbar by the PwaUpdater component. -->
     <div id="weir-offline" class="weir-banner" hidden>Offline - showing the last loaded data.</div>
 
     <script src="_content/Flare.Components/js/flare-components.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
-    <script src="js/register-sw.js"></script>
+    <script src="js/offline-banner.js"></script>
 </body>
 
 </html>

@@ -22,29 +22,29 @@
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Large" Wrap="true">
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                 <FlareIcon Name="@(total == 0 ? "pending" : allOk ? "monitor_heart" : "error")" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
-                <div>
+                <FlareStack Gap="FlareSpacing.None">
                     <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? "STARTING" : allOk ? "OPERATIONAL" : "DEGRADED")</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? "checking connections" : allOk ? "all systems nominal" : $"{total - healthy} of {total} connections down")</FlareText>
-                </div>
+                </FlareStack>
             </FlareStack>
             <FlareDivider Vertical="true" Style="height:38px;" />
-            <div>
+            <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">throughput req/s</FlareText>
-            </div>
-            <div>
+            </FlareStack>
+            <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Compact(_overview?.TotalRequests ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">total requests</FlareText>
-            </div>
-            <div>
+            </FlareStack>
+            <FlareStack Gap="FlareSpacing.None">
                 <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@(_overview?.ActiveRequests ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">in-flight</FlareText>
-            </div>
+            </FlareStack>
             <FlareSpacer />
-            <div style="text-align:right">
+            <FlareStack Gap="FlareSpacing.None" Align="FlareAlignItems.End">
                 <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="FlareColor.OnSurfaceVariant">@FormatClock(_overview?.Uptime ?? TimeSpan.Zero)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">uptime - @Num(_overview?.TotalErrors ?? 0) errors (@Pct2(_overview?.ErrorRate ?? 0))</FlareText>
-            </div>
+            </FlareStack>
         </FlareStack>
     </FlareCard>
 
@@ -57,14 +57,14 @@
                 <FlareCard Variant="CardVariant.Outlined" Compact="true" Style="flex:1 1 16rem;min-width:15rem;">
                     <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                         <FlareIcon Name="@(connection.Healthy ? "check_circle" : "error")" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)" Size="1rem" />
-                        <div style="flex:1;min-width:0">
+                        <FlareStack Gap="FlareSpacing.None" Style="flex:1;min-width:0;">
                             <FlareText Mono="true" Typo="TypographyScale.LabelLarge">@connection.Name</FlareText>
                             <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? (connection.Provider ?? "connected") : (connection.Error ?? "unreachable"))</FlareText>
-                        </div>
-                        <div style="text-align:right">
+                        </FlareStack>
+                        <FlareStack Gap="FlareSpacing.None" Align="FlareAlignItems.End">
                             <FlareText Mono="true" Typo="TypographyScale.LabelLarge" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)">@connection.LatencyMs.ToString("0.0", Invariant)ms</FlareText>
                             <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? "probe" : "down")</FlareText>
-                        </div>
+                        </FlareStack>
                     </FlareStack>
                 </FlareCard>
             }
