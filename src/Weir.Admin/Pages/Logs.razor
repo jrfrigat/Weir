@@ -109,35 +109,33 @@
                     </FlareStack>
                 }
 
-                @* Timing breakdown. Segment widths are normalized so the bar always fills the full width. *@
                 @{
                     var total = _selected.DurationMs;
                     var db = _selected.DbDurationMs ?? 0;
                     var overhead = Math.Max(0, total - db);
                     var denom = db + overhead;
-                    var dbPct = denom > 0 ? db / denom * 100 : 0;
-                    var overheadPct = denom > 0 ? overhead / denom * 100 : 100;
+                    // Fed to the meter instead of the raw millisecond figures. FlareMeter puts each value
+                    // straight into flex-grow, and flexbox only distributes the whole track once the growth
+                    // factors sum to at least 1 - so a call under a millisecond (most of them) would render
+                    // a correctly proportioned bar that stops partway across. Scaling to 100 keeps the
+                    // proportions and fills the track. The labels still carry the real durations.
+                    // Tracked in Flare docs/issues/flare-meter-underfills-when-values-sum-below-one.md;
+                    // once the meter normalizes internally, pass db and overhead directly.
+                    var dbShare = denom > 0 ? db / denom * 100 : 0;
+                    var overheadShare = denom > 0 ? overhead / denom * 100 : 100;
                 }
                 <FlareCard Variant="CardVariant.Outlined">
                     <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionTimingBreakdown</FlareText>
-                    @* Part-to-whole segmented bar. Flare has no stacked/segmented meter component yet
-                       (FlareProgress is single-value progress with a stop indicator, semantically wrong
-                       here) - tracked in Flare docs/issues/flare-segmented-meter-component.md. Colours
-                       come from theme tokens; the legend below reuses the same tokens via FlareText. *@
-                    <div style="display:flex;width:100%;height:24px;border-radius:4px;overflow:hidden;margin:0.5rem 0;background:var(--flare-color-surface-variant);">
-                        @if (dbPct > 0)
-                        {
-                            <div style="width:@Pct(dbPct)%;background:var(--flare-color-error);" title="@string.Format(AdminStrings.Logs_TimingDb, Ms(db))"></div>
-                        }
-                        <div style="width:@Pct(overheadPct)%;background:var(--flare-color-on-surface-variant);" title="@string.Format(AdminStrings.Logs_TimingOther, Ms(overhead))"></div>
-                    </div>
+                    @* Part-to-whole timing bar. A zero segment is dropped by the meter, which is what a
+                       cache hit (no database time) should look like.
+                       Format is set even though ShowValues is off: the meter appends each value to its
+                       aria-label regardless, and the default "G" would read out "0,06269999999999998"
+                       (Flare docs/issues/flare-meter-aria-label-raw-values.md). *@
+                    <FlareMeter ShowLegend="true" Format="0.#" Style="margin:0.5rem 0;">
+                        <FlareMeterSegment Value="dbShare" Label="@string.Format(AdminStrings.Logs_TimingDb, Ms(db))" Color="FlareColor.Error" />
+                        <FlareMeterSegment Value="overheadShare" Label="@string.Format(AdminStrings.Logs_TimingOther, Ms(overhead))" Color="FlareColor.OnSurfaceVariant" />
+                    </FlareMeter>
                     <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                        @if (db > 0)
-                        {
-                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.Error">@string.Format(AdminStrings.Logs_TimingDb, Ms(db))</FlareText>
-                        }
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_TimingOther, Ms(overhead))</FlareText>
-                        <FlareDivider Vertical="true" Style="height:14px;" />
                         <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_TimingTotal, Ms(total))</FlareText>
                         @if (_selected.AverageMs is { } avg)
                         {
@@ -374,11 +372,6 @@
 
         return pretty[..cut] + AdminStrings.Logs_TruncatedMarker;
     }
-
-    /// <summary>Formats a percentage for a CSS width, invariant culture.</summary>
-    /// <param name="value">The percentage (0-100).</param>
-    /// <returns>The formatted number.</returns>
-    private static string Pct(double value) => value.ToString("0.###", Invariant);
 
     /// <summary>Formats a millisecond duration with up to one decimal.</summary>
     private static string Ms(double ms) => ms.ToString("0.#", Invariant) + "ms";
