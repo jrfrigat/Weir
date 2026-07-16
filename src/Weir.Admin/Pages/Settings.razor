@@ -1,7 +1,7 @@
 @page "/settings"
 @attribute [Authorize]
 @inject WeirApiClient Api
-@inject IJSRuntime JS
+@inject IFlareDownload Download
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="settings" Description="Runtime system settings, applied without a restart unless noted" />
@@ -90,10 +90,6 @@
                     {
                         <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">Preparing...</FlareText>
                     }
-                    @if (_exportUrl is not null)
-                    {
-                        <a href="@_exportUrl" download="weir-control-plane.json" style="color:var(--flare-color-primary)">download weir-control-plane.json</a>
-                    }
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">A portable, secret-free snapshot of endpoints, scopes, settings and non-secret key/admin inventory. Excludes hashes; use a database backup for full disaster recovery. Admin role required.</FlareText>
             </FlareStack>
@@ -141,8 +137,6 @@
     private long _maxRequestBodyBytes;
     private WeirLoggingInfo? _logging;
     private bool _exporting;
-    private string? _exportUrl;
-
     /// <summary>Loads the current settings into the editable fields.</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -184,11 +178,10 @@
         }
     }
 
-    /// <summary>Fetches the control-plane export and prepares a download link (data: URL).</summary>
+    /// <summary>Fetches the control-plane export and downloads it via Flare's download service.</summary>
     private async Task ExportAsync()
     {
         _exporting = true;
-        _exportUrl = null;
         _status = null;
         try
         {
@@ -200,7 +193,9 @@
                 return;
             }
 
-            _exportUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+            await Download.DownloadAsync("weir-control-plane.json", json, "application/json");
+            _status = "Downloaded weir-control-plane.json.";
+            _statusError = false;
         }
         catch (HttpRequestException)
         {
@@ -265,12 +260,4 @@
             _saving = false;
         }
     }
-
-    /// <summary>Creates a temporary Blob URL from a JSON string via JS interop, so the browser downloads
-    /// the content instead of navigating to a data: URL (which has size and CORS limitations).</summary>
-    /// <param name="json">The JSON content.</param>
-    /// <param name="contentType">The MIME type.</param>
-    /// <returns>A blob: URL suitable for an anchor download.</returns>
-    private async Task<string> CreateBlobUrlAsync(string json, string contentType) =>
-        await JS.InvokeAsync<string>("eval", $"URL.createObjectURL(new Blob([{System.Text.Json.JsonSerializer.Serialize(json)}], {{type:'{contentType}'}}))");
 }

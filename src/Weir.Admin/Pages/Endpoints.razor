@@ -6,7 +6,7 @@
 @inject WeirApiClient Api
 @inject IDialogService Dialog
 @inject NavigationManager Nav
-@inject IJSRuntime JS
+@inject IFlareDownload Download
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="endpoints" Description="HTTP routes mapped to stored procedures and functions">
@@ -24,18 +24,7 @@
 
     @if (_notice is not null)
     {
-        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
-            @* Plain anchors: the download targets are Blob URLs created via JS interop. *@
-            @if (_exportUrl is not null)
-            {
-                <a href="@_exportUrl" download="weir-endpoints.json" style="color:var(--flare-color-primary)">download endpoints.json</a>
-            }
-            @if (_openApiUrl is not null)
-            {
-                <a href="@_openApiUrl" download="weir-openapi.json" style="color:var(--flare-color-primary)">download openapi.json</a>
-            }
-        </FlareStack>
+        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
     }
 
     <FlareTabs ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
@@ -432,8 +421,6 @@
     private bool _busy;
     private bool _discovering;
     private string? _discoverError;
-    private string? _exportUrl;
-    private string? _openApiUrl;
     private string? _notice;
     private bool _openApiBusy;
     private bool _syncBusy;
@@ -783,8 +770,6 @@
         _syncBusy = true;
         var results = await Api.SyncAllEndpointsAsync();
         _notice = results is null ? "Nothing to sync." : $"Synced {results.Count} endpoint(s).";
-        _exportUrl = null;
-        _openApiUrl = null;
         _syncBusy = false;
         await LoadAsync();
     }
@@ -794,8 +779,6 @@
         _syncBusy = true;
         var result = await Api.SyncEndpointAsync(id);
         _notice = result is null ? "Nothing to sync." : "Synced: " + ChangeSummary(result);
-        _exportUrl = null;
-        _openApiUrl = null;
         _syncBusy = false;
         await LoadAsync();
     }
@@ -808,8 +791,6 @@
         _notice = result is null
             ? $"Cache purge failed for /api/{endpoint.Route}."
             : $"Purged cache for /api/{endpoint.Route}.";
-        _exportUrl = null;
-        _openApiUrl = null;
     }
 
     private static string ChangeSummary(EndpointSyncResult result)
@@ -830,18 +811,16 @@
     {
         _openApiBusy = true;
         var json = await Api.GetOpenApiAsync(FilterKeyId, string.IsNullOrEmpty(_filterScope) ? null : _filterScope);
-        _openApiUrl = await CreateBlobUrlAsync(json, "application/json");
-        _exportUrl = null;
-        _notice = IsFiltered ? "OpenAPI document ready (filtered)." : "OpenAPI document ready.";
+        await Download.DownloadAsync("weir-openapi.json", json, "application/json");
+        _notice = IsFiltered ? "Downloaded OpenAPI document (filtered)." : "Downloaded openapi.json.";
         _openApiBusy = false;
     }
 
     private async Task ExportAsync()
     {
         var json = JsonSerializer.Serialize(FilteredEndpoints, new JsonSerializerOptions { WriteIndented = true });
-        _exportUrl = await CreateBlobUrlAsync(json, "application/json");
-        _openApiUrl = null;
-        _notice = IsFiltered ? $"Export ready ({FilteredEndpoints.Count} filtered endpoint(s))." : "Export ready.";
+        await Download.DownloadAsync("weir-endpoints.json", json, "application/json");
+        _notice = IsFiltered ? $"Downloaded {FilteredEndpoints.Count} filtered endpoint(s)." : "Downloaded endpoints.json.";
     }
 
     private async Task ImportAsync(InputFileChangeEventArgs args)
@@ -1035,13 +1014,6 @@
             return raw;
         }
     }
-
-    /// <summary>Creates a temporary Blob URL from a string via JS interop.</summary>
-    /// <param name="content">The text content.</param>
-    /// <param name="contentType">The MIME type.</param>
-    /// <returns>A blob: URL suitable for an anchor download.</returns>
-    private async Task<string> CreateBlobUrlAsync(string content, string contentType) =>
-        await JS.InvokeAsync<string>("eval", $"URL.createObjectURL(new Blob([{JsonSerializer.Serialize(content)}], {{type:'{contentType}'}}))");
 
     // ----- Editor helpers -------------------------------------------------------------------------
 

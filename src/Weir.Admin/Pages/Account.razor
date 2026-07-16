@@ -1,7 +1,7 @@
 @page "/account"
 @attribute [Authorize]
 @inject WeirApiClient Api
-@inject IJSRuntime JS
+@inject IFlareClipboard Clipboard
 
 <FlareStack Gap="FlareSpacing.Medium" Style="max-width:34rem;">
     <PageHeader Title="account" Description="Your profile, password and personal access tokens" />
@@ -177,19 +177,12 @@
         await LoadTokensAsync();
     }
 
-    /// <summary>Copies the plaintext token to the clipboard.</summary>
+    /// <summary>Copies the plaintext token to the clipboard via Flare's clipboard service.</summary>
     /// <param name="token">The plaintext token.</param>
     private async Task CopyAsync(string token)
     {
-        try
-        {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", token);
-            _copied = true;
-        }
-        catch (JSException)
-        {
-            // Clipboard unavailable; the token is still selectable on screen.
-        }
+        await Clipboard.CopyAsync(token);
+        _copied = true;
     }
 
     /// <summary>Validates and submits the self password change.</summary>

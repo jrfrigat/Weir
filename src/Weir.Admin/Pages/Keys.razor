@@ -1,7 +1,7 @@
 @page "/keys"
 @attribute [Authorize]
 @inject WeirApiClient Api
-@inject IJSRuntime JS
+@inject IFlareClipboard Clipboard
 @inject IDialogService Dialog
 
 <FlareStack Gap="FlareSpacing.Medium">
@@ -145,19 +145,12 @@
         _showCreate = true;
     }
 
-    /// <summary>Copies the plaintext key to the clipboard.</summary>
+    /// <summary>Copies the plaintext key to the clipboard via Flare's clipboard service.</summary>
     /// <param name="key">The plaintext key.</param>
     private async Task CopyAsync(string key)
     {
-        try
-        {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", key);
-            _copied = true;
-        }
-        catch (JSException)
-        {
-            // Clipboard unavailable; the key is still selectable on screen.
-        }
+        await Clipboard.CopyAsync(key);
+        _copied = true;
     }
 
     /// <summary>Adds an empty grant row (defaults to allow-any).</summary>
