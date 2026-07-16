@@ -120,87 +120,13 @@
             <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(_endpoints?.Count ?? 0) active - click a row for details</FlareText>
         </FlareStack>
 
-        @* Timing breakdown detail panel *@
-        @if (_selectedEndpoint is not null)
-        {
-            <FlareCard Variant="CardVariant.Outlined">
-                <FlareStack Row Align="FlareAlignItems.Baseline" Justify="FlareJustifyContent.SpaceBetween">
-                    <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
-                        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Style="letter-spacing:.1em;">// TIMING BREAKDOWN</FlareText>
-                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">p50 by phase</FlareText>
-                    </FlareStack>
-                    <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => _selectedEndpoint = null)">close</FlareButton>
-                </FlareStack>
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="margin-top:0.25rem;">@_selectedEndpoint.Route</FlareText>
-
-                @{
-                    var ep = _selectedEndpoint;
-                    var totalP50 = ep.P50LatencyMs;
-                    var bindingP50 = ep.BindingP50Ms;
-                    var cacheP50 = ep.CacheLookupP50Ms;
-                    var dbP50 = ep.DbP50Ms;
-                    var streamingP50 = ep.StreamingP50Ms;
-                    var overhead = Math.Max(0, totalP50 - bindingP50 - cacheP50 - dbP50 - streamingP50);
-                    var maxBar = Math.Max(totalP50, 1);
-                }
-
-                <div style="display:flex;gap:2px;height:28px;border-radius:4px;overflow:hidden;margin:0.75rem 0 0.5rem;">
-                    @if (bindingP50 > 0)
-                    {
-                        <div style="width:@(bindingP50 / maxBar * 100)%;background:var(--flare-color-info);min-width:2px;" title="Binding: @Lat(bindingP50)"></div>
-                    }
-                    @if (cacheP50 > 0)
-                    {
-                        <div style="width:@(cacheP50 / maxBar * 100)%;background:var(--flare-color-warning);min-width:2px;" title="Cache: @Lat(cacheP50)"></div>
-                    }
-                    @if (dbP50 > 0)
-                    {
-                        <div style="width:@(dbP50 / maxBar * 100)%;background:var(--flare-color-error);min-width:2px;" title="DB: @Lat(dbP50)"></div>
-                    }
-                    @if (streamingP50 > 0)
-                    {
-                        <div style="width:@(streamingP50 / maxBar * 100)%;background:var(--flare-color-success);min-width:2px;" title="Streaming: @Lat(streamingP50)"></div>
-                    }
-                    @if (overhead > 0)
-                    {
-                        <div style="width:@(overhead / maxBar * 100)%;background:var(--flare-color-on-surface-variant);min-width:2px;" title="Other: @Lat(overhead)"></div>
-                    }
-                </div>
-
-                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                        <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-info);"></div>
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true">Binding @Lat(bindingP50)</FlareText>
-                    </FlareStack>
-                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                        <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-warning);"></div>
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true">Cache @Lat(cacheP50)</FlareText>
-                    </FlareStack>
-                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                        <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-error);"></div>
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true">DB @Lat(dbP50)</FlareText>
-                    </FlareStack>
-                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                        <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-success);"></div>
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true">Streaming @Lat(streamingP50)</FlareText>
-                    </FlareStack>
-                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                        <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-on-surface-variant);"></div>
-                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true">Other @Lat(overhead)</FlareText>
-                    </FlareStack>
-                    <FlareDivider Vertical="true" Style="height:14px;" />
-                    <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">Total p50 @Lat(totalP50) | p95 @Lat(ep.P95LatencyMs)</FlareText>
-                </FlareStack>
-            </FlareCard>
-        }
-
         @if (_endpoints is null || _endpoints.Count == 0)
         {
             <FlareText Color="FlareColor.OnSurfaceVariant">No calls recorded yet.</FlareText>
         }
         else
         {
-            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => SelectEndpoint(e))">
+            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
                 <Columns>
                     <FlareColumn TItem="EndpointMetrics" Title="Route" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
                     <FlareColumn TItem="EndpointMetrics" Title="Object" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
@@ -225,7 +151,6 @@
 
     private MetricsOverview? _overview;
     private List<EndpointMetrics>? _endpoints;
-    private EndpointMetrics? _selectedEndpoint;
     private ChartData? _thrData;
     private ChartData? _latData;
     private List<ConnectionHealth>? _connections;
@@ -260,11 +185,6 @@
             {
                 _overview = snapshot.Overview;
                 _endpoints = snapshot.Endpoints.ToList();
-                // Keep the selected endpoint in sync with fresh data.
-                if (_selectedEndpoint is not null)
-                {
-                    _selectedEndpoint = _endpoints?.FirstOrDefault(e => e.Route == _selectedEndpoint.Route);
-                }
                 _thrData = ToChart(snapshot.Throughput, "req/s", "var(--flare-color-primary)");
                 _latData = ToChart(snapshot.Latency, "ms", "var(--flare-color-success)");
                 return InvokeAsync(StateHasChanged);
@@ -311,13 +231,6 @@
         }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
     }
 
-    /// <summary>Toggles the timing-breakdown detail panel for the clicked endpoint.</summary>
-    /// <param name="endpoint">The endpoint row that was clicked.</param>
-    private void SelectEndpoint(EndpointMetrics endpoint)
-    {
-        _selectedEndpoint = _selectedEndpoint?.Route == endpoint.Route ? null : endpoint;
-    }
-
     /// <summary>Loads connection health out of band (a down connection can take seconds to probe).</summary>
     private async Task LoadConnectionsAsync()
     {
@@ -339,11 +252,6 @@
         {
             _overview = await Api.GetOverviewAsync();
             _endpoints = await Api.GetEndpointMetricsAsync();
-            // Keep the selected endpoint in sync with fresh data.
-            if (_selectedEndpoint is not null)
-            {
-                _selectedEndpoint = _endpoints?.FirstOrDefault(e => e.Route == _selectedEndpoint.Route);
-            }
             _thrData = ToChart(await Api.GetTimeSeriesAsync("requests", null, 300, 15), "req/s", "var(--flare-color-primary)");
             _latData = ToChart(await Api.GetTimeSeriesAsync("latency", null, 300, 15), "ms", "var(--flare-color-success)");
             if (!_disposed)

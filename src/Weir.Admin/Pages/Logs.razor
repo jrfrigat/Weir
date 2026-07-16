@@ -39,20 +39,20 @@
     }
     else
     {
-        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => OpenDetail(e))">
+        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" RowClick="@(e => OpenDetail(e))">
             <Columns>
-                <FlareColumn TItem="RequestLogEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" />
-                <FlareColumn TItem="RequestLogEntry" Title="Method">
+                <FlareColumn TItem="RequestLogEntry" Title="Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
+                <FlareColumn TItem="RequestLogEntry" Title="Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
                     <Template><FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(context.HttpMethod)">@context.HttpMethod</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Route" Field="@(e => (object?)e.Route)">
+                <FlareColumn TItem="RequestLogEntry" Title="Route" Field="@(e => (object?)e.Route)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true">/@context.Route</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Object" Field="@(e => (object?)e.ObjectName)" />
-                <FlareColumn TItem="RequestLogEntry" Title="Status" Align="ColumnAlign.End">
+                <FlareColumn TItem="RequestLogEntry" Title="Object" Field="@(e => (object?)e.ObjectName)" Filterable="true" FilterFunc="@FilterLike" />
+                <FlareColumn TItem="RequestLogEntry" Title="Status" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenInt">
                     <Template><FlareText Element="span" Mono="true" Color="@StatusColor(context.StatusCode)">@(context.StatusCode?.ToString() ?? "-")</FlareText></Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="Duration" Align="ColumnAlign.End">
+                <FlareColumn TItem="RequestLogEntry" Title="Duration" Align="ColumnAlign.End" Filterable="true" FilterFunc="@FilterBetweenDouble">
                     <Template>
                         <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
                             @if (context.Slow)
@@ -63,9 +63,9 @@
                         </FlareStack>
                     </Template>
                 </FlareColumn>
-                <FlareColumn TItem="RequestLogEntry" Title="DB" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" />
-                <FlareColumn TItem="RequestLogEntry" Title="Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? "cache" : e.RowsReturned?.ToString() ?? "-"))" />
-                <FlareColumn TItem="RequestLogEntry" Title="Caller" Field="@(e => (object?)e.ApiKeyPrefix)">
+                <FlareColumn TItem="RequestLogEntry" Title="DB" Align="ColumnAlign.End" Field="@(e => (object?)(e.DbDurationMs.HasValue ? Ms(e.DbDurationMs.Value) : "-"))" Filterable="true" FilterFunc="@FilterBetweenDoubleNullable" />
+                <FlareColumn TItem="RequestLogEntry" Title="Rows" Align="ColumnAlign.End" Field="@(e => (object?)(e.CacheHit ? "cache" : e.RowsReturned?.ToString() ?? "-"))" Filterable="true" FilterFunc="@FilterLikeRows" />
+                <FlareColumn TItem="RequestLogEntry" Title="Caller" Field="@(e => (object?)e.ApiKeyPrefix)" Filterable="true" FilterFunc="@FilterLike">
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">@context.ApiKeyPrefix</FlareText></Template>
                 </FlareColumn>
             </Columns>
@@ -99,6 +99,46 @@
         @if (_selected is not null)
         {
             <FlareStack Gap="FlareSpacing.Medium">
+                @* Timing breakdown *@
+                @{
+                    var total = _selected.DurationMs;
+                    var db = _selected.DbDurationMs ?? 0;
+                    var overhead = Math.Max(0, total - db);
+                    var maxBar = Math.Max(total, 1);
+                }
+                <FlareCard Variant="CardVariant.Outlined">
+                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">// TIMING BREAKDOWN</FlareText>
+                    <div style="display:flex;gap:2px;height:24px;border-radius:4px;overflow:hidden;margin:0.5rem 0;">
+                        @if (db > 0)
+                        {
+                            <div style="width:@(db / maxBar * 100)%;background:var(--flare-color-error);min-width:2px;" title="DB: @Ms(db)"></div>
+                        }
+                        @if (overhead > 0)
+                        {
+                            <div style="width:@(overhead / maxBar * 100)%;background:var(--flare-color-on-surface-variant);min-width:2px;" title="Other: @Ms(overhead)"></div>
+                        }
+                    </div>
+                    <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                        @if (db > 0)
+                        {
+                            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                                <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-error);"></div>
+                                <FlareText Typo="TypographyScale.LabelSmall" Mono="true">DB @Ms(db)</FlareText>
+                            </FlareStack>
+                        }
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                            <div style="width:10px;height:10px;border-radius:2px;background:var(--flare-color-on-surface-variant);"></div>
+                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true">Other @Ms(overhead)</FlareText>
+                        </FlareStack>
+                        <FlareDivider Vertical="true" Style="height:14px;" />
+                        <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">Total @Ms(total)</FlareText>
+                        @if (_selected.AverageMs is { } avg)
+                        {
+                            <FlareText Typo="TypographyScale.LabelSmall" Mono="true" Color="FlareColor.OnSurfaceVariant">avg @Ms(avg)</FlareText>
+                        }
+                    </FlareStack>
+                </FlareCard>
+
                 <FlareDescriptionList>
                     <FlareDescriptionItem Label="Time"><FlareText Mono="true">@_selected.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</FlareText></FlareDescriptionItem>
                     <FlareDescriptionItem Label="Object"><FlareText Mono="true">@_selected.ObjectName</FlareText></FlareDescriptionItem>
@@ -293,4 +333,121 @@
         status >= 500 ? FlareColor.Error
         : status >= 400 ? FlareColor.Warning
         : FlareColor.OnSurfaceVariant;
+
+    // ===== Column filters =====
+
+    private static readonly string[] _methodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+    private static bool FilterTime(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            var entryDate = entry.Timestamp.Date;
+            return entryDate == date;
+        }
+
+        return true;
+    }
+
+    private static bool FilterMethod(RequestLogEntry entry, string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) || string.Equals(entry.HttpMethod, value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool FilterLike(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        var field = entry.Route ?? string.Empty;
+        return field.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool FilterLikeRows(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        var text = entry.CacheHit ? "cache" : entry.RowsReturned?.ToString() ?? "-";
+        return text.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool FilterBetweenInt(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || entry.StatusCode is null)
+        {
+            return true;
+        }
+
+        return TryParseBetween(value, out var min, out var max) && entry.StatusCode.Value >= min && entry.StatusCode.Value <= max;
+    }
+
+    private static bool FilterBetweenDouble(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        return TryParseBetweenDouble(value, out var min, out var max) && entry.DurationMs >= min && entry.DurationMs <= max;
+    }
+
+    private static bool FilterBetweenDoubleNullable(RequestLogEntry entry, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || entry.DbDurationMs is null)
+        {
+            return true;
+        }
+
+        return TryParseBetweenDouble(value, out var min, out var max) && entry.DbDurationMs.Value >= min && entry.DbDurationMs.Value <= max;
+    }
+
+    private static bool TryParseBetween(string value, out int min, out int max)
+    {
+        min = 0;
+        max = int.MaxValue;
+        var parts = value.Split('-', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 2 && int.TryParse(parts[0], out min) && int.TryParse(parts[1], out max))
+        {
+            return true;
+        }
+
+        if (int.TryParse(value, out var single))
+        {
+            min = single;
+            max = single;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseBetweenDouble(string value, out double min, out double max)
+    {
+        min = 0;
+        max = double.MaxValue;
+        var parts = value.Split('-', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 2 && double.TryParse(parts[0], NumberStyles.Float, Invariant, out min) && double.TryParse(parts[1], NumberStyles.Float, Invariant, out max))
+        {
+            return true;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, Invariant, out var single))
+        {
+            min = single;
+            max = single;
+            return true;
+        }
+
+        return false;
+    }
 }
