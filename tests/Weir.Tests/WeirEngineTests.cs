@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using Weir.Abstractions;
 using Weir.Contracts;
@@ -10,11 +11,11 @@ namespace Weir.Tests;
 // pre-write 304 short-circuit when the caller's If-None-Match matches.
 public class WeirEngineTests
 {
-    /// <summary>A response cache that always returns a fixed payload, simulating a warm cache.</summary>
+    /// <summary>A response cache that always returns a fixed payload with a pre-computed ETag, simulating a warm cache.</summary>
     private sealed class HitCache(byte[] payload) : IResponseCache
     {
-        public ValueTask<ReadOnlyMemory<byte>?> GetAsync(string key, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<ReadOnlyMemory<byte>?>(payload);
+        public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<CachedResponse?>(new CachedResponse(payload, ETag: string.Concat("\"", Convert.ToHexString(SHA256.HashData(payload)), "\"")));
 
         public ValueTask SetAsync(string key, ReadOnlyMemory<byte> payload, TimeSpan ttl, CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;

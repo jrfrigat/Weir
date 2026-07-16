@@ -54,7 +54,7 @@ public static class DataPlaneEndpoints
                     Actor = actor,
                     Route = route,
                     StatusCode = status,
-                    Outcome = status >= 400 ? "error" : "ok",
+                    Outcome = status >= 400 ? OutcomeCodes.Error : OutcomeCodes.Ok,
                     DurationMs = stopwatch.Elapsed.TotalMilliseconds,
                 });
             }
@@ -168,8 +168,10 @@ public static class DataPlaneEndpoints
         catch (WeirConnectionUnavailableException ex) when (!context.Response.HasStarted)
         {
             // The connection's circuit breaker is open or its bulkhead is full; ask the caller to retry.
+            Log.DataPlaneError(services.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.DataPlane"), ex, route);
             context.Response.Headers.RetryAfter = "5";
-            await ProblemResults.WriteAsync(context, StatusCodes.Status503ServiceUnavailable, "Service unavailable", ex.Message);
+            await ProblemResults.WriteAsync(context, StatusCodes.Status503ServiceUnavailable, "Service unavailable",
+                "The data connection is temporarily unavailable. Please retry.");
         }
         catch (DbException ex) when (!context.Response.HasStarted)
         {

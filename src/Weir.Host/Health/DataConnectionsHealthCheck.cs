@@ -41,9 +41,9 @@ public sealed class DataConnectionsHealthCheck : IHealthCheck
                 await connector.ProbeAsync(descriptor.Name, cancellationToken);
                 data[descriptor.Name] = "healthy";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                data[descriptor.Name] = "unhealthy: " + ex.Message;
+                data[descriptor.Name] = "unhealthy";
                 anyUnhealthy = true;
             }
         }

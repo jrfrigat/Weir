@@ -160,3 +160,17 @@ public sealed record ConnectionInfo
     /// <summary>Provider key, e.g. SqlServer.</summary>
     public required string Provider { get; init; }
 }
+
+/// <summary>Request to change an admin's role.</summary>
+public sealed record AdminRoleRequest
+{
+    /// <summary>The new role (see <see cref="AdminRoles"/>).</summary>
+    public required string Role { get; init; }
+}
+
+/// <summary>Request to enable or disable an admin account.</summary>
+public sealed record AdminEnabledRequest
+{
+    /// <summary>Whether the account should be enabled.</summary>
+    public required bool Enabled { get; init; }
+}

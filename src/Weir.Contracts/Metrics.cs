@@ -72,6 +72,30 @@ public sealed record EndpointMetrics
 
     /// <summary>When the endpoint was last called.</summary>
     public DateTimeOffset? LastCalledAt { get; init; }
+
+    /// <summary>Median parameter-binding time, in milliseconds.</summary>
+    public double BindingP50Ms { get; init; }
+
+    /// <summary>95th-percentile parameter-binding time, in milliseconds.</summary>
+    public double BindingP95Ms { get; init; }
+
+    /// <summary>Median cache-lookup time, in milliseconds.</summary>
+    public double CacheLookupP50Ms { get; init; }
+
+    /// <summary>95th-percentile cache-lookup time, in milliseconds.</summary>
+    public double CacheLookupP95Ms { get; init; }
+
+    /// <summary>Median database-execution time, in milliseconds.</summary>
+    public double DbP50Ms { get; init; }
+
+    /// <summary>95th-percentile database-execution time, in milliseconds.</summary>
+    public double DbP95Ms { get; init; }
+
+    /// <summary>Median response-streaming time, in milliseconds.</summary>
+    public double StreamingP50Ms { get; init; }
+
+    /// <summary>95th-percentile response-streaming time, in milliseconds.</summary>
+    public double StreamingP95Ms { get; init; }
 }
 
 /// <summary>A single time-bucketed data point.</summary>

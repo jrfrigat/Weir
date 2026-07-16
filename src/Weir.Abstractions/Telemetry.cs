@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Weir.Contracts;
 
 namespace Weir.Abstractions;
@@ -21,7 +22,8 @@ public interface IWeirCallObserver
 
 /// <summary>
 /// Mutable per-call telemetry context. Parameter <em>values</em> are intentionally absent - only
-/// metadata is carried, so observers cannot accidentally log PII.
+/// metadata is carried, so observers cannot accidentally log PII. Owned by the engine for the
+/// duration of a single data-plane call. Observers must not mutate it; they may read it.
 /// </summary>
 public sealed class WeirCallContext
 {
@@ -49,8 +51,17 @@ public sealed class WeirCallContext
     /// <summary>Total wall-clock duration, in milliseconds.</summary>
     public double DurationMs { get; set; }
 
+    /// <summary>Time spent binding parameters, in milliseconds.</summary>
+    public double BindingDurationMs { get; set; }
+
+    /// <summary>Time spent looking up the cache, in milliseconds.</summary>
+    public double CacheLookupDurationMs { get; set; }
+
     /// <summary>Time spent inside the database call, in milliseconds.</summary>
     public double DbDurationMs { get; set; }
+
+    /// <summary>Time spent streaming the response, in milliseconds.</summary>
+    public double StreamingDurationMs { get; set; }
 
     /// <summary>Number of rows returned across all result sets.</summary>
     public int RowsReturned { get; set; }
@@ -61,8 +72,8 @@ public sealed class WeirCallContext
     /// <summary>Resulting HTTP status code.</summary>
     public int? StatusCode { get; set; }
 
-    /// <summary>Outcome marker, e.g. <c>ok</c> / <c>error</c>.</summary>
-    public string Outcome { get; set; } = "ok";
+    /// <summary>Outcome marker. Use <see cref="OutcomeCodes.Ok"/> / <see cref="OutcomeCodes.Error"/>.</summary>
+    public string Outcome { get; set; } = OutcomeCodes.Ok;
 
     /// <summary>
     /// The classified database-error category for a failed call, or <see cref="DbErrorCategory.None"/>
@@ -78,12 +89,13 @@ public sealed class WeirCallContext
     /// </summary>
     public bool LogRequests { get; set; } = true;
 
-    /// <summary>The endpoint's per-endpoint slow-threshold override (percentage), or null to use the global default.</summary>
+    /// <summary>The endpoint's per-endpoint slow-threshold override (percentage), or null to use the global default. Must be non-negative when set.</summary>
     public int? SlowThresholdPercent { get; init; }
 
     /// <summary>
     /// Captured request parameters as JSON, populated by the engine only when the endpoint opts in
-    /// (<c>Logging.LogParameters</c>). Null otherwise, keeping the default PII-safe.
+    /// (<c>Logging.LogParameters</c>). Null otherwise, keeping the default PII-safe. Size-capped to
+    /// prevent unbounded memory growth from large TVP tokens.
     /// </summary>
     public string? CapturedParameters { get; set; }
 
@@ -96,8 +108,8 @@ public sealed class WeirCallContext
     /// <summary>Error detail for a failed call, set by the engine from the thrown exception.</summary>
     public string? Error { get; set; }
 
-    /// <summary>Free-form bag for observers to stash correlation data.</summary>
-    public IDictionary<string, object?> Items { get; } = new Dictionary<string, object?>();
+    /// <summary>Free-form bag for observers to stash correlation data. Thread-safe for concurrent observers.</summary>
+    public IDictionary<string, object?> Items { get; } = new ConcurrentDictionary<string, object?>();
 }
 
 /// <summary>

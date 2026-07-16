@@ -6,6 +6,7 @@
 @inject WeirApiClient Api
 @inject IDialogService Dialog
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="endpoints" Description="HTTP routes mapped to stored procedures and functions">
@@ -15,7 +16,7 @@
                 <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm">Import</FlareButton>
                 <InputFile OnChange="ImportAsync" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer" />
             </label>
-            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="Export">Export</FlareButton>
+            <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="ExportAsync">Export</FlareButton>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="BuildOpenApiAsync" Loading="_openApiBusy">OpenAPI</FlareButton>
             <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">New endpoint</FlareButton>
         </Actions>
@@ -25,8 +26,7 @@
     {
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
             <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
-            @* Plain anchors: the download targets are data: URLs, which Flare's href-safety check
-               rejects (it would render them as about:blank). *@
+            @* Plain anchors: the download targets are Blob URLs created via JS interop. *@
             @if (_exportUrl is not null)
             {
                 <a href="@_exportUrl" download="weir-endpoints.json" style="color:var(--flare-color-primary)">download endpoints.json</a>
@@ -812,16 +812,16 @@
     {
         _openApiBusy = true;
         var json = await Api.GetOpenApiAsync(FilterKeyId, string.IsNullOrEmpty(_filterScope) ? null : _filterScope);
-        _openApiUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+        _openApiUrl = await CreateBlobUrlAsync(json, "application/json");
         _exportUrl = null;
         _notice = IsFiltered ? "OpenAPI document ready (filtered)." : "OpenAPI document ready.";
         _openApiBusy = false;
     }
 
-    private void Export()
+    private async Task ExportAsync()
     {
         var json = JsonSerializer.Serialize(FilteredEndpoints, new JsonSerializerOptions { WriteIndented = true });
-        _exportUrl = "data:application/json;charset=utf-8," + Uri.EscapeDataString(json);
+        _exportUrl = await CreateBlobUrlAsync(json, "application/json");
         _openApiUrl = null;
         _notice = IsFiltered ? $"Export ready ({FilteredEndpoints.Count} filtered endpoint(s))." : "Export ready.";
     }
@@ -1017,6 +1017,13 @@
             return raw;
         }
     }
+
+    /// <summary>Creates a temporary Blob URL from a string via JS interop.</summary>
+    /// <param name="content">The text content.</param>
+    /// <param name="contentType">The MIME type.</param>
+    /// <returns>A blob: URL suitable for an anchor download.</returns>
+    private async Task<string> CreateBlobUrlAsync(string content, string contentType) =>
+        await JS.InvokeAsync<string>("eval", $"URL.createObjectURL(new Blob([{JsonSerializer.Serialize(content)}], {{type:'{contentType}'}}))");
 
     // ----- Editor helpers -------------------------------------------------------------------------
 

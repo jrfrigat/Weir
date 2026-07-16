@@ -176,5 +176,41 @@ internal static class SqliteSchema
         CREATE INDEX IF NOT EXISTS IX_RequestLog_Endpoint ON RequestLog (EndpointId, Id DESC);
         CREATE INDEX IF NOT EXISTS IX_RequestLog_Timestamp ON RequestLog (Timestamp);
         """,
+
+        // v12 - add ON DELETE CASCADE to AdminTokens and AdminRefreshTokens foreign keys.
+        // SQLite does not support ALTER CONSTRAINT, so the tables must be dropped and recreated.
+        """
+        DROP INDEX IF EXISTS IX_AdminRefreshTokens_AdminId;
+        DROP INDEX IF EXISTS UX_AdminRefreshTokens_Hash;
+        DROP TABLE IF EXISTS AdminRefreshTokens;
+
+        DROP INDEX IF EXISTS IX_AdminTokens_AdminId;
+        DROP INDEX IF EXISTS UX_AdminTokens_Hash;
+        DROP TABLE IF EXISTS AdminTokens;
+
+        CREATE TABLE AdminTokens (
+            Id         TEXT PRIMARY KEY,
+            AdminId    TEXT NOT NULL REFERENCES AdminUsers (Id) ON DELETE CASCADE,
+            Name       TEXT NOT NULL,
+            Prefix     TEXT NOT NULL,
+            Hash       TEXT NOT NULL,
+            CreatedAt  TEXT NOT NULL,
+            ExpiresAt  TEXT NULL,
+            LastUsedAt TEXT NULL
+        );
+        CREATE UNIQUE INDEX UX_AdminTokens_Hash ON AdminTokens (Hash);
+        CREATE INDEX IX_AdminTokens_AdminId ON AdminTokens (AdminId);
+
+        CREATE TABLE AdminRefreshTokens (
+            Id        TEXT PRIMARY KEY,
+            AdminId   TEXT NOT NULL REFERENCES AdminUsers (Id) ON DELETE CASCADE,
+            Hash      TEXT NOT NULL,
+            ExpiresAt TEXT NOT NULL,
+            CreatedAt TEXT NOT NULL,
+            RevokedAt TEXT NULL
+        );
+        CREATE UNIQUE INDEX UX_AdminRefreshTokens_Hash ON AdminRefreshTokens (Hash);
+        CREATE INDEX IX_AdminRefreshTokens_AdminId ON AdminRefreshTokens (AdminId);
+        """,
     ];
 }

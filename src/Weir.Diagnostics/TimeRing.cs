@@ -26,6 +26,9 @@ internal sealed class TimeRing
     /// <summary>Sum of latencies (microseconds) per slot.</summary>
     private readonly long[] _sumMicros;
 
+    /// <summary>Sum of db durations (microseconds) per slot.</summary>
+    private readonly long[] _sumDbMicros;
+
     /// <summary>Latency histogram bucket counts per slot, flattened as <c>slot * bucketCount + bucket</c>.</summary>
     private readonly long[] _histogram;
 
@@ -47,6 +50,7 @@ internal sealed class TimeRing
         _errors = new long[capacitySeconds];
         _cacheHits = new long[capacitySeconds];
         _sumMicros = new long[capacitySeconds];
+        _sumDbMicros = new long[capacitySeconds];
         _histogram = new long[capacitySeconds * bucketCount];
         Array.Fill(_second, -1L);
     }
@@ -57,7 +61,8 @@ internal sealed class TimeRing
     /// <param name="isError">Whether the call failed.</param>
     /// <param name="cacheHit">Whether the response was served from cache.</param>
     /// <param name="bucketIndex">Latency histogram bucket the duration falls in.</param>
-    public void Add(long second, double durationMs, bool isError, bool cacheHit, int bucketIndex)
+    /// <param name="dbDurationMs">Database execution duration in milliseconds.</param>
+    public void Add(long second, double durationMs, bool isError, bool cacheHit, int bucketIndex, double dbDurationMs = 0)
     {
         var slot = Slot(second);
         lock (_lock)
@@ -69,6 +74,7 @@ internal sealed class TimeRing
                 _errors[slot] = 0;
                 _cacheHits[slot] = 0;
                 _sumMicros[slot] = 0;
+                _sumDbMicros[slot] = 0;
                 Array.Clear(_histogram, slot * _bucketCount, _bucketCount);
             }
 
@@ -84,6 +90,7 @@ internal sealed class TimeRing
             }
 
             _sumMicros[slot] += (long)(durationMs * 1000);
+            _sumDbMicros[slot] += (long)(dbDurationMs * 1000);
             _histogram[(slot * _bucketCount) + bucketIndex]++;
         }
     }
@@ -141,7 +148,7 @@ internal sealed class TimeRing
         {
             for (var bucketStart = start; bucketStart <= nowSecond; bucketStart += bucketSeconds)
             {
-                long count = 0, errors = 0, cacheHits = 0, sumMicros = 0;
+                long count = 0, errors = 0, cacheHits = 0, sumMicros = 0, sumDbMicros = 0;
                 for (var s = bucketStart; s < bucketStart + bucketSeconds && s <= nowSecond; s++)
                 {
                     var slot = Slot(s);
@@ -151,6 +158,7 @@ internal sealed class TimeRing
                         errors += _errors[slot];
                         cacheHits += _cacheHits[slot];
                         sumMicros += _sumMicros[slot];
+                        sumDbMicros += _sumDbMicros[slot];
                     }
                 }
 
@@ -160,6 +168,7 @@ internal sealed class TimeRing
                     "errors" => errors / (double)bucketSeconds,
                     "latency" => count == 0 ? 0 : sumMicros / 1000.0 / count,
                     "cacheHitRatio" => count == 0 ? 0 : (double)cacheHits / count,
+                    "dbDuration" => count == 0 ? 0 : sumDbMicros / 1000.0 / count,
                     _ => count,
                 };
 

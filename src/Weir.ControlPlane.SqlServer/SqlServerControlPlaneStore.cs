@@ -84,9 +84,13 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
 
         // Serialize migrations across instances. The session-scoped lock is held on this connection
         // until it is explicitly released in the finally block below (or the connection closes).
-        await conn.ExecuteAsync(new CommandDefinition(
-            "EXEC sp_getapplock @Resource = 'WeirControlPlaneMigration', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = -1;",
+        var lockResult = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "DECLARE @lockResult int; EXEC @lockResult = sp_getapplock @Resource = 'WeirControlPlaneMigration', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 60000; SELECT @lockResult;",
             cancellationToken: cancellationToken));
+        if (lockResult != 0)
+        {
+            throw new ControlPlaneMigrationException("Could not acquire migration lock within timeout.");
+        }
         try
         {
             // Ensure the version tracker holds exactly one row. The singleton column plus its unique
@@ -218,21 +222,33 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         var id = endpoint.Id == Guid.Empty ? Guid.NewGuid() : endpoint.Id;
         var createdAt = endpoint.CreatedAt == default ? now : endpoint.CreatedAt;
 
-        // SQL Server upsert: UPDATE first, INSERT only when no row was touched. The CreatedAt column is
-        // left untouched on update (it is only written on insert), matching the Postgres ON CONFLICT.
+        // SQL Server upsert: INSERT first, catch duplicate-key on Id and retry as UPDATE. This is
+        // atomic per call (no UPDATE-then-INSERT race). The CreatedAt column is left untouched on
+        // update (it is only written on insert), matching the Postgres ON CONFLICT.
         const string sql = """
-            UPDATE Endpoints SET
-                Route = @Route, HttpMethod = @HttpMethod, ConnectionName = @ConnectionName,
-                ObjectType = @ObjectType, SchemaName = @SchemaName, ObjectName = @ObjectName,
-                ResultMode = @ResultMode, CommandTimeoutSeconds = @CommandTimeoutSeconds, Enabled = @Enabled,
-                SuppressMessages = @SuppressMessages, CacheJson = @CacheJson, LoggingJson = @LoggingJson, ParametersJson = @ParametersJson,
-                RequiredScopesJson = @RequiredScopesJson, Description = @Description, UpdatedAt = @UpdatedAt
-            WHERE Id = @Id;
-            IF @@ROWCOUNT = 0
-            INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
-                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
-            VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
-                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt);
+            BEGIN TRY
+                INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
+                                       CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
+                VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
+                        @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt);
+            END TRY
+            BEGIN CATCH
+                IF ERROR_NUMBER() IN (2627, 2601)
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM Endpoints WHERE Id = @Id)
+                        UPDATE Endpoints SET
+                            Route = @Route, HttpMethod = @HttpMethod, ConnectionName = @ConnectionName,
+                            ObjectType = @ObjectType, SchemaName = @SchemaName, ObjectName = @ObjectName,
+                            ResultMode = @ResultMode, CommandTimeoutSeconds = @CommandTimeoutSeconds, Enabled = @Enabled,
+                            SuppressMessages = @SuppressMessages, CacheJson = @CacheJson, LoggingJson = @LoggingJson, ParametersJson = @ParametersJson,
+                            RequiredScopesJson = @RequiredScopesJson, Description = @Description, UpdatedAt = @UpdatedAt
+                        WHERE Id = @Id;
+                    ELSE
+                        THROW;
+                END
+                ELSE
+                    THROW;
+            END CATCH
             """;
 
         await using var conn = await OpenAsync(cancellationToken);
@@ -452,11 +468,17 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     {
         ArgumentNullException.ThrowIfNull(scope);
         await using var conn = await OpenAsync(cancellationToken);
-        // UPDATE first, INSERT when no row matched: the SQL Server equivalent of ON CONFLICT DO UPDATE.
+        // INSERT first, catch duplicate-key on Name and retry as UPDATE: atomic per call.
         await conn.ExecuteAsync(new CommandDefinition("""
-            UPDATE Scopes SET Description = @Description WHERE Name = @Name;
-            IF @@ROWCOUNT = 0
-            INSERT INTO Scopes (Name, Description) VALUES (@Name, @Description);
+            BEGIN TRY
+                INSERT INTO Scopes (Name, Description) VALUES (@Name, @Description);
+            END TRY
+            BEGIN CATCH
+                IF ERROR_NUMBER() IN (2627, 2601)
+                    UPDATE Scopes SET Description = @Description WHERE Name = @Name;
+                ELSE
+                    THROW;
+            END CATCH
             """, new { scope.Name, scope.Description }, cancellationToken: cancellationToken));
     }
 
@@ -508,7 +530,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     {
         await using var conn = await OpenAsync(cancellationToken);
         var rows = await conn.QueryAsync<AdminRow>(new CommandDefinition(
-            "SELECT Id, Username, PasswordHash, Role, Enabled, CreatedAt, LastLoginAt FROM AdminUsers ORDER BY Username",
+            "SELECT Id, Username, Role, Enabled, CreatedAt, LastLoginAt FROM AdminUsers ORDER BY Username",
             cancellationToken: cancellationToken));
         return rows.Select(r => new AdminUserInfo
         {
@@ -534,6 +556,24 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             cancellationToken: cancellationToken));
 
         return new AdminUserInfo { Id = id, Username = username, Role = role, Enabled = true, CreatedAt = now };
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateAdminRoleAsync(Guid id, string role, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Role = @Role, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Role = role }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateAdminEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Enabled = @Enabled, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Enabled = enabled }, cancellationToken: cancellationToken));
     }
 
     /// <inheritdoc />
@@ -622,6 +662,15 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             AdminEnabled = row.Enabled,
             ExpiresAt = row.ExpiresAt is null ? null : ParseDto(row.ExpiresAt),
         };
+    }
+
+    /// <inheritdoc />
+    public async Task RevokeAdminTokensForAdminAsync(Guid adminId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM AdminTokens WHERE AdminId = @AdminId",
+            new { AdminId = adminId.ToString() }, cancellationToken: cancellationToken));
     }
 
     /// <inheritdoc />
@@ -807,7 +856,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
 
         if (query.ErrorsOnly)
         {
-            sql.Append(" AND (StatusCode >= 400 OR Outcome = 'error')");
+            sql.Append($" AND (StatusCode >= 400 OR Outcome = '{OutcomeCodes.Error}')");
         }
 
         if (query.From is { } from)
@@ -893,14 +942,21 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         // Increment the failure count (unless already locked), then apply a lockout once the count reaches
         // the threshold. Both statements run in one transaction so concurrent instances keep it consistent.
         // The upsert is UPDATE-then-INSERT: the existing-row branch mirrors the Postgres ON CONFLICT case.
+        // The INSERT is wrapped in TRY/CATCH so a concurrent insert by another instance is caught and ignored.
         const string sql = """
             UPDATE LoginThrottle SET
                 Failures = CASE WHEN LockedUntil IS NOT NULL AND LockedUntil > @Now THEN Failures ELSE Failures + 1 END,
                 LastActivity = @Now
             WHERE Client = @Client;
-            IF @@ROWCOUNT = 0
-            INSERT INTO LoginThrottle (Client, Failures, LockedUntil, LastActivity)
-            VALUES (@Client, 1, NULL, @Now);
+            BEGIN TRY
+                IF @@ROWCOUNT = 0
+                INSERT INTO LoginThrottle (Client, Failures, LockedUntil, LastActivity)
+                VALUES (@Client, 1, NULL, @Now);
+            END TRY
+            BEGIN CATCH
+                IF ERROR_NUMBER() NOT IN (2627, 2601)
+                    THROW;
+            END CATCH
 
             UPDATE LoginThrottle SET LockedUntil = @LockUntil, Failures = 0
             WHERE Client = @Client AND (LockedUntil IS NULL OR LockedUntil <= @Now) AND Failures >= @MaxFailures;

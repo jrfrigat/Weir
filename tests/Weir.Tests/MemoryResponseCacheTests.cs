@@ -17,7 +17,7 @@ public class MemoryResponseCacheTests
         var result = await cache.GetAsync("weir:orders/get:aaa");
 
         Assert.True(result.HasValue);
-        Assert.Equal(new byte[] { 1, 2, 3 }, result!.Value.ToArray());
+        Assert.Equal(new byte[] { 1, 2, 3 }, result!.Value.Bytes.ToArray());
     }
 
     [Fact]

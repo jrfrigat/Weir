@@ -63,9 +63,14 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             return DbErrorCategory.Other;
         }
 
+        // NpgsqlTimeoutException does not exist in Npgsql 10; the driver wraps TimeoutException
+        // as InnerException of NpgsqlException. Catch it before the generic NpgsqlException branch
+        // so command/connection timeouts are classified as Timeout, not Connection/Other.
         if (exception is NpgsqlException npg)
         {
-            return npg.IsTransient ? DbErrorCategory.Connection : DbErrorCategory.Other;
+            return npg.InnerException is TimeoutException
+                ? DbErrorCategory.Timeout
+                : npg.IsTransient ? DbErrorCategory.Connection : DbErrorCategory.Other;
         }
 
         return DbErrorCategory.None;

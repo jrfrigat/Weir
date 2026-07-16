@@ -283,7 +283,7 @@ var corsOrigins = builder.Configuration.GetSection("Weir:Cors:AllowedOrigins").G
 if (corsOrigins.Length > 0)
 {
     builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-        policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod()));
+        policy.WithOrigins(corsOrigins).AllowAnyHeader().WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")));
 }
 
 // OpenTelemetry: emit the Weir meter and activity source plus ASP.NET Core instrumentation. Export

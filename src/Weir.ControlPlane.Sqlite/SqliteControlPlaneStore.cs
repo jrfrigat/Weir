@@ -77,6 +77,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         await using var conn = await OpenAsync(cancellationToken);
         // journal_mode is a persistent database property and cannot be changed inside a transaction.
         await conn.ExecuteAsync("PRAGMA journal_mode=WAL;");
+        await conn.ExecuteAsync("PRAGMA synchronous=NORMAL;");
         await conn.ExecuteAsync(
             "CREATE TABLE IF NOT EXISTS SchemaMigrations (Version INTEGER PRIMARY KEY, Checksum TEXT NOT NULL, AppliedAt TEXT NOT NULL);");
         var version = await conn.ExecuteScalarAsync<long>("PRAGMA user_version;");
@@ -477,6 +478,24 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
     }
 
     /// <inheritdoc />
+    public async Task UpdateAdminRoleAsync(Guid id, string role, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Role = @Role, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Role = role }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateAdminEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Enabled = @Enabled, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Enabled = enabled ? 1 : 0 }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
     public async Task UpdateAdminPasswordAsync(Guid id, string passwordHash, CancellationToken cancellationToken = default)
     {
         await using var conn = await OpenAsync(cancellationToken);
@@ -562,6 +581,15 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             AdminEnabled = row.Enabled != 0,
             ExpiresAt = row.ExpiresAt is null ? null : ParseDto(row.ExpiresAt),
         };
+    }
+
+    /// <inheritdoc />
+    public async Task RevokeAdminTokensForAdminAsync(Guid adminId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM AdminTokens WHERE AdminId = @AdminId",
+            new { AdminId = adminId.ToString() }, cancellationToken: cancellationToken));
     }
 
     /// <inheritdoc />
@@ -747,7 +775,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
         if (query.ErrorsOnly)
         {
-            sql.Append(" AND (StatusCode >= 400 OR Outcome = 'error')");
+            sql.Append($" AND (StatusCode >= 400 OR Outcome = '{OutcomeCodes.Error}')");
         }
 
         if (query.From is { } from)

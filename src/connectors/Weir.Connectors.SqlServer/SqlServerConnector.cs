@@ -223,7 +223,7 @@ public sealed class SqlServerConnector : IDbConnector
                     Name = r.Name,
                     DbType = SqlDbTypeMapper.FromSqlTypeName(r.TypeName),
                     Direction = r.IsOutput ? WeirDirection.InputOutput : WeirDirection.Input,
-                    Size = r.MaxLength > 0 ? r.MaxLength : null,
+                    Size = r.MaxLength > 0 && r.TypeName is not ("text" or "ntext" or "image") ? r.MaxLength : null,
                     Precision = r.Precision > 0 ? r.Precision : null,
                     Scale = r.Scale > 0 ? r.Scale : null,
                 });
@@ -251,14 +251,15 @@ public sealed class SqlServerConnector : IDbConnector
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
+            var typeName = reader.GetString(1);
             var maxLength = reader.GetInt16(2);
             var precision = reader.GetByte(3);
             var scale = reader.GetByte(4);
             columns.Add(new TvpColumn
             {
                 Name = reader.GetString(0),
-                DbType = SqlDbTypeMapper.FromSqlTypeName(reader.GetString(1)),
-                Size = maxLength > 0 ? maxLength : null,
+                DbType = SqlDbTypeMapper.FromSqlTypeName(typeName),
+                Size = maxLength > 0 && typeName is not ("text" or "ntext" or "image") ? maxLength : null,
                 Precision = precision > 0 ? precision : null,
                 Scale = scale > 0 ? scale : null,
                 Ordinal = ordinal++,

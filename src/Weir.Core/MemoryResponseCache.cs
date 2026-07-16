@@ -5,7 +5,7 @@ using Weir.Abstractions;
 
 namespace Weir.Core;
 
-/// <summary>In-memory <see cref="IResponseCache"/> over <see cref="IMemoryCache"/>. Stores rendered JSON bytes.</summary>
+/// <summary>In-memory <see cref="IResponseCache"/> over <see cref="IMemoryCache"/>. Stores rendered JSON bytes with pre-computed ETags.</summary>
 public sealed class MemoryResponseCache : IResponseCache
 {
     private readonly IMemoryCache _cache;
@@ -21,9 +21,9 @@ public sealed class MemoryResponseCache : IResponseCache
     public MemoryResponseCache(IMemoryCache cache) => _cache = cache;
 
     /// <inheritdoc />
-    public ValueTask<ReadOnlyMemory<byte>?> GetAsync(string key, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(_cache.TryGetValue(key, out byte[]? bytes) && bytes is not null
-            ? (ReadOnlyMemory<byte>?)bytes
+    public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(_cache.TryGetValue(key, out CachedResponse? entry) && entry is { } e
+            ? (CachedResponse?)e
             : null);
 
     /// <inheritdoc />
@@ -36,13 +36,17 @@ public sealed class MemoryResponseCache : IResponseCache
                 ? array
                 : payload.ToArray();
 
+        // Pre-compute the ETag once at store time so cache hits never need to re-hash.
+        var etag = ComputeETag(stored);
+        var entry = new CachedResponse(stored, etag);
+
         var options = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl, Size = stored.Length };
         options.RegisterPostEvictionCallback(
             static (evictedKey, _, _, state) => ((ConcurrentDictionary<string, byte>)state!).TryRemove((string)evictedKey, out _),
             _keys);
 
         _keys[key] = 0;
-        _cache.Set(key, stored, options);
+        _cache.Set(key, entry, options);
         return ValueTask.CompletedTask;
     }
 
@@ -69,4 +73,10 @@ public sealed class MemoryResponseCache : IResponseCache
 
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>Computes a quoted strong entity tag from response bytes.</summary>
+    /// <param name="payload">The response body bytes.</param>
+    /// <returns>A quoted hex SHA-256 tag, e.g. <c>"1A2B..."</c>.</returns>
+    private static string ComputeETag(byte[] payload) =>
+        string.Concat("\"", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload)), "\"");
 }

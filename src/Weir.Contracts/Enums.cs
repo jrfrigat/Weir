@@ -70,6 +70,38 @@ public enum ResultMode
     MultiResultSet,
 }
 
+/// <summary>A provider-agnostic classification of a database failure, for error-rate telemetry.</summary>
+public enum DbErrorCategory
+{
+    /// <summary>Not a recognized database error (for example a validation or cancellation failure).</summary>
+    None = 0,
+
+    /// <summary>A command or lock timeout.</summary>
+    Timeout,
+
+    /// <summary>A deadlock victim.</summary>
+    Deadlock,
+
+    /// <summary>A constraint violation (unique, foreign key, check, not-null).</summary>
+    Constraint,
+
+    /// <summary>A connection-level failure (server unreachable, dropped, login).</summary>
+    Connection,
+
+    /// <summary>A database error that did not fall into a more specific category.</summary>
+    Other,
+}
+
+/// <summary>Convention markers for the outcome field on the per-call telemetry context.</summary>
+public static class OutcomeCodes
+{
+    /// <summary>The call succeeded.</summary>
+    public const string Ok = "ok";
+
+    /// <summary>The call failed.</summary>
+    public const string Error = "error";
+}
+
 /// <summary>
 /// Provider-agnostic parameter type. <see cref="Structured"/> denotes a table-valued parameter (TVP).
 /// Concrete connectors map these to their native DB types.

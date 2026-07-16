@@ -45,34 +45,12 @@ public interface IDbConnector
     /// <summary>
     /// Classifies a failure raised during execution into a provider-agnostic category (timeout, deadlock,
     /// constraint, connection) for telemetry. Non-driver failures and anything unrecognized map to
-    /// <see cref="DbErrorCategory.None"/> / <see cref="DbErrorCategory.Other"/>. The default implementation
-    /// classifies nothing; each connector overrides it with its driver's error codes.
+    /// <see cref="DbErrorCategory.Other"/>. The default implementation classifies all failures as
+    /// <see cref="DbErrorCategory.Other"/>; each connector overrides it with its driver's error codes.
     /// </summary>
     /// <param name="exception">The failure thrown from <see cref="ExecuteAsync"/> or streaming.</param>
     /// <returns>The error category.</returns>
-    DbErrorCategory ClassifyError(Exception exception) => DbErrorCategory.None;
-}
-
-/// <summary>A provider-agnostic classification of a database failure, for error-rate telemetry.</summary>
-public enum DbErrorCategory
-{
-    /// <summary>Not a recognized database error (for example a validation or cancellation failure).</summary>
-    None = 0,
-
-    /// <summary>A command or lock timeout.</summary>
-    Timeout,
-
-    /// <summary>A deadlock victim.</summary>
-    Deadlock,
-
-    /// <summary>A constraint violation (unique, foreign key, check, not-null).</summary>
-    Constraint,
-
-    /// <summary>A connection-level failure (server unreachable, dropped, login).</summary>
-    Connection,
-
-    /// <summary>A database error that did not fall into a more specific category.</summary>
-    Other,
+    DbErrorCategory ClassifyError(Exception exception) => DbErrorCategory.Other;
 }
 
 /// <summary>
@@ -82,7 +60,7 @@ public enum DbErrorCategory
 /// </summary>
 public interface IDbExecution : IAsyncDisposable
 {
-    /// <summary>The open data reader positioned at the first result set.</summary>
+    /// <summary>The open data reader positioned at the first result set. Valid until <see cref="CompleteAsync"/> is called or the execution is disposed.</summary>
     DbDataReader Reader { get; }
 
     /// <summary>Closes the reader and captures <see cref="Outputs"/>, <see cref="ReturnValue"/>,

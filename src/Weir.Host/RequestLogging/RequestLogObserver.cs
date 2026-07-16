@@ -63,7 +63,7 @@ public sealed class RequestLogObserver : IWeirCallObserver
             return;
         }
 
-        var failed = string.Equals(context.Outcome, "error", StringComparison.Ordinal) || context.StatusCode >= 400;
+        var failed = string.Equals(context.Outcome, OutcomeCodes.Error, StringComparison.Ordinal) || context.StatusCode >= 400;
 
         // Only successful, non-cached executions inform the "typical" duration and can be flagged slow.
         double? average = null;

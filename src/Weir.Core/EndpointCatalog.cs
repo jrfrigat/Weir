@@ -55,8 +55,10 @@ public sealed partial class EndpointCatalog : IEndpointCatalog
             {
                 // Two enabled endpoints canonicalize to the same method+route (differing only by case
                 // or slashes). The later one wins the dictionary slot; warn so the collision is visible
-                // instead of an endpoint silently disappearing.
+                // instead of an endpoint silently disappearing. Remove the old entry from the list
+                // so it does not appear as a ghost in the All collection.
                 LogRouteCollision(endpoint.HttpMethod, endpoint.Route, endpoint.Id, existing.Id);
+                list.Remove(existing);
             }
 
             list.Add(endpoint);

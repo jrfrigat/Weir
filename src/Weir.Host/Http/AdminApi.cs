@@ -127,7 +127,7 @@ public static class AdminApi
                 Category = "settings.update",
                 Actor = user.Identity?.Name,
                 Detail = SettingsChangeSummary(before, settings.Current),
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
             }, cancellationToken);
 
             return Results.Ok(settings.Current);
@@ -190,7 +190,7 @@ public static class AdminApi
             {
                 Category = "admin.login",
                 Actor = admin.Username,
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             }, cancellationToken);
 
@@ -263,13 +263,14 @@ public static class AdminApi
 
             await store.UpdateAdminPasswordAsync(admin.Id, PasswordHasher.Hash(request.NewPassword));
             // A password change already bumps the token version (revoking access tokens); also revoke the
-            // account's refresh tokens so a leaked one cannot mint new access tokens.
+            // account's refresh tokens and personal access tokens so a leaked one cannot mint new access tokens.
             await store.RevokeRefreshTokensForAdminAsync(admin.Id, clock.GetUtcNow());
+            await store.RevokeAdminTokensForAdminAsync(admin.Id);
             await store.AppendAuditAsync(new AuditEntry
             {
                 Category = "admin.password.self",
                 Actor = username,
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             });
             return Results.NoContent();
@@ -323,7 +324,7 @@ public static class AdminApi
                 Category = "account.token.created",
                 Actor = user.Identity?.Name,
                 Detail = info.Prefix,
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             });
             return Results.Ok(new AdminTokenCreated { Info = info, PlainTextToken = plainText });
@@ -342,7 +343,7 @@ public static class AdminApi
                 Category = "account.token.revoked",
                 Actor = user.Identity?.Name,
                 Detail = id.ToString(),
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             });
             return Results.NoContent();
@@ -403,7 +404,7 @@ public static class AdminApi
             Timestamp = clock.GetUtcNow(),
             Category = category,
             Actor = user.Identity?.Name,
-            Outcome = "ok",
+            Outcome = OutcomeCodes.Ok,
             Detail = detail,
         });
 
@@ -519,6 +520,12 @@ public static class AdminApi
         // Import a set of endpoint definitions (upsert by id), for promoting between environments.
         group.MapPost("/endpoints/import", async (List<EndpointDefinition> endpoints, IControlPlaneStore store, IEndpointCatalog catalog, IResponseCache cache, ClaimsPrincipal user, TimeProvider clock) =>
         {
+            if (endpoints.Count > 1000)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Import too large",
+                    detail: "A single import may contain at most 1000 endpoints.");
+            }
+
             var imported = 0;
             foreach (var endpoint in endpoints)
             {
@@ -649,7 +656,7 @@ public static class AdminApi
                 Category = "key.created",
                 Actor = user.Identity?.Name,
                 Detail = info.Prefix,
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             });
             return Results.Ok(new ApiKeyCreated { Info = info, PlainTextKey = plainText });
@@ -665,7 +672,7 @@ public static class AdminApi
                 Category = "key.revoked",
                 Actor = user.Identity?.Name,
                 Detail = id.ToString(),
-                Outcome = "ok",
+                Outcome = OutcomeCodes.Ok,
                 Timestamp = clock.GetUtcNow(),
             });
             return Results.NoContent();
@@ -733,7 +740,28 @@ public static class AdminApi
 
             await store.UpdateAdminPasswordAsync(id, PasswordHasher.Hash(request.Password));
             await store.RevokeRefreshTokensForAdminAsync(id, clock.GetUtcNow());
+            await store.RevokeAdminTokensForAdminAsync(id);
             await AuditActionAsync(store, clock, user, "admin.password_reset", id.ToString());
+            return Results.NoContent();
+        }).RequireAuthorization("AdminOnly");
+
+        group.MapPut("/admins/{id:guid}/role", async (Guid id, AdminRoleRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
+        {
+            if (!AdminRoles.IsValid(request.Role))
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Unknown role",
+                    detail: $"'{request.Role}' is not a valid role.");
+            }
+
+            await store.UpdateAdminRoleAsync(id, request.Role);
+            await AuditActionAsync(store, clock, user, "admin.role_changed", $"{id} -> {request.Role}");
+            return Results.NoContent();
+        }).RequireAuthorization("AdminOnly");
+
+        group.MapPut("/admins/{id:guid}/enabled", async (Guid id, AdminEnabledRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
+        {
+            await store.UpdateAdminEnabledAsync(id, request.Enabled);
+            await AuditActionAsync(store, clock, user, request.Enabled ? "admin.enabled" : "admin.disabled", id.ToString());
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
     }
@@ -873,7 +901,8 @@ public static class AdminApi
     private static void MapIntrospection(RouteGroupBuilder group)
     {
         group.MapGet("/introspect/{connection}/objects", async (
-            string connection, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors) =>
+            string connection, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors,
+            ILoggerFactory loggerFactory) =>
         {
             if (!TryResolveConnector(registry, connectors, connection, out var connector))
             {
@@ -886,12 +915,14 @@ public static class AdminApi
             }
             catch (Exception ex)
             {
-                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: ex.Message);
+                Log.IntrospectObjectsFailed(loggerFactory.CreateLogger("Weir.Admin"), ex, connection);
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: "Introspection failed");
             }
         }).RequireAuthorization("AdminOnly");
 
         group.MapGet("/introspect/{connection}/parameters", async (
-            string connection, string schema, string obj, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors) =>
+            string connection, string schema, string obj, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors,
+            ILoggerFactory loggerFactory) =>
         {
             if (!TryResolveConnector(registry, connectors, connection, out var connector))
             {
@@ -904,7 +935,8 @@ public static class AdminApi
             }
             catch (Exception ex)
             {
-                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: ex.Message);
+                Log.IntrospectParametersFailed(loggerFactory.CreateLogger("Weir.Admin"), ex, schema, obj, connection);
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: "Introspection failed");
             }
         }).RequireAuthorization("AdminOnly");
     }
@@ -916,7 +948,8 @@ public static class AdminApi
         // Synchronize a single endpoint's parameters with its target object.
         group.MapPost("/endpoints/{id:guid}/sync", async (
             Guid id, IControlPlaneStore store, IDataConnectionRegistry registry,
-            IEnumerable<IDbConnector> connectors, IEndpointCatalog catalog, ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
+            IEnumerable<IDbConnector> connectors, IEndpointCatalog catalog, ClaimsPrincipal user, TimeProvider clock,
+            ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
             var endpoint = await store.GetEndpointAsync(id, cancellationToken);
             if (endpoint is null)
@@ -944,7 +977,8 @@ public static class AdminApi
             }
             catch (Exception ex)
             {
-                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Sync failed", detail: ex.Message);
+                Log.SyncEndpointFailed(loggerFactory.CreateLogger("Weir.Admin"), ex, id);
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Sync failed", detail: "Sync failed");
             }
         }).RequireAuthorization("AdminOnly");
 
@@ -954,7 +988,8 @@ public static class AdminApi
         group.MapPost("/endpoints/sync", async (
             string? connection, string? schema, [FromQuery(Name = "object")] string? objectName,
             IControlPlaneStore store, IDataConnectionRegistry registry,
-            IEnumerable<IDbConnector> connectors, IEndpointCatalog catalog, ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
+            IEnumerable<IDbConnector> connectors, IEndpointCatalog catalog, ClaimsPrincipal user, TimeProvider clock,
+            ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
             var endpoints = await store.GetEndpointsAsync(cancellationToken);
             var selected = endpoints
@@ -965,6 +1000,7 @@ public static class AdminApi
 
             var results = new List<EndpointSyncResult>();
             var anyUpdated = false;
+            var syncLogger = loggerFactory.CreateLogger("Weir.Admin");
 
             foreach (var connectionGroup in selected.GroupBy(e => e.ConnectionName, StringComparer.OrdinalIgnoreCase))
             {
@@ -981,7 +1017,8 @@ public static class AdminApi
                 }
                 catch (Exception ex)
                 {
-                    results.AddRange(connectionGroup.Select(e => Failed(e, ex.Message)));
+                    Log.SyncObjectLoadFailed(syncLogger, ex, connectionGroup.Key);
+                    results.AddRange(connectionGroup.Select(e => Failed(e, "Sync failed")));
                     continue;
                 }
 
@@ -995,7 +1032,8 @@ public static class AdminApi
                     }
                     catch (Exception ex)
                     {
-                        results.Add(Failed(endpoint, ex.Message));
+                        Log.BulkSyncEndpointFailed(syncLogger, ex, endpoint.Id, endpoint.Route);
+                        results.Add(Failed(endpoint, "Sync failed"));
                     }
                 }
             }

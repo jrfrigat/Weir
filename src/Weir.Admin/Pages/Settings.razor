@@ -1,6 +1,7 @@
 @page "/settings"
 @attribute [Authorize]
 @inject WeirApiClient Api
+@inject IJSRuntime JS
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="settings" Description="Runtime system settings, applied without a restart unless noted" />
@@ -91,7 +92,6 @@
                     }
                     @if (_exportUrl is not null)
                     {
-                        @* Plain anchor: a data: URL download, matching the endpoints/OpenAPI export pattern. *@
                         <a href="@_exportUrl" download="weir-control-plane.json" style="color:var(--flare-color-primary)">download weir-control-plane.json</a>
                     }
                 </FlareStack>
@@ -265,4 +265,12 @@
             _saving = false;
         }
     }
+
+    /// <summary>Creates a temporary Blob URL from a JSON string via JS interop, so the browser downloads
+    /// the content instead of navigating to a data: URL (which has size and CORS limitations).</summary>
+    /// <param name="json">The JSON content.</param>
+    /// <param name="contentType">The MIME type.</param>
+    /// <returns>A blob: URL suitable for an anchor download.</returns>
+    private async Task<string> CreateBlobUrlAsync(string json, string contentType) =>
+        await JS.InvokeAsync<string>("eval", $"URL.createObjectURL(new Blob([{System.Text.Json.JsonSerializer.Serialize(json)}], {{type:'{contentType}'}}))");
 }

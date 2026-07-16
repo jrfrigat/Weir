@@ -14,6 +14,9 @@ public sealed class InMemoryMetricsAggregator : IMetricsAggregator, IWeirCallObs
     /// <summary>Length, in seconds, of the trailing window used for overview rates.</summary>
     private const int OverviewWindowSeconds = 60;
 
+    /// <summary>Maximum number of distinct routes tracked before new routes are ignored.</summary>
+    private const int MaxTrackedRoutes = 500;
+
     /// <summary>Per-route rolling statistics, keyed by route.</summary>
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
 
@@ -73,14 +76,30 @@ public sealed class InMemoryMetricsAggregator : IMetricsAggregator, IWeirCallObs
     public void Record(WeirCallContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var isError = !string.Equals(context.Outcome, "ok", StringComparison.Ordinal);
+        var isError = !string.Equals(context.Outcome, OutcomeCodes.Ok, StringComparison.Ordinal);
         var now = _clock.GetUtcNow();
         var second = now.ToUnixTimeSeconds();
 
+        // Enforce the cardinality cap: once we reach MaxTrackedRoutes distinct routes, stop adding
+        // new entries so unbounded route parameters cannot grow memory without limit.
+        if (!_endpoints.ContainsKey(context.Route) && _endpoints.Count >= MaxTrackedRoutes)
+        {
+            _global.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
+                context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
+            Interlocked.Increment(ref _totalRequests);
+            if (isError)
+            {
+                Interlocked.Increment(ref _totalErrors);
+            }
+            return;
+        }
+
         var stats = _endpoints.GetOrAdd(context.Route, static _ => new EndpointStats());
         stats.ObjectName = context.ObjectName;
-        stats.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks);
-        _global.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks);
+        stats.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
+            context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
+        _global.Record(second, context.DurationMs, isError, context.CacheHit, now.UtcTicks,
+            context.BindingDurationMs, context.CacheLookupDurationMs, context.DbDurationMs, context.StreamingDurationMs);
 
         Interlocked.Increment(ref _totalRequests);
         if (isError)

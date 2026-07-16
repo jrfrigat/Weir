@@ -98,8 +98,20 @@ public interface IControlPlaneStore
     /// <summary>Creates an admin account with a precomputed password hash and role.</summary>
     Task<AdminUserInfo> CreateAdminAsync(string username, string passwordHash, string role, CancellationToken cancellationToken = default);
 
-    /// <summary>Replaces an admin account's password hash.</summary>
+    /// <summary>Replaces an admin account's password hash and bumps TokenVersion.</summary>
     Task UpdateAdminPasswordAsync(Guid id, string passwordHash, CancellationToken cancellationToken = default);
+
+    /// <summary>Updates an admin's role and bumps TokenVersion to invalidate outstanding JWTs.</summary>
+    /// <param name="id">The admin id.</param>
+    /// <param name="role">The new role string (must be valid per <see cref="AdminRoles.IsValid"/>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateAdminRoleAsync(Guid id, string role, CancellationToken cancellationToken = default);
+
+    /// <summary>Enables or disables an admin account, bumping TokenVersion to invalidate outstanding JWTs.</summary>
+    /// <param name="id">The admin id.</param>
+    /// <param name="enabled">True to enable, false to disable.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateAdminEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken = default);
 
     /// <summary>Records the last-login timestamp for an admin account.</summary>
     Task TouchAdminLoginAsync(Guid id, DateTimeOffset at, CancellationToken cancellationToken = default);
@@ -131,6 +143,11 @@ public interface IControlPlaneStore
     /// <param name="adminId">The owning admin's id; a token owned by another admin is not revoked.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task RevokeAdminTokenAsync(Guid id, Guid adminId, CancellationToken cancellationToken = default);
+
+    /// <summary>Revokes all personal access tokens for an admin (e.g. on password change or reset).</summary>
+    /// <param name="adminId">The admin whose tokens should be revoked.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RevokeAdminTokensForAdminAsync(Guid adminId, CancellationToken cancellationToken = default);
 
     /// <summary>Records the last-used timestamp for a token (best-effort, may be throttled by the store).</summary>
     /// <param name="id">The token id.</param>

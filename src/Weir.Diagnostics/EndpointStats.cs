@@ -20,6 +20,18 @@ internal sealed class EndpointStats
     /// <summary>Per-second ring used for time series, windowed rates and the decaying latency histogram.</summary>
     private readonly TimeRing _ring = new(RingCapacitySeconds, Boundaries.Length + 1);
 
+    /// <summary>Per-second ring for parameter-binding duration percentiles.</summary>
+    private readonly TimeRing _bindingRing = new(RingCapacitySeconds, Boundaries.Length + 1);
+
+    /// <summary>Per-second ring for cache-lookup duration percentiles.</summary>
+    private readonly TimeRing _cacheRing = new(RingCapacitySeconds, Boundaries.Length + 1);
+
+    /// <summary>Per-second ring for database-execution duration percentiles.</summary>
+    private readonly TimeRing _dbRing = new(RingCapacitySeconds, Boundaries.Length + 1);
+
+    /// <summary>Per-second ring for response-streaming duration percentiles.</summary>
+    private readonly TimeRing _streamingRing = new(RingCapacitySeconds, Boundaries.Length + 1);
+
     /// <summary>Total calls recorded (lifetime).</summary>
     private long _count;
 
@@ -51,7 +63,20 @@ internal sealed class EndpointStats
     /// <param name="isError">Whether the call failed.</param>
     /// <param name="cacheHit">Whether the response was served from cache.</param>
     /// <param name="nowTicks">UTC ticks of the call, for the last-called timestamp.</param>
-    public void Record(long second, double durationMs, bool isError, bool cacheHit, long nowTicks)
+    /// <param name="bindingDurationMs">Parameter-binding duration in milliseconds.</param>
+    /// <param name="cacheLookupDurationMs">Cache-lookup duration in milliseconds.</param>
+    /// <param name="dbDurationMs">Database-execution duration in milliseconds.</param>
+    /// <param name="streamingDurationMs">Response-streaming duration in milliseconds.</param>
+    public void Record(
+        long second,
+        double durationMs,
+        bool isError,
+        bool cacheHit,
+        long nowTicks,
+        double bindingDurationMs = 0,
+        double cacheLookupDurationMs = 0,
+        double dbDurationMs = 0,
+        double streamingDurationMs = 0)
     {
         if (isError)
         {
@@ -67,7 +92,31 @@ internal sealed class EndpointStats
         Interlocked.Exchange(ref _lastTicks, nowTicks);
         // The latency histogram now lives in the per-second ring, so percentiles read a decaying window
         // (expired seconds fall out) under the ring's lock rather than a lifetime cumulative view.
-        _ring.Add(second, durationMs, isError, cacheHit, BucketIndex(durationMs));
+        var bucketIdx = BucketIndex(durationMs);
+        _ring.Add(second, durationMs, isError, cacheHit, bucketIdx, dbDurationMs);
+
+        // Record sub-phase durations into their own rings for independent percentile computation.
+        // Skip zero values for binding and cache (which may legitimately be zero on cache hits).
+        if (bindingDurationMs > 0)
+        {
+            _bindingRing.Add(second, bindingDurationMs, false, false, BucketIndex(bindingDurationMs));
+        }
+
+        if (cacheLookupDurationMs > 0)
+        {
+            _cacheRing.Add(second, cacheLookupDurationMs, false, false, BucketIndex(cacheLookupDurationMs));
+        }
+
+        if (dbDurationMs > 0)
+        {
+            _dbRing.Add(second, dbDurationMs, false, false, BucketIndex(dbDurationMs));
+        }
+
+        if (streamingDurationMs > 0)
+        {
+            _streamingRing.Add(second, streamingDurationMs, false, false, BucketIndex(streamingDurationMs));
+        }
+
         Interlocked.Increment(ref _count);
     }
 
@@ -87,6 +136,12 @@ internal sealed class EndpointStats
         // ring is only summed once per snapshot.
         var histogram = _ring.WindowHistogram(nowSecond, PercentileWindowSeconds);
 
+        // Compute sub-phase percentiles from their dedicated rings.
+        var bindingHistogram = _bindingRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
+        var cacheHistogram = _cacheRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
+        var dbHistogram = _dbRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
+        var streamingHistogram = _streamingRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
+
         return new EndpointMetrics
         {
             Route = route,
@@ -100,6 +155,14 @@ internal sealed class EndpointStats
             AvgLatencyMs = count == 0 ? 0 : sumMicros / 1000.0 / count,
             CacheHitRatio = count == 0 ? 0 : (double)cacheHits / count,
             LastCalledAt = lastTicks == 0 ? null : new DateTimeOffset(lastTicks, TimeSpan.Zero),
+            BindingP50Ms = Percentile(0.50, bindingHistogram),
+            BindingP95Ms = Percentile(0.95, bindingHistogram),
+            CacheLookupP50Ms = Percentile(0.50, cacheHistogram),
+            CacheLookupP95Ms = Percentile(0.95, cacheHistogram),
+            DbP50Ms = Percentile(0.50, dbHistogram),
+            DbP95Ms = Percentile(0.95, dbHistogram),
+            StreamingP50Ms = Percentile(0.50, streamingHistogram),
+            StreamingP95Ms = Percentile(0.95, streamingHistogram),
         };
     }
 

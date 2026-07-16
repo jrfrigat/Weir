@@ -65,10 +65,12 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
     }
 
     /// <summary>
-    /// Fixed key for the session advisory lock that serializes migrations across instances that share
-    /// this control database (so a rolling deploy in HA cannot run migrations concurrently).
+    /// Base key for the session advisory lock that serializes migrations across instances that share
+    /// this control database (so a rolling deploy in HA cannot run migrations concurrently). The actual
+    /// key is this base XORed with the database name hash to avoid contention across deployments that
+    /// happen to share the same PostgreSQL server.
     /// </summary>
-    private const long MigrationLockKey = 4207853001L;
+    private const long BaseMigrationLockKey = 4207853001L;
 
     /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -76,8 +78,11 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         await using var conn = await OpenAsync(cancellationToken);
 
         // Serialize migrations across instances. The lock is held on this connection until released.
+        // Derive the lock key from the database name so different deployments on the same server
+        // do not contend on the same lock.
+        var lockKey = BaseMigrationLockKey ^ (long)conn.Database!.GetHashCode();
         await conn.ExecuteAsync(new CommandDefinition(
-            "SELECT pg_advisory_lock(@Key)", new { Key = MigrationLockKey }, cancellationToken: cancellationToken));
+            "SELECT pg_advisory_lock(@Key)", new { Key = lockKey }, cancellationToken: cancellationToken));
         try
         {
             // Ensure the version tracker holds exactly one row. The singleton column plus its unique
@@ -111,20 +116,22 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
 
             for (var i = version.Value; i < PostgresSchema.Migrations.Length; i++)
             {
-                await conn.ExecuteAsync(new CommandDefinition(PostgresSchema.Migrations[i], cancellationToken: cancellationToken));
+                await using var tx = await conn.BeginTransactionAsync(cancellationToken);
+                await conn.ExecuteAsync(new CommandDefinition(PostgresSchema.Migrations[i], transaction: tx, cancellationToken: cancellationToken));
                 await conn.ExecuteAsync(new CommandDefinition(
                     "INSERT INTO SchemaMigrations (Version, Checksum, AppliedAt) VALUES (@Version, @Checksum, @AppliedAt)",
                     new { Version = i + 1, Checksum = Checksum(PostgresSchema.Migrations[i]), AppliedAt = Iso(_clock.GetUtcNow()) },
-                    cancellationToken: cancellationToken));
+                    transaction: tx, cancellationToken: cancellationToken));
                 await conn.ExecuteAsync(new CommandDefinition(
                     "UPDATE weir_schema_version SET version = @Version WHERE singleton = true",
-                    new { Version = i + 1 }, cancellationToken: cancellationToken));
+                    new { Version = i + 1 }, transaction: tx, cancellationToken: cancellationToken));
+                await tx.CommitAsync(cancellationToken);
             }
         }
         finally
         {
             await conn.ExecuteAsync(new CommandDefinition(
-                "SELECT pg_advisory_unlock(@Key)", new { Key = MigrationLockKey }, cancellationToken: cancellationToken));
+                "SELECT pg_advisory_unlock(@Key)", new { Key = lockKey }, cancellationToken: cancellationToken));
         }
     }
 
@@ -511,6 +518,35 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
     }
 
     /// <inheritdoc />
+    public async Task UpdateAdminRoleAsync(Guid id, string role, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        // Bump TokenVersion so any JWTs issued before the role change stop authenticating at once.
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Role = @Role, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Role = role }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateAdminEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        // Bump TokenVersion so any JWTs issued before the enable/disable change stop authenticating at once.
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE AdminUsers SET Enabled = @Enabled, TokenVersion = TokenVersion + 1 WHERE Id = @Id",
+            new { Id = id.ToString(), Enabled = enabled }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task RevokeAdminTokensForAdminAsync(Guid adminId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM AdminTokens WHERE AdminId = @AdminId",
+            new { AdminId = adminId.ToString() }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
     public async Task TouchAdminLoginAsync(Guid id, DateTimeOffset at, CancellationToken cancellationToken = default)
     {
         await using var conn = await OpenAsync(cancellationToken);
@@ -771,7 +807,8 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
 
         if (query.ErrorsOnly)
         {
-            sql.Append(" AND (StatusCode >= 400 OR Outcome = 'error')");
+            sql.Append(" AND (StatusCode >= 400 OR Outcome = @OutcomeError)");
+            p.Add("OutcomeError", OutcomeCodes.Error);
         }
 
         if (query.From is { } from)

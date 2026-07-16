@@ -142,4 +142,42 @@ internal static partial class Log
     /// <param name="path">The plugin assembly path.</param>
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to load plugin from {path}.")]
     public static partial void PluginLoadFailed(ILogger logger, Exception exception, string path);
+
+    /// <summary>Logs that schema introspection for objects failed on a connection.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    /// <param name="connection">The connection name.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Introspection of objects failed for connection {connection}.")]
+    public static partial void IntrospectObjectsFailed(ILogger logger, Exception exception, string connection);
+
+    /// <summary>Logs that schema introspection for parameters failed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    /// <param name="schema">The schema name.</param>
+    /// <param name="objectName">The object name.</param>
+    /// <param name="connection">The connection name.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Introspection of parameters failed for {schema}.{objectName} on {connection}.")]
+    public static partial void IntrospectParametersFailed(ILogger logger, Exception exception, string schema, string objectName, string connection);
+
+    /// <summary>Logs that a single-endpoint sync failed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    /// <param name="endpointId">The endpoint id.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Sync failed for endpoint {endpointId}.")]
+    public static partial void SyncEndpointFailed(ILogger logger, Exception exception, Guid endpointId);
+
+    /// <summary>Logs that a bulk object-set load failed during sync.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    /// <param name="connection">The connection name.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to load objects for connection {connection} during sync.")]
+    public static partial void SyncObjectLoadFailed(ILogger logger, Exception exception, string connection);
+
+    /// <summary>Logs that a per-endpoint sync failed during bulk sync.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    /// <param name="endpointId">The endpoint id.</param>
+    /// <param name="route">The endpoint route.</param>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Sync failed for endpoint {endpointId} ({route}) during bulk sync.")]
+    public static partial void BulkSyncEndpointFailed(ILogger logger, Exception exception, Guid endpointId, string route);
 }

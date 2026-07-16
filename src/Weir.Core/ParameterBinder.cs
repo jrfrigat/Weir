@@ -90,6 +90,11 @@ public sealed class ParameterBinder : IParameterBinder
     {
         var dbName = definition.DbParameterName ?? definition.Name;
 
+        // Pure Output parameters have no client-supplied value: we emit a driver parameter with
+        // Value = null and skip ReadValue entirely.  InputOutput parameters, by contrast, fall
+        // through to ReadValue which returns (false, null) when the client omits them -- this is
+        // intentional: SQL Server maps all output-capable parameters as InputOutput, so leaving
+        // the value null lets the driver send the default and the procedure populates the output.
         if (definition.Direction == ParameterDirection.Output)
         {
             return new WeirParameter

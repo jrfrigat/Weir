@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Weir.Abstractions;
+using Weir.Contracts;
 
 namespace Weir.Diagnostics;
 
