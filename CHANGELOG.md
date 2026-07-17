@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every graceful shutdown threw away the queued audit and request-log entries, and said nothing.**
+  Both sinks keep a channel so writing never blocks the request thread, and both read it with the
+  host's stopping token - so the moment shutdown began the reader abandoned whatever was still queued.
+  Audit is a compliance record; losing its tail on every redeploy is not a detail. Worse, it was the one
+  loss the drop counter could not see: that counter only fires when the queue is full, so a full queue
+  was reported and a redeploy was silent. Both now stop accepting, drain what they already took, and
+  count an entry that arrives after the channel closes. The host's shutdown timeout still bounds the
+  drain.
+
 ## [1.3.0] - 2026-07-17
 
 ### Added

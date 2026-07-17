@@ -50,35 +50,55 @@ public sealed class RequestLogSink : BackgroundService, IRequestLogSink
     }
 
     /// <inheritdoc />
-    public void Enqueue(RequestLogEntry entry) => _channel.Writer.TryWrite(entry);
+    public void Enqueue(RequestLogEntry entry)
+    {
+        // DropWrite makes TryWrite succeed even when it discards, reporting that through the callback
+        // above - so a false here means the channel is closed, i.e. shutdown began. Count it, or the
+        // last entries of a run would be the one kind of loss the counter cannot see.
+        if (!_channel.Writer.TryWrite(entry))
+        {
+            Interlocked.Increment(ref _dropped);
+        }
+    }
+
+    /// <summary>
+    /// Stops accepting entries and lets the reader finish the queue before the host goes away, the same
+    /// way <c>DataPlaneAuditor</c> does - two sinks side by side must not behave differently at
+    /// shutdown. Without it every graceful restart discarded the tail of the request log.
+    /// </summary>
+    /// <param name="cancellationToken">The host's shutdown token; it bounds the drain.</param>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // Completing the writer is what ends the read loop, which otherwise waits for more entries.
+        // This is not optional: ExecuteAsync deliberately reads without the stopping token, so without
+        // the completion here shutdown would hang until the host's timeout fired.
+        _channel.Writer.TryComplete();
+        await base.StopAsync(cancellationToken);
+    }
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
+        // Deliberately not reading with stoppingToken: that would abandon the queue the moment shutdown
+        // starts. The loop ends when StopAsync completes the writer and the backlog is drained, and the
+        // host's shutdown timeout still bounds how long that may take.
+        await foreach (var entry in _channel.Reader.ReadAllAsync(CancellationToken.None))
         {
-            await foreach (var entry in _channel.Reader.ReadAllAsync(stoppingToken))
+            try
             {
-                try
-                {
-                    await _store.AppendRequestLogAsync(entry, stoppingToken);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    Log.RequestLogWriteFailed(_logger, ex);
-                }
-
-                var dropped = Interlocked.Read(ref _dropped);
-                if (dropped - _lastReportedDrops >= 100)
-                {
-                    Log.RequestLogEntriesDropped(_logger, dropped);
-                    _lastReportedDrops = dropped;
-                }
+                await _store.AppendRequestLogAsync(entry, CancellationToken.None);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal shutdown.
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Log.RequestLogWriteFailed(_logger, ex);
+            }
+
+            var dropped = Interlocked.Read(ref _dropped);
+            if (dropped - _lastReportedDrops >= 100)
+            {
+                Log.RequestLogEntriesDropped(_logger, dropped);
+                _lastReportedDrops = dropped;
+            }
         }
     }
 }

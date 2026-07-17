@@ -67,10 +67,34 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
     /// <inheritdoc />
     public void Enqueue(AuditEntry entry)
     {
-        if (Enabled)
+        if (!Enabled)
         {
-            _channel.Writer.TryWrite(entry);
+            return;
         }
+
+        // DropWrite makes TryWrite succeed even when it discards, reporting that through the callback
+        // above - so a false here means the channel is closed, i.e. shutdown began. Count it, or the
+        // last entries of a run would be the one kind of loss the counter cannot see.
+        if (!_channel.Writer.TryWrite(entry))
+        {
+            Interlocked.Increment(ref _dropped);
+        }
+    }
+
+    /// <summary>
+    /// Stops accepting entries and lets the reader finish the queue before the host goes away. Audit is
+    /// a compliance record, so entries already accepted are written if there is any chance to: without
+    /// this, every graceful shutdown silently discarded whatever was still queued - and invisibly, since
+    /// that loss never reached the drop counter either.
+    /// </summary>
+    /// <param name="cancellationToken">The host's shutdown token; it bounds the drain.</param>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // Completing the writer is what ends the read loop, which otherwise waits for more entries.
+        // This is not optional: ExecuteAsync deliberately reads without the stopping token, so without
+        // the completion here shutdown would hang until the host's timeout fired.
+        _channel.Writer.TryComplete();
+        await base.StopAsync(cancellationToken);
     }
 
     /// <inheritdoc />
@@ -81,31 +105,29 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
             return;
         }
 
-        try
+        // Deliberately not reading with stoppingToken: that would abandon the queue the moment shutdown
+        // starts. The loop ends when StopAsync completes the writer and the backlog is drained, and the
+        // host's shutdown timeout still bounds how long that may take.
+        await foreach (var entry in _channel.Reader.ReadAllAsync(CancellationToken.None))
         {
-            await foreach (var entry in _channel.Reader.ReadAllAsync(stoppingToken))
+            try
             {
-                try
-                {
-                    await _store.AppendAuditAsync(entry, stoppingToken);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    Log.AuditWriteFailed(_logger, ex);
-                }
-
-                // Surface any new drops in one warning per batch of 100, off the request hot path.
-                var dropped = Interlocked.Read(ref _dropped);
-                if (dropped - _lastReportedDrops >= 100)
-                {
-                    Log.AuditEntriesDropped(_logger, dropped);
-                    _lastReportedDrops = dropped;
-                }
+                // CancellationToken.None for the same reason: an entry taken off the queue is one Weir
+                // has accepted responsibility for, and cancelling its write would drop it after the fact.
+                await _store.AppendAuditAsync(entry, CancellationToken.None);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal shutdown.
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Log.AuditWriteFailed(_logger, ex);
+            }
+
+            // Surface any new drops in one warning per batch of 100, off the request hot path.
+            var dropped = Interlocked.Read(ref _dropped);
+            if (dropped - _lastReportedDrops >= 100)
+            {
+                Log.AuditEntriesDropped(_logger, dropped);
+                _lastReportedDrops = dropped;
+            }
         }
     }
 }
