@@ -1194,7 +1194,10 @@
     <value>Default per-key limit (per minute)</value>
   </data>
   <data name="Settings_RateLimitingHelp" xml:space="preserve">
-    <value>Applied to API keys that set no limit of their own. Zero leaves them unthrottled.</value>
+    <value>Applied to API keys that set no limit of their own. Zero leaves them unthrottled. The failure budget caps how many unresolved keys one caller may present per minute before it is refused without a lookup; zero disables it.</value>
+  </data>
+  <data name="Settings_ApiKeyFailureThresholdLabel" xml:space="preserve">
+    <value>Unresolved-key budget (per caller, per minute)</value>
   </data>
   <data name="Settings_SectionConnectionResilience" xml:space="preserve">
     <value>// CONNECTION RESILIENCE</value>

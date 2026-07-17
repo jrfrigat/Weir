@@ -115,14 +115,26 @@ public static class DataPlaneEndpoints
         // which routes exist - 404 for one that does not, 401 for one that does - so /api could be
         // enumerated without a key. An unauthenticated caller now gets 401 whatever it asks for, and
         // learns nothing; a caller with a key still gets a useful 404 for a typo.
-        var key = await authenticator.AuthenticateAsync(context, cancellationToken);
-        if (key is null)
+        var auth = await authenticator.AuthenticateAsync(context, cancellationToken);
+        if (auth.Status == ApiKeyAuthStatus.RateLimited)
+        {
+            // Refused before the store was touched: this caller has flooded unresolved keys. 429, not
+            // 401, so it is not confused with an ordinary failed sign-in, and Retry-After tells it when.
+            Log.ApiKeyFlood(loggerFactory.CreateLogger("Weir.Security"), context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+            await ProblemResults.WriteAsync(context, StatusCodes.Status429TooManyRequests, "Too many requests",
+                "Too many unauthenticated requests. Try again later.", retryAfterSeconds: 60);
+            return null;
+        }
+
+        if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
             context.Response.Headers.WWWAuthenticate = "ApiKey";
             await ProblemResults.WriteAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized",
                 "A valid API key is required.");
             return null;
         }
+
+        var key = auth.Record!;
 
         if (!catalog.TryResolve(context.Request.Method, route, out var match))
         {
@@ -146,9 +158,8 @@ public static class DataPlaneEndpoints
         {
             var rateLog = loggerFactory.CreateLogger("Weir.DataPlane");
             Log.RateLimited(rateLog, key.Prefix);
-            context.Response.Headers.RetryAfter = "60";
             await ProblemResults.WriteAsync(context, StatusCodes.Status429TooManyRequests, "Too many requests",
-                "The API key has exceeded its configured rate limit.");
+                "The API key has exceeded its configured rate limit.", retryAfterSeconds: 60);
             return key.Prefix;
         }
 

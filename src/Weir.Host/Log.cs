@@ -93,6 +93,12 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Warning, Message = "API key {keyPrefix} exceeded its rate limit.")]
     public static partial void RateLimited(ILogger logger, string keyPrefix);
 
+    /// <summary>Logs that a caller presented too many unresolved keys and was refused pre-lookup (security event).</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="caller">The caller's address.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Caller {caller} refused: too many unresolved API keys.")]
+    public static partial void ApiKeyFlood(ILogger logger, string caller);
+
     /// <summary>Logs that the distributed (Redis) rate limiter backend was unavailable; requests fail open.</summary>
     /// <param name="logger">The logger.</param>
     /// <param name="exception">The Redis failure.</param>

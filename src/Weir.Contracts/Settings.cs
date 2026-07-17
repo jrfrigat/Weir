@@ -56,6 +56,21 @@ public sealed record WeirSystemSettings
     public int CircuitBreakerResetSeconds { get; init; } = 30;
 
     /// <summary>
+    /// How many unresolved API keys one caller address may present within a rolling one-minute window
+    /// before further requests from it are refused with HTTP 429 - without a database lookup. This caps
+    /// the one authenticated-request cost an anonymous caller can inflict: a resolved key is served from
+    /// a short-lived cache, but an unknown key misses it and queries the control-plane store every time,
+    /// so a flood of random keys is a database-exhaustion vector reachable with no credential. A valid
+    /// key never counts against this and is never blocked by it. Defaults to 20; zero disables the guard.
+    /// <para>
+    /// The budget is per caller address, so it is only per-client when Weir sees the real address:
+    /// behind a reverse proxy, set <c>Weir:Network:TrustedProxies</c> or every caller shares one bucket.
+    /// The window is fixed at one minute.
+    /// </para>
+    /// </summary>
+    public int ApiKeyFailureThreshold { get; init; } = 20;
+
+    /// <summary>
     /// Master switch for the data-plane request log (the per-call history shown in the admin panel).
     /// When off, no request-log rows are written regardless of per-endpoint settings. Basic call
     /// metadata is recorded when on; parameter and result capture remain per-endpoint opt-ins.

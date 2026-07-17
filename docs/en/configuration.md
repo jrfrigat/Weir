@@ -81,14 +81,15 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 | MaxConcurrentRequestsPerConnection | `0` | Bulkhead: maximum executions allowed to run at once against one data connection. A request over the limit is rejected fast with HTTP 503. Zero means unlimited. |
 | CircuitBreakerFailureThreshold | `0` | Consecutive data-connection failures that open the per-connection circuit breaker; while open, requests are short-circuited with HTTP 503 until a probe succeeds. Zero disables the breaker. |
 | CircuitBreakerResetSeconds | `30` | How long a tripped breaker stays open before allowing a probe request through. |
+| ApiKeyFailureThreshold | `20` | How many unresolved API keys one caller address may present per minute before further requests are refused with HTTP 429 before a lookup. Caps a random-key flood, which would otherwise query the store on every request (an unknown key is never cached). A valid key never counts against it. Zero disables the guard. Per caller address, so behind a proxy it needs `Weir:Network:TrustedProxies`. |
 | ResponseCacheMaxBytes | `134217728` | Total bytes cached response payloads may occupy in memory. Once the cache is full, the least recently used entries are evicted to make room; a payload larger than the cap is never cached. Zero or less means unlimited, which lets an endpoint with a high-cardinality `VaryByParameters` grow the cache until the process runs out of memory. Changing it rebuilds the cache, discarding the entries it currently holds. |
 
 #### Runtime settings
 
 `MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `DefaultApiKeyRateLimitPerMinute`,
-`MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`
-and `ResponseCacheMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /
-`PUT /admin/api/settings`, Admin role, audited).
+`MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
+`ApiKeyFailureThreshold` and `ResponseCacheMaxBytes` are editable at runtime from the admin
+**Settings** screen (or `GET` / `PUT /admin/api/settings`, Admin role, audited).
 The edited values are stored in the control plane, so they survive restarts and reach every instance
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to
 the web server at startup and needs a restart to change.

@@ -111,6 +111,7 @@ using (var pluginBootstrapLoggerFactory = LoggerFactory.Create(logging =>
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AdminBootstrapOptions>(builder.Configuration.GetSection("Weir:Admin"));
+builder.Services.AddSingleton<IApiKeyFloodGuard, ApiKeyFloodGuard>();
 builder.Services.AddSingleton<IApiKeyAuthenticator, ApiKeyAuthenticator>();
 
 // Per-API-key rate limiter: in-memory (per instance) by default, or a distributed Redis-backed limiter

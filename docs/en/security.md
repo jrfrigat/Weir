@@ -165,6 +165,15 @@ to the file log (see [Configuration](configuration.md#logging)), each request ca
 - Data-plane guards ship with safe non-zero defaults: a row cap, a gateway timeout, a table-valued
   parameter row cap and a request body-size limit (see [Configuration](configuration.md)). An API key
   with no rate limit of its own can be given a default via `Weir:DataPlane:DefaultApiKeyRateLimitPerMinute`.
+- A flood of unknown API keys is capped before it reaches the database. A resolved key is served from a
+  short-lived cache, but an unknown key is never cached and so queries the control-plane store on every
+  request, which makes a stream of random keys a database-exhaustion vector reachable with no
+  credential. `Weir:DataPlane:ApiKeyFailureThreshold` (default 20, zero disables) bounds how many
+  unresolved keys one caller address may present per minute; past it the caller is refused with 429
+  before the lookup. A valid key never counts against this and is never blocked by it. The budget is
+  per caller address, so behind a reverse proxy it is only per-client with `Weir:Network:TrustedProxies`
+  set - the same condition the sign-in throttle needs. It is per instance and in-memory, and fails open:
+  a caller it has no room to track is looked up as before rather than blocked.
 - The data-plane request log records call metadata only. Capturing a call's request **parameters** or
   its response **result** - either of which can hold PII - is off by default and opted into per
   endpoint, in the endpoint editor's **Logging** section. When on, the bound scalar parameter values

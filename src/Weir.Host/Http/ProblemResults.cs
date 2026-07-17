@@ -13,13 +13,17 @@ public static class ProblemResults
     /// <param name="title">Short, human-readable summary.</param>
     /// <param name="detail">Optional detail.</param>
     /// <param name="errors">Optional per-field validation messages.</param>
+    /// <param name="retryAfterSeconds">When set, the <c>Retry-After</c> header, in seconds. Set here
+    /// rather than by the caller because <c>Response.Clear()</c> below drops any header set before the
+    /// write, so a caller that set it first would silently lose it.</param>
     /// <returns>A task that completes when the body is written.</returns>
     public static async Task WriteAsync(
         HttpContext context,
         int status,
         string title,
         string? detail = null,
-        IReadOnlyDictionary<string, string[]>? errors = null)
+        IReadOnlyDictionary<string, string[]>? errors = null,
+        int? retryAfterSeconds = null)
     {
         if (context.Response.HasStarted)
         {
@@ -28,6 +32,10 @@ public static class ProblemResults
 
         context.Response.Clear();
         context.Response.StatusCode = status;
+        if (retryAfterSeconds is { } retryAfter)
+        {
+            context.Response.Headers.RetryAfter = retryAfter.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         var problem = new ProblemPayload
         {

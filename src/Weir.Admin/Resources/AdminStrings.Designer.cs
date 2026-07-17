@@ -3408,7 +3408,16 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_DefaultRateLimitLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Unresolved-key budget (per caller, per minute).
+        /// </summary>
+        public static string Settings_ApiKeyFailureThresholdLabel {
+            get {
+                return ResourceManager.GetString("Settings_ApiKeyFailureThresholdLabel", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на Directory.
         /// </summary>

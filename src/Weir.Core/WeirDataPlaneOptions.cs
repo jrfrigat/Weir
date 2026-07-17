@@ -60,6 +60,13 @@ public sealed class WeirDataPlaneOptions
     public int CircuitBreakerResetSeconds { get; set; } = 30;
 
     /// <summary>
+    /// Unresolved API keys one caller address may present per minute before further requests are refused
+    /// pre-lookup with HTTP 429. Zero disables the guard. Defaults to 20. Seeds
+    /// <see cref="Weir.Contracts.WeirSystemSettings.ApiKeyFailureThreshold"/>.
+    /// </summary>
+    public int ApiKeyFailureThreshold { get; set; } = 20;
+
+    /// <summary>
     /// Total bytes cached response payloads may occupy; the least recently used entries are evicted
     /// once the cache is full. Zero or less means unlimited (an unbounded cache). Defaults to a safe
     /// non-zero cap so a high-cardinality <c>VaryByParameters</c> cannot exhaust memory.

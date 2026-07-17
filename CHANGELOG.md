@@ -10,6 +10,17 @@ All notable changes to this project are documented here. The format is based on
 
 ### Security
 
+- **A flood of random API keys was a database-exhaustion DoS reachable with no credential.** A resolved
+  key is held in a short-lived cache, so a legitimate client queries the control-plane store once; an
+  unknown key is never cached, so every request bearing one hit the store again. An anonymous caller
+  could therefore turn each request into a lookup just by making up keys. A per-caller-address budget
+  now caps how many unresolved keys one caller may present per minute (`Weir:DataPlane:ApiKeyFailureThreshold`,
+  default 20, zero disables); past it the caller is refused with 429 before the lookup, so the store
+  sees a bounded number of misses per caller however hard it pushes. A valid key never counts against
+  the budget and is never blocked by it. The budget is per address, so behind a proxy it needs
+  `Weir:Network:TrustedProxies` to be per-client - the same condition the sign-in throttle already has.
+  Surfaced in the admin **Settings** page.
+
 - **`/api` could be enumerated without a key.** The data plane resolved the route before authenticating,
   so an anonymous caller learned which endpoints exist from the status alone: 404 for one that does not,
   401 for one that does - and the 404's body named the route back. Authentication now comes first, so an
@@ -49,6 +60,11 @@ All notable changes to this project are documented here. The format is based on
   was reported and a redeploy was silent. Both now stop accepting, drain what they already took, and
   count an entry that arrives after the channel closes. The host's shutdown timeout still bounds the
   drain.
+
+- **A rate-limited request advertised no `Retry-After`.** The 429 set the header and then wrote the
+  problem+json body through a helper that clears the response first, so the header a client reads to
+  know when to come back was dropped every time. The helper now sets it after the clear, so both the
+  per-key rate limit and the new flood guard carry the header they promise.
 
 ## [1.3.0] - 2026-07-17
 

@@ -66,7 +66,10 @@
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRateLimiting</FlareText>
-                <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ApiKeyFailureThresholdLabel" Size="FieldSize.Sm" @bind-Value="_apiKeyFailureThreshold" Style="max-width:16rem;" />
+                </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RateLimitingHelp</FlareText>
             </FlareStack>
         </FlareCard>
@@ -157,6 +160,7 @@
     private int _requestTimeoutSeconds;
     private int _maxTvpRows;
     private int _defaultRateLimit;
+    private int _apiKeyFailureThreshold;
     private int _auditRetentionDays;
     private int _maxConcurrentPerConnection;
     private int _circuitBreakerThreshold;
@@ -191,6 +195,7 @@
             _requestTimeoutSeconds = view.Settings.RequestTimeoutSeconds;
             _maxTvpRows = view.Settings.MaxTvpRows;
             _defaultRateLimit = view.Settings.DefaultApiKeyRateLimitPerMinute;
+            _apiKeyFailureThreshold = view.Settings.ApiKeyFailureThreshold;
             _auditRetentionDays = view.Settings.AuditRetentionDays;
             _maxConcurrentPerConnection = view.Settings.MaxConcurrentRequestsPerConnection;
             _circuitBreakerThreshold = view.Settings.CircuitBreakerFailureThreshold;
@@ -249,7 +254,7 @@
     {
         if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
             _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
-            _slowThresholdPercent < 0 || _requestLogRetentionDays < 0 || _responseCacheMaxBytes < 0)
+            _apiKeyFailureThreshold < 0 || _slowThresholdPercent < 0 || _requestLogRetentionDays < 0 || _responseCacheMaxBytes < 0)
         {
             _status = AdminStrings.Settings_ValuesMustNotBeNegative;
             _statusError = true;
@@ -266,6 +271,7 @@
                 RequestTimeoutSeconds = _requestTimeoutSeconds,
                 MaxTvpRows = _maxTvpRows,
                 DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
+                ApiKeyFailureThreshold = _apiKeyFailureThreshold,
                 AuditRetentionDays = _auditRetentionDays,
                 MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
                 CircuitBreakerFailureThreshold = _circuitBreakerThreshold,

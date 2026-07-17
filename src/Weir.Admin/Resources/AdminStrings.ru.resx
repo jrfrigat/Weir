@@ -1194,7 +1194,10 @@
     <value>Лимит по умолчанию на ключ (в минуту)</value>
   </data>
   <data name="Settings_RateLimitingHelp" xml:space="preserve">
-    <value>Применяется к API-ключам без собственного лимита. Ноль оставляет их без ограничений.</value>
+    <value>Применяется к API-ключам без собственного лимита. Ноль оставляет их без ограничений. Бюджет промахов ограничивает, сколько неразрешённых ключей один вызывающий может предъявить за минуту, прежде чем ему откажут без обращения к базе; ноль отключает его.</value>
+  </data>
+  <data name="Settings_ApiKeyFailureThresholdLabel" xml:space="preserve">
+    <value>Бюджет неразрешённых ключей (на вызывающего, в минуту)</value>
   </data>
   <data name="Settings_SectionConnectionResilience" xml:space="preserve">
     <value>// УСТОЙЧИВОСТЬ ПОДКЛЮЧЕНИЙ</value>
