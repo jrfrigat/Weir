@@ -171,7 +171,10 @@ as already satisfied. The admin panel says so next to the field when it applies.
 Set a per-endpoint cache policy: `Enabled`, `TtlSeconds`, `VaryByParameters` (the input parameters
 whose values form the cache key), `VaryByApiKey`, and `CoalesceRequests`. The rendered JSON is cached
 in memory; clients cannot bypass it. Caching is best suited to read-only endpoints. Editing or deleting an endpoint
-evicts its cached responses immediately, so a change never serves stale data. You can also force a
+evicts its cached responses immediately, so a change never serves stale data. Across several instances
+"immediately" becomes "within `Weir:ControlPlane:ReloadSeconds`": the instance that served the edit
+evicts at once, and the others evict when their next catalog reload sees the new definition (see
+[High availability](deployment.md#high-availability)). You can also force a
 purge at any time - per endpoint from the admin UI, or by filter over the admin API for CI/CD (see
 [Purging the cache](#purging-the-cache) below).
 
@@ -256,6 +259,13 @@ responses. When a deployment changes the data behind a cached read - a migration
 job rewrites reference data - force a purge so callers see the new data at once instead of waiting out
 the TTL. Purging clears already-rendered responses only; it never changes an endpoint definition, and
 the cache refills on the next call.
+
+That is also why a purge does not spread across a fleet the way an edit does. An edit is a metadata
+change, so every instance notices it on its next catalog reload and evicts what it had rendered from
+the old definition. A purge deliberately changes no metadata, so there is nothing for a reload to
+notice: it empties the cache of the instance that answered the call, and no other. Against several
+instances behind a load balancer, send the purge to each instance directly rather than through the
+balancer, which would hand it to one of them.
 
 From the admin UI, the **Purge cache** action on a cache-enabled endpoint's row clears that endpoint.
 Over the admin API (a login JWT or a personal access token, `Admin` role), one route covers both a

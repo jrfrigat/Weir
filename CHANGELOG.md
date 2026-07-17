@@ -18,6 +18,17 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **An endpoint edited on one instance went on being served from the old cached body by every other
+  one.** The admin API evicts the cache of the instance that happens to serve the edit, and only that
+  one; the others reloaded the new definition on their next catalog poll but kept answering from
+  responses rendered under the old one until the TTL ran out. The reload is where the news arrives, so
+  it now evicts the cached responses of every route whose definition changed with it, bounding the
+  staleness by `Weir:ControlPlane:ReloadSeconds` instead of the TTL. Deleting or disabling an endpoint
+  evicts too: the route stops resolving, so its entries were unreachable rather than wrong - until it
+  came back inside the TTL, and a cache keyed by route handed the returning endpoint the old one's
+  bodies. An explicit purge still only empties the instance that answers it, and the documentation now
+  says so instead of claiming the split cache costs hit ratio and not correctness.
+
 - **Every graceful shutdown threw away the queued audit and request-log entries, and said nothing.**
   Both sinks keep a channel so writing never blocks the request thread, and both read it with the
   host's stopping token - so the moment shutdown began the reader abandoned whatever was still queued.

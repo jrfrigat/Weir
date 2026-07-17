@@ -128,12 +128,20 @@ Run several instances behind a load balancer:
   one instance is accepted by the others. The refresh-token store is in the shared control plane, so a
   session renews and revokes consistently across instances.
 - Set `Weir:ControlPlane:ReloadSeconds` (e.g. `30`) so metadata changes made on one instance reach
-  the others.
+  the others. This is also what carries cache eviction between them: on each reload an instance drops
+  the cached responses of every route whose definition changed, so the interval you set here is the
+  longest an edit made elsewhere can still be answered from an old body. Leaving it at zero in a
+  multi-instance deployment means edits never reach the other instances at all.
 - Set `Weir:RateLimit:RedisConnectionString` so the per-API-key rate limit is shared across instances.
   Without it the in-memory limiter enforces the limit per instance, so the effective limit is N x the
   configured value in an N-instance deployment.
-- The response cache is per-instance (in-memory); a cache miss on one instance is independent of the
-  others. This only affects cache hit ratio, not correctness (each instance still honours the TTL).
+- The response cache is per-instance (in-memory), so a cache miss on one instance is independent of
+  the others: that part only costs hit ratio. Eviction is the part that matters. An edit evicts the
+  cache of the instance that served it at once, and every other instance evicts on its next catalog
+  reload, so `ReloadSeconds` bounds the staleness rather than the TTL. An explicit purge (the admin
+  **Purge cache** action and `POST /admin/api/cache/purge`) is the exception: it carries no metadata
+  change for the reload to notice, so it only empties the instance that handled the call. To purge a
+  fleet, send the call to every instance.
 
 ### Cross-instance metrics
 
