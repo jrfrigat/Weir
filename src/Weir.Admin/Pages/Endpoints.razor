@@ -219,6 +219,14 @@
                                        @bind-Value="_editing.DeliveryFlushBytes" Style="max-width:11rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DeliveryHelp</FlareText>
+                @if (_editing.DeliveryFlushBytes >= LargeObjectHeapThresholdBytes)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Common_FlushBytesLohWarning</FlareText>
+                }
+                else if (_editing.DeliveryFlushBytes is > 0 and < MinSensibleFlushBytes)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Common_FlushBytesTinyWarning</FlareText>
+                }
                 @if (_editing.CacheEnabled || _editing.LogResult)
                 {
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Endpoints_DeliveryForcedHelp</FlareText>
@@ -1088,6 +1096,15 @@
         DbObjectType.ScalarFunction => AdminStrings.Endpoints_ObjectTypeScalarFn,
         _ => type.ToString(),
     };
+
+    // The runtime allocates arrays of 85000 bytes and up on the large-object heap. A flush threshold at
+    // or above it puts the JSON writer's buffer there on every call, which is the cost the flushing is
+    // there to avoid - so the field warns rather than silently undoing itself.
+    private const int LargeObjectHeapThresholdBytes = 85_000;
+
+    // Below roughly a kilobyte most rows are large enough to cross the threshold on their own, so the
+    // batching the threshold exists for stops happening and each row costs a write.
+    private const int MinSensibleFlushBytes = 1024;
 
     // "" is the default pick and maps to a null Mode on the wire, i.e. follow the system setting.
     private static readonly string[] DeliveryModeOptions =

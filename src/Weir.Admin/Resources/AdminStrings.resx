@@ -127,6 +127,12 @@
   <data name="Common_Back" xml:space="preserve">
     <value>Back</value>
   </data>
+  <data name="Common_FlushBytesLohWarning" xml:space="preserve">
+    <value>Above 85000 bytes the writer's buffer becomes a large-object allocation on every call - the exact cost the flushing exists to avoid. Raise it only with a measured reason.</value>
+  </data>
+  <data name="Common_FlushBytesTinyWarning" xml:space="preserve">
+    <value>Below 1024 bytes most rows cost a write of their own, which trades away the batching the threshold is for. The default 32768 sits above a typical row and below the large-object threshold.</value>
+  </data>
   <data name="Nav_Overview" xml:space="preserve">
     <value>overview</value>
   </data>

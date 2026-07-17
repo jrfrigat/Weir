@@ -3122,6 +3122,24 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Above 85000 bytes the writer's buffer becomes a larg  [rest of string was truncated]&quot;;
+        /// </summary>
+        public static string Common_FlushBytesLohWarning {
+            get {
+                return ResourceManager.GetString("Common_FlushBytesLohWarning", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Below 1024 bytes most rows cost a write of their own  [rest of string was truncated]&quot;;
+        /// </summary>
+        public static string Common_FlushBytesTinyWarning {
+            get {
+                return ResourceManager.GetString("Common_FlushBytesTinyWarning", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на overview.
         /// </summary>
         public static string Nav_Overview {

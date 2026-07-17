@@ -127,6 +127,12 @@
   <data name="Common_Back" xml:space="preserve">
     <value>Назад</value>
   </data>
+  <data name="Common_FlushBytesLohWarning" xml:space="preserve">
+    <value>Выше 85000 байт буфер писателя становится LOH-аллокацией на каждый вызов - ровно та цена, ради ухода от которой сброс и существует. Поднимайте только с измеренным обоснованием.</value>
+  </data>
+  <data name="Common_FlushBytesTinyWarning" xml:space="preserve">
+    <value>Ниже 1024 байт почти каждая строка стоит отдельной записи, а это обменивает пачки, ради которых порог и нужен. Умолчание 32768 выше типичной строки и ниже порога LOH.</value>
+  </data>
   <data name="Nav_Overview" xml:space="preserve">
     <value>обзор</value>
   </data>

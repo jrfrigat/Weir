@@ -44,6 +44,14 @@
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ResponseFlushBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseFlushBytes" Style="max-width:12rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DeliveryHelp</FlareText>
+                @if (_responseFlushBytes >= LargeObjectHeapThresholdBytes)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Common_FlushBytesLohWarning</FlareText>
+                }
+                else if (_responseFlushBytes is > 0 and < MinSensibleFlushBytes)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Common_FlushBytesTinyWarning</FlareText>
+                }
             </FlareStack>
         </FlareCard>
 
@@ -291,6 +299,15 @@
             _saving = false;
         }
     }
+
+    // The runtime allocates arrays of 85000 bytes and up on the large-object heap. A flush threshold at
+    // or above it puts the JSON writer's buffer there on every call, which is the cost the flushing is
+    // there to avoid - so the field warns rather than silently undoing itself.
+    private const int LargeObjectHeapThresholdBytes = 85_000;
+
+    // Below roughly a kilobyte most rows are large enough to cross the threshold on their own, so the
+    // batching the threshold exists for stops happening and each row costs a write.
+    private const int MinSensibleFlushBytes = 1024;
 
     private static string DeliveryModeLabel(ResponseDeliveryMode mode) => mode switch
     {

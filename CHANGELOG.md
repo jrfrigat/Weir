@@ -27,6 +27,10 @@ All notable changes to this project are documented here. The format is based on
   endpoint editor says so next to the field when it applies. Control-plane migration adds a
   `DeliveryJson` column defaulting to `{}`, so an endpoint that predates it behaves exactly as before.
 
+  Both flush-bytes fields warn when a value would undo the point of the threshold: at or above 85000
+  the writer's buffer becomes a large-object allocation on every call - the exact cost the flushing
+  avoids - and below 1024 most rows cost a write of their own instead of batching.
+
 ### Security
 
 - **The sign-in throttle keyed on the socket address, which is the proxy's behind the reverse proxy the
