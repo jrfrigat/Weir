@@ -170,7 +170,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
-        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
+        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -201,14 +201,14 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
         const string sql = """
             INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
-                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
+                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
             VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
-                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt)
+                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt)
             ON CONFLICT(Id) DO UPDATE SET
                 Route=excluded.Route, HttpMethod=excluded.HttpMethod, ConnectionName=excluded.ConnectionName,
                 ObjectType=excluded.ObjectType, SchemaName=excluded.SchemaName, ObjectName=excluded.ObjectName,
                 ResultMode=excluded.ResultMode, CommandTimeoutSeconds=excluded.CommandTimeoutSeconds, Enabled=excluded.Enabled,
-                SuppressMessages=excluded.SuppressMessages, CacheJson=excluded.CacheJson, LoggingJson=excluded.LoggingJson, ParametersJson=excluded.ParametersJson,
+                SuppressMessages=excluded.SuppressMessages, CacheJson=excluded.CacheJson, LoggingJson=excluded.LoggingJson, DeliveryJson=excluded.DeliveryJson, ParametersJson=excluded.ParametersJson,
                 RequiredScopesJson=excluded.RequiredScopesJson, Description=excluded.Description, UpdatedAt=excluded.UpdatedAt;
             """;
 
@@ -230,6 +230,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
                 SuppressMessages = endpoint.SuppressMessages ? 1 : 0,
                 CacheJson = JsonSerializer.Serialize(endpoint.Cache, Json),
                 LoggingJson = JsonSerializer.Serialize(endpoint.Logging, Json),
+                DeliveryJson = JsonSerializer.Serialize(endpoint.Delivery, Json),
                 ParametersJson = JsonSerializer.Serialize(endpoint.Parameters, Json),
                 RequiredScopesJson = JsonSerializer.Serialize(endpoint.RequiredScopes, Json),
                 endpoint.Description,
@@ -273,6 +274,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         SuppressMessages = r.SuppressMessages != 0,
         Cache = JsonSerializer.Deserialize<CachePolicy>(r.CacheJson, Json) ?? new CachePolicy(),
         Logging = JsonSerializer.Deserialize<EndpointLogging>(r.LoggingJson ?? "{}", Json) ?? new EndpointLogging(),
+        Delivery = JsonSerializer.Deserialize<DeliveryPolicy>(r.DeliveryJson ?? "{}", Json) ?? new DeliveryPolicy(),
         Parameters = JsonSerializer.Deserialize<List<EndpointParameter>>(r.ParametersJson, Json) ?? [],
         RequiredScopes = JsonSerializer.Deserialize<List<string>>(r.RequiredScopesJson, Json) ?? [],
         Description = r.Description,
@@ -1041,6 +1043,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         public string CacheJson { get; set; } = "";
         /// <summary>Serialized request-logging policy.</summary>
         public string? LoggingJson { get; set; }
+        /// <summary>Serialized response-delivery policy.</summary>
+        public string? DeliveryJson { get; set; }
         /// <summary>Serialized parameter definitions.</summary>
         public string ParametersJson { get; set; } = "";
         /// <summary>Serialized required-scope list.</summary>

@@ -210,6 +210,20 @@
                     <FlareSwitch Value="_editing.SuppressMessages" ValueChanged="@(v => _editing.SuppressMessages = v)" Label="@AdminStrings.Endpoints_SuppressMessagesLabel" />
                 </FlareStack>
 
+                <FlareDivider Text="@AdminStrings.Endpoints_DeliverySection" TextAlign="DividerTextAlign.Left" />
+                <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
+                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_DeliveryModeLabel" Size="FieldSize.Sm"
+                                 @bind-Value="_editing.DeliveryMode" Items="DeliveryModeOptions" ItemLabel="DeliveryModeLabel"
+                                 Style="min-width:14rem;" />
+                    <FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_DeliveryFlushBytesLabel" Size="FieldSize.Sm"
+                                       @bind-Value="_editing.DeliveryFlushBytes" Style="max-width:11rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DeliveryHelp</FlareText>
+                @if (_editing.CacheEnabled || _editing.LogResult)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Endpoints_DeliveryForcedHelp</FlareText>
+                }
+
                 <FlareDivider Text="@AdminStrings.Endpoints_CachingSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
                     <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="@AdminStrings.Endpoints_EnableCacheLabel" />
@@ -1075,6 +1089,18 @@
         _ => type.ToString(),
     };
 
+    // "" is the default pick and maps to a null Mode on the wire, i.e. follow the system setting.
+    private static readonly string[] DeliveryModeOptions =
+        ["", nameof(ResponseDeliveryMode.Auto), nameof(ResponseDeliveryMode.Stream), nameof(ResponseDeliveryMode.Full)];
+
+    private static string DeliveryModeLabel(string value) => value switch
+    {
+        nameof(ResponseDeliveryMode.Auto) => AdminStrings.Endpoints_DeliveryModeAuto,
+        nameof(ResponseDeliveryMode.Stream) => AdminStrings.Endpoints_DeliveryModeStream,
+        nameof(ResponseDeliveryMode.Full) => AdminStrings.Endpoints_DeliveryModeFull,
+        _ => AdminStrings.Endpoints_DeliveryModeDefault,
+    };
+
     private static string TypeLabel(WeirDbType dbType, string? typeName, int? size) =>
         typeName is not null ? typeName
         : size is > 0 ? $"{dbType}({size})"
@@ -1121,6 +1147,8 @@
         public HashSet<string> CacheVaryBy { get; } = new(StringComparer.OrdinalIgnoreCase);
         public bool CacheVaryByApiKey { get; set; }
         public bool CacheCoalesceRequests { get; set; } = true;
+        public string DeliveryMode { get; set; } = "";
+        public int? DeliveryFlushBytes { get; set; }
         public HashSet<string> Scopes { get; } = new(StringComparer.Ordinal);
         public List<ParamEditModel> Parameters { get; } = [];
 
@@ -1148,6 +1176,8 @@
                 CacheTtlSeconds = endpoint.Cache.TtlSeconds,
                 CacheVaryByApiKey = endpoint.Cache.VaryByApiKey,
                 CacheCoalesceRequests = endpoint.Cache.CoalesceRequests,
+                DeliveryMode = endpoint.Delivery.Mode?.ToString() ?? "",
+                DeliveryFlushBytes = endpoint.Delivery.FlushBytes,
             };
 
             foreach (var scope in endpoint.RequiredScopes)
@@ -1198,6 +1228,12 @@
                 VaryByParameters = CacheVaryBy.Where(name => Parameters.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))).ToList(),
                 VaryByApiKey = CacheVaryByApiKey,
                 CoalesceRequests = CacheCoalesceRequests,
+            },
+            Delivery = new DeliveryPolicy
+            {
+                // An empty pick means "follow the system setting", which is null on the wire.
+                Mode = Enum.TryParse<ResponseDeliveryMode>(DeliveryMode, out var mode) ? mode : null,
+                FlushBytes = DeliveryFlushBytes is > 0 ? DeliveryFlushBytes : null,
             },
             RequiredScopes = Scopes.ToList(),
             Parameters = Parameters.Select(parameter => parameter.ToParameter()).ToList(),

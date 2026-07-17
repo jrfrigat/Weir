@@ -176,5 +176,12 @@ internal static class PostgresSchema
         CREATE INDEX IF NOT EXISTS IX_RequestLog_Endpoint ON RequestLog (EndpointId, Id DESC);
         CREATE INDEX IF NOT EXISTS IX_RequestLog_Timestamp ON RequestLog (Timestamp);
         """,
+
+        // v12 - per-endpoint response delivery policy (stream or buffer, and the flush threshold).
+        // Empty object means both fields are null, which is "use the system setting" - so an endpoint
+        // that predates this column behaves exactly as it did.
+        """
+        ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS DeliveryJson text NOT NULL DEFAULT '{}';
+        """,
     ];
 }

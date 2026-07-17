@@ -77,6 +77,9 @@ public sealed record EndpointDefinition
     /// <summary>Request-logging policy for the endpoint (what to record in the request log).</summary>
     public EndpointLogging Logging { get; init; } = new();
 
+    /// <summary>How the response body reaches the caller. Both fields fall back to the system settings.</summary>
+    public DeliveryPolicy Delivery { get; init; } = new();
+
     /// <summary>Parameter definitions, in declaration order.</summary>
     public IReadOnlyList<EndpointParameter> Parameters { get; init; } = [];
 
@@ -115,6 +118,36 @@ public sealed record EndpointLogging
     /// average duration. Null uses the global <c>SlowRequestThresholdPercent</c> setting.
     /// </summary>
     public int? SlowThresholdPercent { get; init; }
+}
+
+/// <summary>
+/// How one endpoint's response body reaches the caller. Both fields are overrides: null takes the
+/// value from the system settings, which is what almost every endpoint should do.
+/// <para>
+/// Neither field decides anything for an endpoint that caches its responses or captures its result for
+/// the request log. Both of those need the whole body in hand before they can do their job, so they
+/// buffer whatever is set here - the setting is not ignored so much as already satisfied.
+/// </para>
+/// </summary>
+public sealed record DeliveryPolicy
+{
+    /// <summary>
+    /// Delivery mode override. Null uses the global <c>ResponseDeliveryMode</c> setting. Set it per
+    /// endpoint when that endpoint's trade differs from the system's: <see cref="ResponseDeliveryMode.Full"/>
+    /// on a small, critical route buys atomic errors for a payload too small for the memory to matter,
+    /// and <see cref="ResponseDeliveryMode.Stream"/> on a big export keeps memory flat even if the
+    /// system default is stricter.
+    /// </summary>
+    public ResponseDeliveryMode? Mode { get; init; }
+
+    /// <summary>
+    /// How many bytes may sit unflushed before the row loop pushes them out, overriding the global
+    /// <c>ResponseFlushBytes</c> setting. Null uses that setting, and normally should: the threshold
+    /// self-adjusts, since a wide row crosses it on its own while narrow rows batch up. Raise it only
+    /// with a reason, and keep it under 85 KB - past that the writer's buffer becomes a large-object
+    /// allocation on every call, which is the thing the flushing exists to avoid.
+    /// </summary>
+    public int? FlushBytes { get; init; }
 }
 
 /// <summary>Definition of one endpoint parameter and how it binds to the database.</summary>

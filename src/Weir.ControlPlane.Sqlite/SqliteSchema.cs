@@ -212,5 +212,12 @@ internal static class SqliteSchema
         CREATE UNIQUE INDEX UX_AdminRefreshTokens_Hash ON AdminRefreshTokens (Hash);
         CREATE INDEX IX_AdminRefreshTokens_AdminId ON AdminRefreshTokens (AdminId);
         """,
+
+        // v13 - per-endpoint response delivery policy (stream or buffer, and the flush threshold).
+        // Empty object means both fields are null, which is "use the system setting" - so an endpoint
+        // that predates this column behaves exactly as it did.
+        """
+        ALTER TABLE Endpoints ADD COLUMN DeliveryJson TEXT NOT NULL DEFAULT '{}';
+        """,
     ];
 }

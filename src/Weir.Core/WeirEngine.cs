@@ -196,6 +196,11 @@ public sealed class WeirEngine : IDisposable
             }
 
             var captureResult = logEnabled && endpoint.Logging.LogResult;
+            var flushBytes = endpoint.Delivery.FlushBytes ?? _settings.Current.ResponseFlushBytes;
+            // Capturing the result needs the whole body in hand, so it buffers no matter what the mode
+            // says; the mode only gets to decide for endpoints that are not already forced.
+            var bufferResponse = captureResult
+                || ResolveDelivery(endpoint, _settings.Current) == ResponseDeliveryMode.Full;
 
             var request = new DbExecutionRequest
             {
@@ -318,9 +323,9 @@ public sealed class WeirEngine : IDisposable
             {
                 try
                 {
-                    // Buffer the body when this endpoint captures its result for the request log (an
-                    // explicit opt-in); otherwise stream straight to the output.
-                    if (captureResult)
+                    // Buffer the body when the endpoint captures its result for the request log, or when
+                    // the delivery mode asks for it; otherwise write straight to the output.
+                    if (bufferResponse)
                     {
                         using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
                         // DB phase: execute and drain all rows into the buffer. Streaming to the client
@@ -328,12 +333,15 @@ public sealed class WeirEngine : IDisposable
                         var dbStart = Stopwatch.GetTimestamp();
                         await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
                         {
-                            result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, cancellationToken);
+                            result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
                         }
 
                         context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                         RecordBufferSize(endpoint.Id, buffer.Length);
-                        context.CapturedResult = CaptureResult(buffer);
+                        if (captureResult)
+                        {
+                            context.CapturedResult = CaptureResult(buffer);
+                        }
 
                         var streamStart = Stopwatch.GetTimestamp();
                         buffer.Position = 0;
@@ -348,7 +356,7 @@ public sealed class WeirEngine : IDisposable
                         // span to the DB phase and leave StreamingDurationMs at zero.
                         var dbStart = Stopwatch.GetTimestamp();
                         await using var execution = await connector.ExecuteAsync(request, cancellationToken);
-                        result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, cancellationToken);
+                        result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
                         context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                         metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                     }
@@ -518,7 +526,13 @@ public sealed class WeirEngine : IDisposable
                 WeirResponseWriter.WriteResult result;
                 await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
                 {
-                    result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, cancellationToken);
+                    // A cache fill always builds the whole body - there is nothing to store otherwise -
+                    // so the delivery mode has nothing to decide here. The flush threshold still does:
+                    // it keeps the writer's own buffer from doubling onto the large-object heap beside
+                    // the MemoryStream it is filling.
+                    result = await WeirResponseWriter.WriteAsync(
+                        buffer, execution, endpoint, WriterOptions, maxRows,
+                        endpoint.Delivery.FlushBytes ?? settings.ResponseFlushBytes, cancellationToken);
                 }
 
                 var dbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
@@ -932,6 +946,31 @@ public sealed class WeirEngine : IDisposable
             // Never let a capture failure affect the request; the parameters are best-effort.
             return null;
         }
+    }
+
+    /// <summary>
+    /// Settles the delivery mode for one call: the endpoint's override if it has one, otherwise the
+    /// system setting, with <see cref="ResponseDeliveryMode.Auto"/> resolved against the endpoint's
+    /// declared result shape.
+    /// </summary>
+    /// <param name="endpoint">The endpoint being called.</param>
+    /// <param name="settings">The current runtime settings.</param>
+    /// <returns>Either <see cref="ResponseDeliveryMode.Stream"/> or <see cref="ResponseDeliveryMode.Full"/>.</returns>
+    private static ResponseDeliveryMode ResolveDelivery(EndpointDefinition endpoint, WeirSystemSettings settings)
+    {
+        var mode = endpoint.Delivery.Mode ?? settings.ResponseDeliveryMode;
+        if (mode != ResponseDeliveryMode.Auto)
+        {
+            return mode;
+        }
+
+        // Auto: buffer where the endpoint says the result is small, since atomic errors are then nearly
+        // free, and stream where it says rows are coming. ResultMode is a declaration rather than a
+        // guarantee, so a mislabelled endpoint buffers more than it should - that costs memory, not
+        // correctness, and the endpoint can say Stream outright.
+        return endpoint.ResultMode is ResultMode.SingleRow or ResultMode.Scalar or ResultMode.NonQuery
+            ? ResponseDeliveryMode.Full
+            : ResponseDeliveryMode.Stream;
     }
 
     /// <summary>Reads the buffered response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>

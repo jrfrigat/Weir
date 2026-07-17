@@ -640,6 +640,33 @@
   <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
     <value>Vary by API key</value>
   </data>
+  <data name="Endpoints_DeliverySection" xml:space="preserve">
+    <value>Delivery</value>
+  </data>
+  <data name="Endpoints_DeliveryModeLabel" xml:space="preserve">
+    <value>Response delivery</value>
+  </data>
+  <data name="Endpoints_DeliveryModeDefault" xml:space="preserve">
+    <value>Default (from Settings)</value>
+  </data>
+  <data name="Endpoints_DeliveryModeAuto" xml:space="preserve">
+    <value>Auto (by result shape)</value>
+  </data>
+  <data name="Endpoints_DeliveryModeStream" xml:space="preserve">
+    <value>Stream rows as they are read</value>
+  </data>
+  <data name="Endpoints_DeliveryModeFull" xml:space="preserve">
+    <value>Full (build, then send)</value>
+  </data>
+  <data name="Endpoints_DeliveryFlushBytesLabel" xml:space="preserve">
+    <value>Flush bytes</value>
+  </data>
+  <data name="Endpoints_DeliveryHelp" xml:space="preserve">
+    <value>Streaming keeps memory flat and starts sending sooner, but once bytes are on the wire a database error part-way through aborts the connection instead of returning a clean error. Full trades memory for that. Leave both empty to follow Settings.</value>
+  </data>
+  <data name="Endpoints_DeliveryForcedHelp" xml:space="preserve">
+    <value>This endpoint caches or logs its result, so it builds the whole body regardless of the mode - there is nothing to store or log until it exists.</value>
+  </data>
   <data name="Endpoints_CacheCoalesceLabel" xml:space="preserve">
     <value>Coalesce concurrent calls</value>
   </data>
@@ -1108,6 +1135,27 @@
   </data>
   <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
     <value>Zero means unlimited. A response beyond the row cap is truncated and not cached.</value>
+  </data>
+  <data name="Settings_SectionDelivery" xml:space="preserve">
+    <value>RESPONSE DELIVERY</value>
+  </data>
+  <data name="Settings_DeliveryModeLabel" xml:space="preserve">
+    <value>Default delivery mode</value>
+  </data>
+  <data name="Settings_DeliveryModeAuto" xml:space="preserve">
+    <value>Auto (by result shape)</value>
+  </data>
+  <data name="Settings_DeliveryModeStream" xml:space="preserve">
+    <value>Stream rows as they are read</value>
+  </data>
+  <data name="Settings_DeliveryModeFull" xml:space="preserve">
+    <value>Full (build, then send)</value>
+  </data>
+  <data name="Settings_ResponseFlushBytesLabel" xml:space="preserve">
+    <value>Flush bytes</value>
+  </data>
+  <data name="Settings_DeliveryHelp" xml:space="preserve">
+    <value>How response bodies reach callers, unless an endpoint overrides it. Auto streams row-returning endpoints and buffers the ones declaring a small result. Streaming keeps memory flat, but once bytes are sent a database error part-way through aborts the connection rather than returning a clean error. Flush bytes is how much may pile up before a streaming response pushes it out: the default 32768 sits above one typical row and below the 85 KB large-object threshold. Endpoints that cache or log their result buffer regardless.</value>
   </data>
   <data name="Settings_SectionResponseCache" xml:space="preserve">
     <value>// RESPONSE CACHE</value>

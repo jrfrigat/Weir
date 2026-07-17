@@ -70,6 +70,39 @@ public enum ResultMode
     MultiResultSet,
 }
 
+/// <summary>
+/// How a response body reaches the caller. The trade is memory against error semantics: a streamed
+/// response cannot be taken back, so a database failure part-way through a result set aborts the
+/// connection instead of returning a clean problem+json - the bytes are already gone.
+/// <para>
+/// This only decides anything for an endpoint that is neither cached nor capturing its result for the
+/// request log. Both of those have to hold the whole body anyway - there is nothing to store in the
+/// cache, and nothing to write to the log, until it exists - so they buffer regardless of this.
+/// </para>
+/// </summary>
+public enum ResponseDeliveryMode
+{
+    /// <summary>
+    /// Decide from the endpoint's <see cref="ResultMode"/>: buffer where the result is declared small
+    /// (<see cref="ResultMode.SingleRow"/>, <see cref="ResultMode.Scalar"/>,
+    /// <see cref="ResultMode.NonQuery"/>), where atomic errors cost nothing worth counting, and stream
+    /// the row-returning ones. The default, and the right answer for almost every endpoint.
+    /// </summary>
+    Auto,
+
+    /// <summary>
+    /// Write rows out as they are read. Time-to-first-byte does not wait for the last row and memory
+    /// stays flat, at the cost of the abort-instead-of-400 behaviour described above.
+    /// </summary>
+    Stream,
+
+    /// <summary>
+    /// Build the whole envelope, then send it. The caller gets either a complete response or a clean
+    /// error, never half of one - paid for by holding the entire body in memory first.
+    /// </summary>
+    Full,
+}
+
 /// <summary>A provider-agnostic classification of a database failure, for error-rate telemetry.</summary>
 public enum DbErrorCategory
 {

@@ -19,6 +19,7 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 | Enabled | Whether the endpoint is served. |
 | SuppressMessages | Omit SQL informational (`PRINT` / notice) messages from the response envelope - `messages` is written as an empty array. Off by default (see below). |
 | Cache | Result-cache policy (see below). |
+| Delivery | How the response body reaches the caller (see below). |
 | Logging | Request-logging policy: whether this endpoint's calls are written to the request log at all, whether to capture the request's scalar parameter values and the response body (both can hold PII, so both are off by default and capped in size), and an optional per-endpoint override of the global slow-request threshold. |
 | Parameters | Parameter definitions (see below). |
 | RequiredScopes | Scopes an API key must hold. Empty means any authenticated key. |
@@ -122,6 +123,48 @@ Declare a parameter with `DbType = Structured`, set `TypeName` to the SQL TVP ty
 
 Declare parameters with direction `Output` or `InputOutput`; their values appear in `output` after
 execution. For stored procedures the integer RETURN value is always captured in `returnValue`.
+
+## Response delivery
+
+Weir can write rows out as it reads them, or build the whole envelope and then send it. The bytes are
+identical either way; what differs is memory and what a failure looks like.
+
+Streaming keeps memory flat regardless of result size and starts sending before the query finishes.
+The cost is that a response, once started, cannot be taken back: if the database fails part-way
+through a result set, Weir has already sent an opening `{"data":[[...` and can only abort the
+connection. Buffering holds the whole body in memory first, which means a failure at any point still
+returns a clean `400 application/problem+json` - the caller gets a complete response or an honest
+error, never half of one.
+
+| Mode | Behaviour |
+| :-- | :-- |
+| Auto | Buffer when `ResultMode` is `SingleRow`, `Scalar` or `NonQuery`; stream otherwise. The default. |
+| Stream | Always stream. |
+| Full | Always buffer. |
+
+`Auto` is the default because the trade resolves itself for most endpoints: where the endpoint says
+the result is small, atomic errors cost an amount of memory not worth counting, and where it says rows
+are coming, streaming is the point. `ResultMode` is a declaration rather than a guarantee, so an
+endpoint labelled `SingleRow` that returns thousands of rows will buffer them all - that costs memory,
+not correctness, and such an endpoint can set `Stream` outright.
+
+Two settings control it, both live-editable in the admin panel:
+
+- `ResponseDeliveryMode` and `ResponseFlushBytes` in **Settings**, applying to every endpoint.
+- `Delivery.Mode` and `Delivery.FlushBytes` on an **endpoint**, each overriding its setting. Leave
+  them empty (null) to follow the system, which is what almost every endpoint should do.
+
+`FlushBytes` is how many bytes may pile up before a streaming response pushes them out. The default,
+32768, is chosen rather than round: comfortably above one typical row, so narrow rows batch instead of
+costing a write each, and comfortably below the 85 KB large-object-heap threshold, so the writer's
+buffer stays a cheap reusable array. Raising it past that threshold undoes the point of flushing;
+lowering it far trades the gain for a write per row. It self-adjusts otherwise - a wide row crosses it
+on its own.
+
+**The mode does not apply to every endpoint.** One that caches its responses, or captures its result
+for the request log, needs the whole body before it can do either - there is nothing to store or log
+until it exists - so it buffers whatever the mode says. This is not the mode being overridden so much
+as already satisfied. The admin panel says so next to the field when it applies.
 
 ## Caching
 

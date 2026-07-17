@@ -49,7 +49,7 @@ public class ResponseWriterTests
         var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
 
         using var stream = new MemoryStream();
-        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, CancellationToken.None);
+        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
 
         Assert.Equal(2, result.RowCount);
         Assert.False(result.Truncated);
@@ -97,7 +97,7 @@ public class ResponseWriterTests
         var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
 
         await using var spy = new WriteSpyStream();
-        var result = await WeirResponseWriter.WriteAsync(spy, execution, endpoint, new JsonWriterOptions(), maxRows: 0, CancellationToken.None);
+        var result = await WeirResponseWriter.WriteAsync(spy, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
 
         Assert.Equal(4000, result.RowCount);
 
@@ -221,7 +221,7 @@ public class ResponseWriterTests
         var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
 
         using var stream = new MemoryStream();
-        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 2, CancellationToken.None);
+        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 2, flushBytes: 0, CancellationToken.None);
 
         Assert.Equal(2, result.RowCount);
         Assert.True(result.Truncated);
@@ -248,7 +248,7 @@ public class ResponseWriterTests
         var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
 
         using var stream = new MemoryStream();
-        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, CancellationToken.None);
+        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
 
         Assert.Equal(1, result.RowCount);
         using var document = JsonDocument.Parse(stream.ToArray());
@@ -283,7 +283,7 @@ public class ResponseWriterTests
         };
 
         using var stream = new MemoryStream();
-        await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, CancellationToken.None);
+        await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
 
         using var document = JsonDocument.Parse(stream.ToArray());
         Assert.Equal(expectedCount, document.RootElement.GetProperty("messages").GetArrayLength());

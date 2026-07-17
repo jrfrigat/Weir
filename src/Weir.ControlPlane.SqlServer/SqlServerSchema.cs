@@ -202,5 +202,13 @@ internal static class SqlServerSchema
         IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_RequestLog_Timestamp' AND object_id = OBJECT_ID(N'RequestLog'))
         CREATE INDEX IX_RequestLog_Timestamp ON RequestLog (Timestamp);
         """,
+
+        // v12 - per-endpoint response delivery policy (stream or buffer, and the flush threshold).
+        // Empty object means both fields are null, which is "use the system setting" - so an endpoint
+        // that predates this column behaves exactly as it did.
+        """
+        IF COL_LENGTH(N'Endpoints', N'DeliveryJson') IS NULL
+        ALTER TABLE Endpoints ADD DeliveryJson nvarchar(max) NOT NULL DEFAULT '{}';
+        """,
     ];
 }

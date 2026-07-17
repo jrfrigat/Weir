@@ -640,6 +640,33 @@
   <data name="Endpoints_CacheVaryByApiKeyLabel" xml:space="preserve">
     <value>Различать по API-ключу</value>
   </data>
+  <data name="Endpoints_DeliverySection" xml:space="preserve">
+    <value>Отдача</value>
+  </data>
+  <data name="Endpoints_DeliveryModeLabel" xml:space="preserve">
+    <value>Отдача ответа</value>
+  </data>
+  <data name="Endpoints_DeliveryModeDefault" xml:space="preserve">
+    <value>По умолчанию (из настроек)</value>
+  </data>
+  <data name="Endpoints_DeliveryModeAuto" xml:space="preserve">
+    <value>Авто (по форме результата)</value>
+  </data>
+  <data name="Endpoints_DeliveryModeStream" xml:space="preserve">
+    <value>Потоком, по мере чтения строк</value>
+  </data>
+  <data name="Endpoints_DeliveryModeFull" xml:space="preserve">
+    <value>Целиком (собрать, затем отдать)</value>
+  </data>
+  <data name="Endpoints_DeliveryFlushBytesLabel" xml:space="preserve">
+    <value>Порог сброса, байт</value>
+  </data>
+  <data name="Endpoints_DeliveryHelp" xml:space="preserve">
+    <value>Поток держит память ровной и начинает отдачу раньше, но раз байты ушли в сеть, ошибка БД на середине рвёт соединение вместо чистой ошибки. Режим «целиком» меняет память на это. Оставьте оба поля пустыми, чтобы следовать настройкам.</value>
+  </data>
+  <data name="Endpoints_DeliveryForcedHelp" xml:space="preserve">
+    <value>Этот endpoint кэширует или логирует результат, поэтому собирает тело целиком независимо от режима: пока тела нет, нечего класть в кэш и нечего писать в лог.</value>
+  </data>
   <data name="Endpoints_CacheCoalesceLabel" xml:space="preserve">
     <value>Объединять одновременные вызовы</value>
   </data>
@@ -1108,6 +1135,27 @@
   </data>
   <data name="Settings_DataPlaneLimitsHelp" xml:space="preserve">
     <value>Ноль означает без ограничений. Ответ сверх лимита строк усекается и не кэшируется.</value>
+  </data>
+  <data name="Settings_SectionDelivery" xml:space="preserve">
+    <value>ОТДАЧА ОТВЕТА</value>
+  </data>
+  <data name="Settings_DeliveryModeLabel" xml:space="preserve">
+    <value>Режим отдачи по умолчанию</value>
+  </data>
+  <data name="Settings_DeliveryModeAuto" xml:space="preserve">
+    <value>Авто (по форме результата)</value>
+  </data>
+  <data name="Settings_DeliveryModeStream" xml:space="preserve">
+    <value>Потоком, по мере чтения строк</value>
+  </data>
+  <data name="Settings_DeliveryModeFull" xml:space="preserve">
+    <value>Целиком (собрать, затем отдать)</value>
+  </data>
+  <data name="Settings_ResponseFlushBytesLabel" xml:space="preserve">
+    <value>Порог сброса, байт</value>
+  </data>
+  <data name="Settings_DeliveryHelp" xml:space="preserve">
+    <value>Как тела ответов доходят до клиентов, если endpoint не переопределил это сам. Авто отдаёт потоком endpoint'ы со строками и буферизует те, что объявляют малый результат. Поток держит память ровной, но раз байты ушли, ошибка БД на середине рвёт соединение вместо чистой ошибки. Порог сброса - сколько может накопиться, прежде чем потоковый ответ вытолкнет данные: умолчание 32768 выше типичной строки и ниже порога LOH в 85 КБ. Endpoint'ы, которые кэшируют или логируют результат, буферизуют в любом случае.</value>
   </data>
   <data name="Settings_SectionResponseCache" xml:space="preserve">
     <value>// КЭШ ОТВЕТОВ</value>

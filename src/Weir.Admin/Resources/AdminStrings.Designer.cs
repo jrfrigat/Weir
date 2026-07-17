@@ -1321,6 +1321,150 @@ namespace Weir.Admin.Resources {
         }
 
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Delivery.
+        /// </summary>
+        public static string Endpoints_DeliverySection {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliverySection", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Response delivery.
+        /// </summary>
+        public static string Endpoints_DeliveryModeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default (from Settings).
+        /// </summary>
+        public static string Endpoints_DeliveryModeDefault {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Endpoints_DeliveryModeAuto {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeAuto", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
+        /// </summary>
+        public static string Endpoints_DeliveryModeStream {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeStream", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Full (build, then send).
+        /// </summary>
+        public static string Endpoints_DeliveryModeFull {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeFull", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Flush bytes.
+        /// </summary>
+        public static string Endpoints_DeliveryFlushBytesLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryFlushBytesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Streaming keeps memory flat and starts sending sooner  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Endpoints_DeliveryHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This endpoint caches or logs its result, so it builds  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Endpoints_DeliveryForcedHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryForcedHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на RESPONSE DELIVERY.
+        /// </summary>
+        public static string Settings_SectionDelivery {
+            get {
+                return ResourceManager.GetString("Settings_SectionDelivery", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default delivery mode.
+        /// </summary>
+        public static string Settings_DeliveryModeLabel {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Settings_DeliveryModeAuto {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeAuto", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
+        /// </summary>
+        public static string Settings_DeliveryModeStream {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeStream", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Full (build, then send).
+        /// </summary>
+        public static string Settings_DeliveryModeFull {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeFull", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Flush bytes.
+        /// </summary>
+        public static string Settings_ResponseFlushBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ResponseFlushBytesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на How response bodies reach callers, unless an endpoint  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Settings_DeliveryHelp {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Coalesce concurrent calls.
         /// </summary>
         public static string Endpoints_CacheCoalesceLabel {

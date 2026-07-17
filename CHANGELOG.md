@@ -8,6 +8,25 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Response delivery is now a setting rather than an accident.** Streaming and buffering trade memory
+  against error semantics - a streamed response cannot be taken back, so a database failure part-way
+  through a result set aborts the connection instead of returning a clean problem+json - and which one
+  you got used to depend on whether the endpoint happened to log its result. Now:
+  - `ResponseDeliveryMode` (`Auto` / `Stream` / `Full`) and `ResponseFlushBytes` in system settings,
+    both live-editable in the admin panel.
+  - `Delivery.Mode` and `Delivery.FlushBytes` per endpoint, each null by default, meaning "follow the
+    setting" - the same shape as `Logging.SlowThresholdPercent`.
+  - `Auto` is the default and resolves per endpoint from `ResultMode`: buffer where the result is
+    declared small (`SingleRow` / `Scalar` / `NonQuery`), where atomic errors cost memory not worth
+    counting, and stream where rows are coming. Endpoints already streamed, so nothing moves for them.
+
+  The mode decides only for endpoints that are neither cached nor capturing their result: both of
+  those need the whole body before they can store or log it, so they buffer regardless - and the
+  endpoint editor says so next to the field when it applies. Control-plane migration adds a
+  `DeliveryJson` column defaulting to `{}`, so an endpoint that predates it behaves exactly as before.
+
 ### Security
 
 - **The sign-in throttle keyed on the socket address, which is the proxy's behind the reverse proxy the

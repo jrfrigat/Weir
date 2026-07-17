@@ -94,6 +94,29 @@ public sealed record WeirSystemSettings
     /// </para>
     /// </summary>
     public long ResponseCacheMaxBytes { get; init; } = 134_217_728;
+
+    /// <summary>
+    /// How response bodies reach callers by default. An endpoint can override it (see
+    /// <c>DeliveryPolicy.Mode</c>), and one that caches or captures its result buffers regardless -
+    /// it needs the whole body before it can store or log anything.
+    /// <para>
+    /// <see cref="ResponseDeliveryMode.Auto"/> buffers where the endpoint declares a small result and
+    /// streams the row-returning ones, which is the right split for almost every system.
+    /// </para>
+    /// </summary>
+    public ResponseDeliveryMode ResponseDeliveryMode { get; init; } = ResponseDeliveryMode.Auto;
+
+    /// <summary>
+    /// How many bytes may sit unflushed in the JSON writer before a streaming response pushes them to
+    /// the client; an endpoint can override it (see <c>DeliveryPolicy.FlushBytes</c>).
+    /// <para>
+    /// The default is deliberate rather than round: comfortably above one typical row, so narrow rows
+    /// batch instead of costing a write each, and comfortably below the 85 KB large-object threshold,
+    /// so the writer's buffer stays a cheap reusable array. Values above that threshold undo the point
+    /// of flushing at all; very small ones trade the whole gain for a write per row.
+    /// </para>
+    /// </summary>
+    public int ResponseFlushBytes { get; init; } = 32_768;
 }
 
 /// <summary>

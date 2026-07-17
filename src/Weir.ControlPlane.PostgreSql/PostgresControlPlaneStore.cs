@@ -204,7 +204,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
     /// <summary>The endpoint columns selected for read queries, in a fixed order.</summary>
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
-        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
+        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -235,14 +235,14 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
 
         const string sql = """
             INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
-                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
+                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
             VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
-                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt)
+                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt)
             ON CONFLICT (Id) DO UPDATE SET
                 Route=EXCLUDED.Route, HttpMethod=EXCLUDED.HttpMethod, ConnectionName=EXCLUDED.ConnectionName,
                 ObjectType=EXCLUDED.ObjectType, SchemaName=EXCLUDED.SchemaName, ObjectName=EXCLUDED.ObjectName,
                 ResultMode=EXCLUDED.ResultMode, CommandTimeoutSeconds=EXCLUDED.CommandTimeoutSeconds, Enabled=EXCLUDED.Enabled,
-                SuppressMessages=EXCLUDED.SuppressMessages, CacheJson=EXCLUDED.CacheJson, LoggingJson=EXCLUDED.LoggingJson, ParametersJson=EXCLUDED.ParametersJson,
+                SuppressMessages=EXCLUDED.SuppressMessages, CacheJson=EXCLUDED.CacheJson, LoggingJson=EXCLUDED.LoggingJson, DeliveryJson=EXCLUDED.DeliveryJson, ParametersJson=EXCLUDED.ParametersJson,
                 RequiredScopesJson=EXCLUDED.RequiredScopesJson, Description=EXCLUDED.Description, UpdatedAt=EXCLUDED.UpdatedAt;
             """;
 
@@ -264,6 +264,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
                 SuppressMessages = endpoint.SuppressMessages,
                 CacheJson = JsonSerializer.Serialize(endpoint.Cache, Json),
                 LoggingJson = JsonSerializer.Serialize(endpoint.Logging, Json),
+                DeliveryJson = JsonSerializer.Serialize(endpoint.Delivery, Json),
                 ParametersJson = JsonSerializer.Serialize(endpoint.Parameters, Json),
                 RequiredScopesJson = JsonSerializer.Serialize(endpoint.RequiredScopes, Json),
                 endpoint.Description,
@@ -307,6 +308,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         SuppressMessages = r.SuppressMessages,
         Cache = JsonSerializer.Deserialize<CachePolicy>(r.CacheJson, Json) ?? new CachePolicy(),
         Logging = JsonSerializer.Deserialize<EndpointLogging>(r.LoggingJson ?? "{}", Json) ?? new EndpointLogging(),
+        Delivery = JsonSerializer.Deserialize<DeliveryPolicy>(r.DeliveryJson ?? "{}", Json) ?? new DeliveryPolicy(),
         Parameters = JsonSerializer.Deserialize<List<EndpointParameter>>(r.ParametersJson, Json) ?? [],
         RequiredScopes = JsonSerializer.Deserialize<List<string>>(r.RequiredScopesJson, Json) ?? [],
         Description = r.Description,
@@ -1077,6 +1079,8 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         public string CacheJson { get; set; } = "";
         /// <summary>Serialized request-logging policy.</summary>
         public string? LoggingJson { get; set; }
+        /// <summary>Serialized response-delivery policy.</summary>
+        public string? DeliveryJson { get; set; }
         /// <summary>Serialized parameter definitions.</summary>
         public string ParametersJson { get; set; } = "";
         /// <summary>Serialized required-scope list.</summary>

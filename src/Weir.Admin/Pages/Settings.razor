@@ -36,6 +36,19 @@
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionDelivery</FlareText>
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                    <FlareSelect TValue="ResponseDeliveryMode" Label="@AdminStrings.Settings_DeliveryModeLabel" Size="FieldSize.Sm"
+                                 @bind-Value="_responseDeliveryMode" Items="Enum.GetValues<ResponseDeliveryMode>()"
+                                 ItemLabel="DeliveryModeLabel" Style="min-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ResponseFlushBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseFlushBytes" Style="max-width:12rem;" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DeliveryHelp</FlareText>
+            </FlareStack>
+        </FlareCard>
+
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
                 <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Style="max-width:16rem;" />
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ResponseCacheHelp</FlareText>
@@ -144,6 +157,8 @@
     private int _slowThresholdPercent;
     private int _requestLogRetentionDays;
     private long _responseCacheMaxBytes;
+    private ResponseDeliveryMode _responseDeliveryMode;
+    private int _responseFlushBytes;
     private long _maxRequestBodyBytes;
     private WeirLoggingInfo? _logging;
     private bool _exporting;
@@ -176,6 +191,8 @@
             _slowThresholdPercent = view.Settings.SlowRequestThresholdPercent;
             _requestLogRetentionDays = view.Settings.RequestLogRetentionDays;
             _responseCacheMaxBytes = view.Settings.ResponseCacheMaxBytes;
+            _responseDeliveryMode = view.Settings.ResponseDeliveryMode;
+            _responseFlushBytes = view.Settings.ResponseFlushBytes;
             _maxRequestBodyBytes = view.MaxRequestBodyBytes;
             _logging = view.Logging;
         }
@@ -249,6 +266,8 @@
                 SlowRequestThresholdPercent = _slowThresholdPercent,
                 RequestLogRetentionDays = _requestLogRetentionDays,
                 ResponseCacheMaxBytes = _responseCacheMaxBytes,
+                ResponseDeliveryMode = _responseDeliveryMode,
+                ResponseFlushBytes = _responseFlushBytes,
             });
 
             if (applied is null)
@@ -272,4 +291,12 @@
             _saving = false;
         }
     }
+
+    private static string DeliveryModeLabel(ResponseDeliveryMode mode) => mode switch
+    {
+        ResponseDeliveryMode.Auto => AdminStrings.Settings_DeliveryModeAuto,
+        ResponseDeliveryMode.Stream => AdminStrings.Settings_DeliveryModeStream,
+        ResponseDeliveryMode.Full => AdminStrings.Settings_DeliveryModeFull,
+        _ => mode.ToString(),
+    };
 }
