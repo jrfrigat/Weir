@@ -12,6 +12,24 @@ namespace Weir.Core;
 /// </summary>
 internal static class WeirResponseWriter
 {
+    /// <summary>
+    /// How many bytes may sit unflushed in the writer before the row loop hands them to the output.
+    /// <para>
+    /// A <see cref="Utf8JsonWriter"/> over a stream writes nothing until it is flushed: it accumulates
+    /// in an internal buffer that starts small and doubles, on plain heap arrays. Left to the single
+    /// flush at the end, this method did not stream at all - the whole envelope was built in memory,
+    /// every intermediate copy above ~85 KB landed on the large-object heap, and the client waited for
+    /// the last row before receiving the first byte. At the default 100k row cap that is tens of
+    /// megabytes held per in-flight request.
+    /// </para>
+    /// <para>
+    /// Flushing on a threshold rather than per row keeps the syscall count sane while capping the
+    /// buffer: the writer never grows past this plus one row. 32 KB is comfortably above a typical row
+    /// and comfortably below the LOH threshold, so the buffer stays a reusable gen-0 array.
+    /// </para>
+    /// </summary>
+    private const int FlushThresholdBytes = 32 * 1024;
+
     /// <summary>The outcome of streaming one response: rows written and whether the row cap was hit.</summary>
     /// <param name="RowCount">Number of data rows written across all result sets.</param>
     /// <param name="Truncated">Whether the row cap was reached and the response closed early.</param>
@@ -81,6 +99,14 @@ internal static class WeirResponseWriter
 
                     writer.WriteEndObject();
                     rowCount++;
+
+                    // Push what has piled up out to the destination. On the direct path that is the
+                    // client's body, so this is what makes the response actually stream; on the buffered
+                    // path it just moves bytes into the caller's MemoryStream, which is pre-sized.
+                    if (writer.BytesPending >= FlushThresholdBytes)
+                    {
+                        await writer.FlushAsync(cancellationToken);
+                    }
                 }
             }
 

@@ -31,6 +31,24 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **The streaming path did not stream.** `Utf8JsonWriter` over a stream writes nothing until it is
+  flushed - it accumulates in an internal buffer that starts at 256 B and doubles on plain heap arrays -
+  and `WeirResponseWriter` flushed once, after the last row. So the whole envelope was built in memory
+  and handed over in a single write: time-to-first-byte equalled the full query duration, and at the
+  default 100k row cap tens of megabytes sat per in-flight request, most of it churning through the
+  large-object heap. The engine's own comment said "rows are written to the client as they are read";
+  it is true now. The row loop flushes once 32 KB are pending, which caps the writer's buffer instead
+  of letting it grow to the payload. Measured on a 4000-row reader: one 297 KB write before, chunked
+  after. This also makes the buffered path's pre-sized `MemoryStream` effective for the first time, and
+  needs no package - the recorded "response buffers are not pooled" gap pointed at a different buffer
+  than the one that dominated.
+
+  Two consequences worth knowing. Once bytes are on the wire `Response.HasStarted` is true, so a
+  database error part-way through a result set now aborts the connection instead of returning a clean
+  `400 problem+json` - the honest behaviour of a gateway that has already sent half a response, and the
+  abort path was already there for it. And a slow client now stalls the row loop while holding its
+  bulkhead permit and reader, so `MaxConcurrentRequestsPerConnection` counts requests including slow
+  readers, not just database work; Kestrel's minimum data rate is what bounds that.
 - **Disabling or demoting the last enabled admin locked everyone out for good.** Neither route checked
   that an Admin would remain, and both are `AdminOnly` - so nobody was left who could undo it. A restart
   did not rescue you either: the bootstrap account is only created when the admins table is empty, and a

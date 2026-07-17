@@ -66,6 +66,141 @@ public class ResponseWriterTests
         Assert.False(document.RootElement.GetProperty("truncated").GetBoolean());
     }
 
+    // A Utf8JsonWriter over a stream writes nothing until it is flushed - it piles up in an internal
+    // buffer that doubles on plain heap arrays. With only the one flush at the end, this class buffered
+    // the entire envelope and handed it over in a single write: the client waited for the last row
+    // before the first byte, and a big result set sat in memory (and on the LOH) meanwhile. The row loop
+    // flushes on a threshold now, and this holds that in place - the mistake is invisible from the
+    // outside, since the bytes are identical either way and only their timing differs.
+    [Fact]
+    public async Task Rows_Reach_The_Output_While_The_Reader_Is_Still_Being_Read()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        await using (var setup = connection.CreateCommand())
+        {
+            // Comfortably past the writer's flush threshold, so a streaming write must chunk.
+            setup.CommandText = """
+                CREATE TABLE t(id INTEGER, name TEXT);
+                WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 4000)
+                INSERT INTO t SELECT n, 'customer-name-' || n || '-padded-out-to-look-like-a-real-row' FROM seq;
+                """;
+            await setup.ExecuteNonQueryAsync();
+        }
+
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT id, name FROM t ORDER BY id";
+        var reader = await query.ExecuteReaderAsync();
+
+        await using var execution = new TestExecution(reader);
+        var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
+
+        await using var spy = new WriteSpyStream();
+        var result = await WeirResponseWriter.WriteAsync(spy, execution, endpoint, new JsonWriterOptions(), maxRows: 0, CancellationToken.None);
+
+        Assert.Equal(4000, result.RowCount);
+
+        // The tell: more than one write means bytes left while rows were still coming, and no single
+        // write carried the whole payload the way a buffer-it-all-then-dump would.
+        Assert.True(spy.Writes > 1, $"expected the response to be written in chunks, got {spy.Writes} write(s) of {spy.Total} bytes");
+        Assert.True(spy.LargestWrite < spy.Total, $"one write carried the whole {spy.Total}-byte payload, so nothing streamed");
+
+        // And it is still exactly the same document - streaming must not cost correctness.
+        using var document = JsonDocument.Parse(spy.ToArray());
+        var rows = document.RootElement.GetProperty("data")[0];
+        Assert.Equal(4000, rows.GetArrayLength());
+        Assert.Equal(1, rows[0].GetProperty("id").GetInt32());
+        Assert.Equal(4000, rows[3999].GetProperty("id").GetInt32());
+    }
+
+    /// <summary>
+    /// Records how the bytes arrived, not just what they were. This wraps a MemoryStream rather than
+    /// deriving from one on purpose: MemoryStream's own WriteAsync forwards to its Write(span), so an
+    /// override on both counts a single write twice and the numbers quietly double.
+    /// </summary>
+    private sealed class WriteSpyStream : Stream
+    {
+        private readonly MemoryStream _inner = new();
+
+        /// <summary>How many separate writes reached the stream.</summary>
+        public int Writes { get; private set; }
+
+        /// <summary>The size of the largest single write.</summary>
+        public int LargestWrite { get; private set; }
+
+        /// <summary>Total bytes written.</summary>
+        public int Total { get; private set; }
+
+        /// <inheritdoc />
+        public override bool CanWrite => true;
+
+        /// <inheritdoc />
+        public override bool CanRead => false;
+
+        /// <inheritdoc />
+        public override bool CanSeek => false;
+
+        /// <inheritdoc />
+        public override long Length => Total;
+
+        /// <inheritdoc />
+        public override long Position { get => Total; set => throw new NotSupportedException(); }
+
+        /// <summary>The bytes written so far.</summary>
+        /// <returns>The full payload.</returns>
+        public byte[] ToArray() => _inner.ToArray();
+
+        /// <inheritdoc />
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            Note(count);
+            _inner.Write(buffer, offset, count);
+        }
+
+        /// <inheritdoc />
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            Note(buffer.Length);
+            _inner.Write(buffer);
+        }
+
+        /// <inheritdoc />
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Note(buffer.Length);
+            return _inner.WriteAsync(buffer, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override void Flush()
+        {
+        }
+
+        /// <inheritdoc />
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        /// <summary>Records one write.</summary>
+        /// <param name="count">Bytes in this write.</param>
+        private void Note(int count)
+        {
+            if (count == 0)
+            {
+                return;
+            }
+
+            Writes++;
+            Total += count;
+            LargestWrite = Math.Max(LargestWrite, count);
+        }
+    }
+
     [Fact]
     public async Task Caps_Rows_And_Flags_Truncation()
     {
