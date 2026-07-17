@@ -1,6 +1,6 @@
 # Weir - Extending with plugins and connectors
 
-> [Russian / Russkiy](../ru/extending.md) - [Architecture](architecture.md) - [Configuration](configuration.md)
+> [Русский](../ru/extending.md) - [Architecture](architecture.md) - [Configuration](configuration.md)
 
 Weir is built around ports and adapters: the engine talks to a database through the `IDbConnector`
 port and never knows the concrete driver. SQL Server and PostgreSQL connectors ship in the box; you

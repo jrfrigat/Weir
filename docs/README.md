@@ -1,6 +1,6 @@
 # Weir Documentation
 
-> [English](#english) - [Russian / Russkiy](#russkiy)
+> [English](#english) - [Русский](#русский)
 
 ## English
 
@@ -16,11 +16,11 @@
 | [Extending](en/extending.md) | Writing connectors and loading them as plugins |
 | [Roadmap](en/roadmap.md) | The code review that shaped Weir, and the phased plan from it |
 
-## Russkiy
+## Русский
 
-| Dokument | Opisanie |
+| Документ | Описание |
 | :-- | :-- |
-| [Nachalo raboty](ru/getting-started.md) | Запуск Weir, настройка подключения, первый эндпоинт |
+| [Начало работы](ru/getting-started.md) | Запуск Weir, настройка подключения, первый эндпоинт |
 | [Архитектура](ru/architecture.md) | Две плоскости, карта модулей, жизненный цикл запроса |
 | [Эндпоинты и контракт API](ru/endpoints.md) | Описание эндпоинтов, параметры, TVP, конверт запроса/ответа |
 | [Безопасность](ru/security.md) | API-ключи и скоупы, аккаунты админов и JWT |

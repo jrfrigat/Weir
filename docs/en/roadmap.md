@@ -1,6 +1,6 @@
 # Weir - Development Roadmap
 
-> [Russian / Russkiy](../ru/roadmap.md) - [Architecture](architecture.md) - [Configuration](configuration.md) - [Security](security.md)
+> [Русский](../ru/roadmap.md) - [Architecture](architecture.md) - [Configuration](configuration.md) - [Security](security.md)
 
 This document captures a full code review of Weir (all planes) and the phased plan that follows
 from it. Phases 0-8 are complete (see the CLAUDE.md checklist). Phases 9-15 below are the forward

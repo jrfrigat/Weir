@@ -1,6 +1,6 @@
 # Weir - Getting Started
 
-> [Russian / Russkiy](../ru/getting-started.md) - [README](../../README.md) - [Architecture](architecture.md)
+> [Русский](../ru/getting-started.md) - [README](../../README.md) - [Architecture](architecture.md)
 
 Weir is a thin HTTP gateway over MSSQL: a client calls an endpoint, Weir invokes a stored procedure
 or function and streams the result back as JSON. This guide gets a local instance running and serves

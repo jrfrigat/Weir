@@ -1,6 +1,6 @@
 # Weir - Architecture
 
-English | [Russian / Russkiy](../ru/architecture.md)
+English | [Русский](../ru/architecture.md)
 
 Weir is a metadata-driven gateway that maps HTTP endpoints to stored procedures / functions and
 returns JSON. It is deliberately **thin**: the request path does routing, authentication,

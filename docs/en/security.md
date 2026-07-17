@@ -1,6 +1,6 @@
 # Weir - Security
 
-> [Russian / Russkiy](../ru/security.md) - [Configuration](configuration.md) - [Architecture](architecture.md)
+> [Русский](../ru/security.md) - [Configuration](configuration.md) - [Architecture](architecture.md)
 
 Weir has two independent authentication surfaces: API keys for data-plane clients, and admin
 accounts for the management UI.

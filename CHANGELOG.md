@@ -1,6 +1,6 @@
 # Changelog
 
-> [Russian / Russkiy](CHANGELOG.ru.md)
+> [Русский](CHANGELOG.ru.md)
 
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow

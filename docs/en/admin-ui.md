@@ -1,6 +1,6 @@
 # Weir - Admin UI
 
-> [Russian / Russkiy](../ru/admin-ui.md) - [Getting Started](getting-started.md) - [Security](security.md)
+> [Русский](../ru/admin-ui.md) - [Getting Started](getting-started.md) - [Security](security.md)
 
 The admin UI is a Blazor WebAssembly PWA styled as a dark "Command Center" ops console (top-nav tabs,
 dense monospace tables, a live dashboard). It is served by the host at the root path and talks to the

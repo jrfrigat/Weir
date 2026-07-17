@@ -1,6 +1,6 @@
 # Weir - Endpoints and API contract
 
-> [Russian / Russkiy](../ru/endpoints.md) - [Getting Started](getting-started.md) - [Architecture](architecture.md)
+> [Русский](../ru/endpoints.md) - [Getting Started](getting-started.md) - [Architecture](architecture.md)
 
 An endpoint is metadata that maps an HTTP route to a stored procedure or function. Endpoints are
 managed from the admin UI (or the admin API) and take effect immediately - no redeploy.

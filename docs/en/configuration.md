@@ -1,6 +1,6 @@
 # Weir - Configuration
 
-> [Russian / Russkiy](../ru/configuration.md) - [Deployment](deployment.md) - [Security](security.md)
+> [Русский](../ru/configuration.md) - [Deployment](deployment.md) - [Security](security.md)
 
 Weir reads standard ASP.NET Core configuration: `appsettings.json`, `appsettings.{Environment}.json`,
 environment variables, and command-line arguments (in increasing precedence). Nested keys map to

@@ -1,6 +1,6 @@
 # Weir - Deployment
 
-> [Russian / Russkiy](../ru/deployment.md) - [Configuration](configuration.md) - [Getting Started](getting-started.md)
+> [Русский](../ru/deployment.md) - [Configuration](configuration.md) - [Getting Started](getting-started.md)
 
 Weir is a single deployable: one ASP.NET Core host that serves the JSON API and the Blazor WASM
 admin PWA from the same origin. It targets .NET 10.
