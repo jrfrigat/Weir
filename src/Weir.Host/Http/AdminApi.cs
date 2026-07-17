@@ -1117,6 +1117,8 @@ public static class AdminApi
             }
 
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(endpoint.Route), cancellationToken);
+            // Empties this instance's cache above; the stamp is what tells the others to empty theirs.
+            await store.RecordCachePurgeAsync([endpoint.Route], clock.GetUtcNow(), cancellationToken);
             await AuditActionAsync(store, clock, user, "cache.purge", $"route {endpoint.Route}");
             return Results.Ok(new CachePurgeResult { MatchedEndpoints = 1, PurgedRoutes = [endpoint.Route] });
         }).RequireAuthorization("AdminOnly");
@@ -1152,6 +1154,8 @@ public static class AdminApi
                 await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(purged), cancellationToken);
             }
 
+            // Empties this instance's cache above; the stamps are what tell the others to empty theirs.
+            await store.RecordCachePurgeAsync(routes, clock.GetUtcNow(), cancellationToken);
             await AuditActionAsync(store, clock, user, "cache.purge",
                 DescribePurge(route, connection, schema, objectName, provider, routes.Count));
             return Results.Ok(new CachePurgeResult { MatchedEndpoints = selected.Count, PurgedRoutes = routes });

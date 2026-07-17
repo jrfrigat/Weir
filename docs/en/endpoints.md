@@ -260,12 +260,11 @@ job rewrites reference data - force a purge so callers see the new data at once 
 the TTL. Purging clears already-rendered responses only; it never changes an endpoint definition, and
 the cache refills on the next call.
 
-That is also why a purge does not spread across a fleet the way an edit does. An edit is a metadata
-change, so every instance notices it on its next catalog reload and evicts what it had rendered from
-the old definition. A purge deliberately changes no metadata, so there is nothing for a reload to
-notice: it empties the cache of the instance that answered the call, and no other. Against several
-instances behind a load balancer, send the purge to each instance directly rather than through the
-balancer, which would hand it to one of them.
+A purge reaches every instance, not just the one that answers the call. It empties that instance's
+cache at once and records the purge in the control plane; each other instance sees it on its next
+catalog reload and empties its own, so `Weir:ControlPlane:ReloadSeconds` bounds how long a purged route
+can still be answered from an old body elsewhere. One call through the load balancer is enough - there
+is no need to find and call each instance.
 
 From the admin UI, the **Purge cache** action on a cache-enabled endpoint's row clears that endpoint.
 Over the admin API (a login JWT or a personal access token, `Admin` role), one route covers both a

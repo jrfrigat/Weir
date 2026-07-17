@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Weir.Abstractions;
 using Weir.Contracts;
+using Weir.ControlPlane.Sqlite;
 using Weir.Core;
 using Weir.Host;
 using Weir.Host.Options;
@@ -69,12 +70,66 @@ public class CatalogRefreshEvictionTests
         Assert.Equal(CacheKey.RoutePrefix("orders/get"), evicted);
     }
 
+    [Fact]
+    public async Task A_Purge_On_Another_Instance_Empties_This_Instance_Cache()
+    {
+        // A purge changes no definition, so nothing about it moves UpdatedAt and the reload above has
+        // nothing to notice: before the stamp, pressing "Purge cache" emptied exactly one cache out of N
+        // and the rest served what they had until the TTL ran out.
+        var store = NewStore();
+        var catalog = new FakeCatalog(Endpoint(new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)));
+        catalog.RunOnLoad(2, () => store.RecordCachePurgeAsync(["orders/get"], DateTimeOffset.UtcNow));
+        var cache = new RecordingCache();
+
+        using var service = Service(catalog, cache, store);
+        await service.StartAsync(CancellationToken.None);
+        var evicted = await cache.FirstEviction.WaitAsync(Timeout);
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(CacheKey.RoutePrefix("orders/get"), evicted);
+    }
+
+    [Fact]
+    public async Task An_Already_Seen_Purge_Does_Not_Evict_Again()
+    {
+        // The stamp is a timestamp that stays put, not an event that fires once. Read naively it would
+        // re-evict on every reload from then on, which is the cache switching itself off with extra
+        // steps - the same trap as evicting on an unchanged definition, one table further along.
+        var store = NewStore();
+        await store.RecordCachePurgeAsync(["orders/get"], DateTimeOffset.UtcNow);
+        var catalog = new FakeCatalog(Endpoint(new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)));
+        var cache = new RecordingCache();
+
+        using var service = Service(catalog, cache, store);
+        await service.StartAsync(CancellationToken.None);
+        await catalog.Reached(3).WaitAsync(Timeout);
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Empty(cache.Evictions);
+    }
+
     /// <summary>Builds the service under test with the shortest interval its options allow.</summary>
     /// <param name="catalog">The catalog to reload.</param>
     /// <param name="cache">The cache to evict from.</param>
+    /// <param name="store">The store to read purge stamps from; a throwaway one when not supplied.</param>
     /// <returns>The service, not yet started.</returns>
-    private static CatalogRefreshService Service(FakeCatalog catalog, RecordingCache cache) =>
-        new(catalog, cache, Options.Create(new CatalogRefreshOptions { ReloadSeconds = 1 }), NullLogger<CatalogRefreshService>.Instance);
+    private static CatalogRefreshService Service(FakeCatalog catalog, RecordingCache cache, IControlPlaneStore? store = null) =>
+        new(catalog, store ?? NewStore(), cache, Options.Create(new CatalogRefreshOptions { ReloadSeconds = 1 }), NullLogger<CatalogRefreshService>.Instance);
+
+    /// <summary>
+    /// Opens a real control-plane store on a throwaway database rather than faking one. The purge stamp
+    /// has to survive a round trip through an actual table to be worth anything - that is the whole
+    /// point of it - so the store is the part least worth stubbing out here.
+    /// </summary>
+    /// <returns>The initialized store.</returns>
+    private static SqliteControlPlaneStore NewStore()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"weir-purge-{Guid.NewGuid():N}.db");
+        var options = Options.Create(new SqliteControlPlaneOptions { ConnectionString = $"Data Source={path}" });
+        var store = new SqliteControlPlaneStore(options, TimeProvider.System);
+        store.InitializeAsync().GetAwaiter().GetResult();
+        return store;
+    }
 
     /// <summary>Builds the one endpoint these tests use, at a given revision.</summary>
     /// <param name="updatedAt">The revision stamp the store would have written on save.</param>
@@ -102,6 +157,12 @@ public class CatalogRefreshEvictionTests
 
         /// <summary>The load from which <see cref="_next"/> replaces the current contents; zero for never.</summary>
         private int _changeAt;
+
+        /// <summary>The load on which <see cref="_action"/> runs; zero for never.</summary>
+        private int _runAt;
+
+        /// <summary>Work to run mid-reload, standing in for something another instance did just then.</summary>
+        private Func<Task>? _action;
 
         /// <summary>What the catalog holds from <see cref="_changeAt"/> on; null means the endpoint is gone.</summary>
         private EndpointDefinition? _next;
@@ -134,8 +195,21 @@ public class CatalogRefreshEvictionTests
             return _reached.Task;
         }
 
+        /// <summary>
+        /// Runs <paramref name="action"/> during a given load, before the caller goes on to look at the
+        /// purge stamps. That ordering is the point: it lands the change strictly between one reload and
+        /// the next, so the test never races the timer.
+        /// </summary>
+        /// <param name="load">The 1-based load to run it on.</param>
+        /// <param name="action">The work to run.</param>
+        internal void RunOnLoad(int load, Func<Task> action)
+        {
+            _runAt = load;
+            _action = action;
+        }
+
         /// <inheritdoc />
-        public Task LoadAsync(CancellationToken cancellationToken = default)
+        public async Task LoadAsync(CancellationToken cancellationToken = default)
         {
             var loads = ++_loads;
             if (_changeAt > 0 && loads >= _changeAt)
@@ -143,12 +217,15 @@ public class CatalogRefreshEvictionTests
                 All = _next is null ? [] : [_next];
             }
 
+            if (_runAt > 0 && loads == _runAt && _action is not null)
+            {
+                await _action();
+            }
+
             if (_target > 0 && loads >= _target)
             {
                 _reached.TrySetResult(loads);
             }
-
-            return Task.CompletedTask;
         }
 
         /// <inheritdoc />

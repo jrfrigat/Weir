@@ -271,6 +271,32 @@ public interface IControlPlaneStore
     /// <param name="json">The serialized settings document.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task SaveSettingsJsonAsync(string json, CancellationToken cancellationToken = default);
+
+    // ----- Cache purges ----------------------------------------------------------------------
+
+    /// <summary>
+    /// Records that the cached responses of these routes were force-purged at <paramref name="purgedAt"/>.
+    /// <para>
+    /// A purge deliberately changes no endpoint definition, so nothing about it would otherwise reach the
+    /// other instances of a deployment: each one would go on serving what it had already rendered until
+    /// the TTL expired, and the admin who pressed the button would have emptied exactly one cache out of
+    /// N. This is the record they read to find out. It is kept apart from the definition rather than
+    /// stamped onto it, because a purge is not an edit and must not show up as one in
+    /// <see cref="EndpointDefinition.UpdatedAt"/> or anywhere the admin panel presents as "last changed".
+    /// </para>
+    /// </summary>
+    /// <param name="routes">The routes whose caches were purged.</param>
+    /// <param name="purgedAt">When the purge happened.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RecordCachePurgeAsync(IReadOnlyList<string> routes, DateTimeOffset purgedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the last purge time of every route that has ever been purged, keyed by route. Read once
+    /// per catalog reload, so an instance can tell which routes were purged since it last looked.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The purge stamps, keyed by route.</returns>
+    Task<IReadOnlyDictionary<string, DateTimeOffset>> GetCachePurgesAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>Full API-key record used for authentication. Includes the stored hash - never leaves the server.</summary>

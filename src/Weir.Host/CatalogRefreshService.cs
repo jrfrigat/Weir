@@ -24,6 +24,7 @@ namespace Weir.Host;
 public sealed class CatalogRefreshService : BackgroundService
 {
     private readonly IEndpointCatalog _catalog;
+    private readonly IControlPlaneStore _store;
     private readonly IResponseCache _cache;
     private readonly ILogger<CatalogRefreshService> _logger;
     private readonly TimeSpan _interval;
@@ -42,19 +43,22 @@ public sealed class CatalogRefreshService : BackgroundService
     /// </summary>
     private bool _primed;
 
-    /// <summary>Creates the refresh service from the catalog, the response cache, options and a logger.</summary>
+    /// <summary>Creates the refresh service from the catalog, the store, the response cache, options and a logger.</summary>
     /// <param name="catalog">The endpoint catalog to reload.</param>
+    /// <param name="store">The control-plane store the force-purge stamps are read from.</param>
     /// <param name="cache">The response cache to evict changed routes from.</param>
     /// <param name="options">The refresh options.</param>
     /// <param name="logger">The logger.</param>
     public CatalogRefreshService(
         IEndpointCatalog catalog,
+        IControlPlaneStore store,
         IResponseCache cache,
         IOptions<CatalogRefreshOptions> options,
         ILogger<CatalogRefreshService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         _catalog = catalog;
+        _store = store;
         _cache = cache;
         _logger = logger;
         _interval = TimeSpan.FromSeconds(Math.Max(0, options.Value.ReloadSeconds));
@@ -97,12 +101,14 @@ public sealed class CatalogRefreshService : BackgroundService
     /// <param name="cancellationToken">Cancels the eviction.</param>
     private async Task EvictChangedRoutesAsync(CancellationToken cancellationToken)
     {
+        var purges = await _store.GetCachePurgesAsync(cancellationToken);
         var current = new Dictionary<string, RouteRevision>(StringComparer.OrdinalIgnoreCase);
         var endpoints = _catalog.All;
         for (var i = 0; i < endpoints.Count; i++)
         {
             var endpoint = endpoints[i];
-            current[endpoint.Route] = new RouteRevision(endpoint.Id, endpoint.UpdatedAt);
+            purges.TryGetValue(endpoint.Route, out var purgedAt);
+            current[endpoint.Route] = new RouteRevision(endpoint.Id, endpoint.UpdatedAt, purgedAt);
         }
 
         if (_primed)
@@ -126,14 +132,24 @@ public sealed class CatalogRefreshService : BackgroundService
     }
 
     /// <summary>
-    /// What a route was serving at a given reload: which endpoint answered it, and which revision of
-    /// that endpoint. <see cref="EndpointDefinition.UpdatedAt"/> is the revision because every store
-    /// stamps it on save, so it already reaches the other instances with the definition itself and
-    /// needs nothing added to the schema. The definition cannot stand in for it: a record compares its
-    /// collection members by reference, and each reload builds fresh lists, so two identical loads
-    /// would compare unequal and evict everything every time.
+    /// What a route was serving at a given reload: which endpoint answered it, which revision of that
+    /// endpoint, and when its cache was last force-purged. Any of the three differing from the last
+    /// reading means what this instance has cached for the route no longer stands.
+    /// <para>
+    /// <see cref="EndpointDefinition.UpdatedAt"/> is the revision because every store stamps it on save,
+    /// so it already reaches the other instances with the definition itself. The definition cannot stand
+    /// in for it: a record compares its collection members by reference, and each reload builds fresh
+    /// lists, so two identical loads would compare unequal and evict everything every time.
+    /// </para>
+    /// <para>
+    /// The purge stamp is separate because a purge is not an edit: it changes no definition, so
+    /// <see cref="EndpointDefinition.UpdatedAt"/> does not move and cannot carry it without claiming in
+    /// the admin panel that someone edited the endpoint. Default when the route has never been purged,
+    /// which is the common case and compares equal to itself, so it costs nothing.
+    /// </para>
     /// </summary>
     /// <param name="Id">The endpoint answering the route.</param>
     /// <param name="UpdatedAt">When that endpoint's definition was last saved.</param>
-    private readonly record struct RouteRevision(Guid Id, DateTimeOffset UpdatedAt);
+    /// <param name="PurgedAt">When the route's cache was last force-purged; default for never.</param>
+    private readonly record struct RouteRevision(Guid Id, DateTimeOffset UpdatedAt, DateTimeOffset PurgedAt);
 }

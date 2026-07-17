@@ -219,5 +219,15 @@ internal static class SqliteSchema
         """
         ALTER TABLE Endpoints ADD COLUMN DeliveryJson TEXT NOT NULL DEFAULT '{}';
         """,
+
+        // v14 - force-purge stamps, so a purge reaches the other instances of a deployment. Keyed by
+        // route rather than by endpoint id: the cache is keyed by route too, and a row has to outlive
+        // the endpoint long enough for every instance to have read it.
+        """
+        CREATE TABLE IF NOT EXISTS CachePurges (
+            Route    TEXT PRIMARY KEY,
+            PurgedAt TEXT NOT NULL
+        );
+        """,
     ];
 }

@@ -1101,6 +1101,44 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             """, new { Json = json, UpdatedAt = Iso(_clock.GetUtcNow()) }, cancellationToken: cancellationToken));
     }
 
+    /// <inheritdoc />
+    public async Task RecordCachePurgeAsync(IReadOnlyList<string> routes, DateTimeOffset purgedAt, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(routes);
+        if (routes.Count == 0)
+        {
+            return;
+        }
+
+        await using var conn = await OpenAsync(cancellationToken);
+        // UPDATE-then-INSERT, the same upsert shape the rest of this store uses.
+        await conn.ExecuteAsync(new CommandDefinition("""
+            UPDATE CachePurges SET PurgedAt = @PurgedAt WHERE Route = @Route;
+            IF @@ROWCOUNT = 0
+            INSERT INTO CachePurges (Route, PurgedAt) VALUES (@Route, @PurgedAt);
+            """,
+            routes.Select(route => new { Route = route, PurgedAt = Iso(purgedAt) }).ToArray(),
+            cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, DateTimeOffset>> GetCachePurgesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        var rows = await conn.QueryAsync<CachePurgeRow>(
+            new CommandDefinition("SELECT Route, PurgedAt FROM CachePurges", cancellationToken: cancellationToken));
+
+        // Ordinal, matching the cache keys these stamps evict: the key was built from the route exactly
+        // as it is spelled here.
+        var purges = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            purges[row.Route] = ParseDto(row.PurgedAt);
+        }
+
+        return purges;
+    }
+
     // ===== Helpers & row DTOs ====================================================================
 
     /// <summary>Formats a timestamp as a round-trippable UTC ISO-8601 string for stable lexical ordering.</summary>
@@ -1113,6 +1151,15 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     /// <returns>The parsed timestamp.</returns>
     private static DateTimeOffset ParseDto(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+    /// <summary>Row shape for the CachePurges table.</summary>
+    private sealed class CachePurgeRow
+    {
+        /// <summary>The purged route.</summary>
+        public string Route { get; set; } = "";
+        /// <summary>When it was purged (ISO-8601 text).</summary>
+        public string PurgedAt { get; set; } = "";
+    }
 
     /// <summary>Row shape for the Endpoints table (times and ids stored as text; Enabled is a native bit).</summary>
     private sealed class EndpointRow

@@ -26,8 +26,20 @@ All notable changes to this project are documented here. The format is based on
   staleness by `Weir:ControlPlane:ReloadSeconds` instead of the TTL. Deleting or disabling an endpoint
   evicts too: the route stops resolving, so its entries were unreachable rather than wrong - until it
   came back inside the TTL, and a cache keyed by route handed the returning endpoint the old one's
-  bodies. An explicit purge still only empties the instance that answers it, and the documentation now
-  says so instead of claiming the split cache costs hit ratio and not correctness.
+  bodies. The documentation claimed the split cache costs hit ratio and not correctness; it no longer
+  says that, because it was not true.
+
+- **A force-purge emptied one cache out of N.** The **Purge cache** action and
+  `POST /admin/api/cache/purge` evicted the instance that answered the call, and the rest went on
+  serving what they had already rendered until the TTL ran out - so the CI/CD use the feature exists
+  for (a migration reseeds a table, purge, callers see the new data at once) quietly did not work
+  behind a load balancer, which is where you cannot address the other instances anyway. A purge is now
+  recorded in the control plane and each instance acts on it at its next catalog reload, so one call
+  through the balancer purges the fleet within `Weir:ControlPlane:ReloadSeconds`. The stamp is kept in
+  its own table rather than on the endpoint: a purge is not an edit, and piggybacking it on
+  `UpdatedAt` would have propagated correctly while telling the admin panel someone had changed the
+  endpoint. Adds a `CachePurges` table (SQLite v14, PostgreSQL and SQL Server v13); the migration is
+  additive and needs no action.
 
 - **Every graceful shutdown threw away the queued audit and request-log entries, and said nothing.**
   Both sinks keep a channel so writing never blocks the request thread, and both read it with the

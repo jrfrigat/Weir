@@ -136,12 +136,12 @@ Run several instances behind a load balancer:
   Without it the in-memory limiter enforces the limit per instance, so the effective limit is N x the
   configured value in an N-instance deployment.
 - The response cache is per-instance (in-memory), so a cache miss on one instance is independent of
-  the others: that part only costs hit ratio. Eviction is the part that matters. An edit evicts the
-  cache of the instance that served it at once, and every other instance evicts on its next catalog
-  reload, so `ReloadSeconds` bounds the staleness rather than the TTL. An explicit purge (the admin
-  **Purge cache** action and `POST /admin/api/cache/purge`) is the exception: it carries no metadata
-  change for the reload to notice, so it only empties the instance that handled the call. To purge a
-  fleet, send the call to every instance.
+  the others: that part only costs hit ratio. Eviction is the part that matters, and it is shared. The
+  instance that serves an edit or a purge evicts at once; every other instance evicts on its next
+  catalog reload, so `ReloadSeconds` bounds the staleness rather than the TTL. That covers an explicit
+  purge too (the admin **Purge cache** action and `POST /admin/api/cache/purge`), which is recorded in
+  the control plane precisely because it changes no metadata for the reload to notice otherwise - so
+  one call through the load balancer purges the fleet.
 
 ### Cross-instance metrics
 

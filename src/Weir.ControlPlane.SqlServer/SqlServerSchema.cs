@@ -210,5 +210,16 @@ internal static class SqlServerSchema
         IF COL_LENGTH(N'Endpoints', N'DeliveryJson') IS NULL
         ALTER TABLE Endpoints ADD DeliveryJson nvarchar(max) NOT NULL DEFAULT '{}';
         """,
+
+        // v13 - force-purge stamps, so a purge reaches the other instances of a deployment. Keyed by
+        // route rather than by endpoint id: the cache is keyed by route too, and a row has to outlive
+        // the endpoint long enough for every instance to have read it.
+        """
+        IF OBJECT_ID(N'CachePurges', N'U') IS NULL
+        CREATE TABLE CachePurges (
+            Route    nvarchar(450) NOT NULL PRIMARY KEY,
+            PurgedAt nvarchar(33)  NOT NULL
+        );
+        """,
     ];
 }

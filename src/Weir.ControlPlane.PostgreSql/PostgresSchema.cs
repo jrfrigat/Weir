@@ -183,5 +183,15 @@ internal static class PostgresSchema
         """
         ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS DeliveryJson text NOT NULL DEFAULT '{}';
         """,
+
+        // v13 - force-purge stamps, so a purge reaches the other instances of a deployment. Keyed by
+        // route rather than by endpoint id: the cache is keyed by route too, and a row has to outlive
+        // the endpoint long enough for every instance to have read it.
+        """
+        CREATE TABLE IF NOT EXISTS CachePurges (
+            Route    text PRIMARY KEY,
+            PurgedAt text NOT NULL
+        );
+        """,
     ];
 }

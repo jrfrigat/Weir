@@ -1001,6 +1001,41 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             new { Json = json, UpdatedAt = Iso(_clock.GetUtcNow()) }, cancellationToken: cancellationToken));
     }
 
+    /// <inheritdoc />
+    public async Task RecordCachePurgeAsync(IReadOnlyList<string> routes, DateTimeOffset purgedAt, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(routes);
+        if (routes.Count == 0)
+        {
+            return;
+        }
+
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "INSERT INTO CachePurges (Route, PurgedAt) VALUES (@Route, @PurgedAt) " +
+            "ON CONFLICT(Route) DO UPDATE SET PurgedAt = excluded.PurgedAt",
+            routes.Select(route => new { Route = route, PurgedAt = Iso(purgedAt) }).ToArray(),
+            cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, DateTimeOffset>> GetCachePurgesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        var rows = await conn.QueryAsync<CachePurgeRow>(
+            new CommandDefinition("SELECT Route, PurgedAt FROM CachePurges", cancellationToken: cancellationToken));
+
+        // Ordinal, matching the cache keys these stamps evict: the key was built from the route exactly
+        // as it is spelled here.
+        var purges = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            purges[row.Route] = ParseDto(row.PurgedAt);
+        }
+
+        return purges;
+    }
+
     // ===== Helpers & row DTOs ====================================================================
 
     /// <summary>Formats a timestamp as a round-trippable UTC ISO-8601 string for stable lexical ordering.</summary>
@@ -1013,6 +1048,15 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
     /// <returns>The parsed timestamp.</returns>
     private static DateTimeOffset ParseDto(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+    /// <summary>Row shape for the CachePurges table.</summary>
+    private sealed class CachePurgeRow
+    {
+        /// <summary>The purged route.</summary>
+        public string Route { get; set; } = "";
+        /// <summary>When it was purged (ISO-8601 text).</summary>
+        public string PurgedAt { get; set; } = "";
+    }
 
     /// <summary>Row shape for the Endpoints table (all times and ids stored as text).</summary>
     private sealed class EndpointRow
