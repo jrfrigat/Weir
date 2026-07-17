@@ -1,11 +1,13 @@
 // Weir host composition root: wires the control plane, engine, connector and telemetry, configures
 // admin JWT authentication, rate limiting, CORS and OpenTelemetry export, runs startup
 // initialization, and maps the data plane, admin API and health.
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -35,6 +37,9 @@ using Weir.Host.Plugins;
 using Weir.Host.Realtime;
 using Weir.Host.RequestLogging;
 using Weir.Host.Security;
+// Microsoft.AspNetCore.HttpOverrides has its own IPNetwork, deprecated in favour of the BCL one that
+// KnownIPNetworks takes. Both namespaces are in scope here, so name the one we mean.
+using IPNetwork = System.Net.IPNetwork;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -154,6 +159,47 @@ builder.Services.AddOptions<AdminSecurityOptions>()
     .Bind(builder.Configuration.GetSection("Weir:Admin"))
     .Validate(o => o.MaxFailedLogins >= 0 && o.LockoutMinutes >= 0, "Weir:Admin lockout settings must not be negative.")
     .ValidateOnStart();
+// Reverse-proxy trust. Weir keeps the raw socket address unless proxies are named explicitly, because
+// X-Forwarded-For is caller-supplied: trusting it from anywhere would let an attacker forge a fresh
+// address per request and slip the sign-in throttle entirely.
+var networkOptions = builder.Configuration.GetSection("Weir:Network").Get<NetworkOptions>() ?? new NetworkOptions();
+builder.Services.AddOptions<NetworkOptions>()
+    .Bind(builder.Configuration.GetSection("Weir:Network"))
+    .Validate(
+        o =>
+        {
+            o.ParseTrustedProxies(out _, out _, out var invalid);
+            return invalid.Count == 0;
+        },
+        "Weir:Network:TrustedProxies entries must each be an IP address or a CIDR network, e.g. '10.0.0.7' or '10.0.0.0/8'.")
+    .Validate(o => o.ForwardLimit >= 1, "Weir:Network:ForwardLimit must be at least 1.")
+    .ValidateOnStart();
+
+if (networkOptions.Enabled)
+{
+    networkOptions.ParseTrustedProxies(out var trustedProxies, out var trustedNetworks, out _);
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        // Proto as well as For: without it a TLS-terminating proxy leaves Request.Scheme as http, which
+        // sends RequireHttps into a redirect loop and puts http:// in the generated OpenAPI server URL.
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = networkOptions.ForwardLimit;
+
+        // The defaults trust loopback; replace them wholesale so only the configured proxies are trusted.
+        options.KnownProxies.Clear();
+        options.KnownIPNetworks.Clear();
+        foreach (var proxy in trustedProxies)
+        {
+            options.KnownProxies.Add(proxy);
+        }
+
+        foreach (var (prefix, length) in trustedNetworks)
+        {
+            options.KnownIPNetworks.Add(new IPNetwork(prefix, length));
+        }
+    });
+}
+
 builder.Services.Configure<CatalogRefreshOptions>(builder.Configuration.GetSection("Weir:ControlPlane"));
 builder.Services.AddSingleton<ILoginThrottle, PersistedLoginThrottle>();
 builder.Services.AddHostedService<CatalogRefreshService>();
@@ -329,6 +375,14 @@ builder.Services.AddHostedService<DashboardBroadcaster>();
 var app = builder.Build();
 
 await WeirStartup.InitializeAsync(app);
+
+// Rewrite RemoteIpAddress / Scheme from the proxy's forwarded headers before anything reads them: the
+// sign-in throttle keys on the caller's address and the request log records it, so this has to be the
+// first middleware or both see the proxy instead. Off unless Weir:Network:TrustedProxies is set.
+if (networkOptions.Enabled)
+{
+    app.UseForwardedHeaders();
+}
 
 // Assign or propagate a correlation id, echo it back, and attach it to every log event for the request
 // so a single call can be traced across the file logs. Runs first so all downstream logs carry it.

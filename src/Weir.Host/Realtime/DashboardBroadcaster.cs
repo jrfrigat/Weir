@@ -114,7 +114,8 @@ public sealed class DashboardBroadcaster : BackgroundService
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    // Pushed to admins only; the detail helps operators diagnose a down connection.
+                    // Kept for admins and redacted for viewers below: driver text discloses server /
+                    // database / login names, and the HTTP route makes the same split.
                     error = ex.Message;
                 }
             }
@@ -134,6 +135,13 @@ public sealed class DashboardBroadcaster : BackgroundService
             });
         }
 
-        await _hub.Clients.All.SendAsync("health", results, cancellationToken);
+        // Probe once, then say it two ways. A viewer still sees which connection is down and how slow it
+        // is - only the driver's text is withheld, exactly as on GET /admin/api/connections/health.
+        var redacted = results
+            .Select(health => health.Error is null ? health : health with { Error = "unreachable" })
+            .ToList();
+
+        await _hub.Clients.Group(DashboardHub.AdminsGroup).SendAsync("health", results, cancellationToken);
+        await _hub.Clients.Group(DashboardHub.ViewersGroup).SendAsync("health", redacted, cancellationToken);
     }
 }

@@ -77,6 +77,37 @@ Serve Weir behind a reverse proxy that terminates TLS. The admin UI and admin AP
 origin, so no CORS configuration is required. Leave `Weir:Security:RequireHttps` off when the proxy
 does TLS (its default). Weir sends HSTS and hardening headers itself.
 
+**Name the proxy, or the sign-in throttle protects nothing.** The socket Weir sees belongs to the
+proxy, not the caller, and the throttle keys on the caller's address (as does the security log). Left
+unset, every admin in the world shares one bucket: five bad passwords from an anonymous caller lock
+everyone out for `Weir:Admin:LockoutMinutes`, repeatable indefinitely, and brute force is barely
+slowed because all attackers share the bucket too. List the proxies you run:
+
+```json
+{
+  "Weir": {
+    "Network": {
+      "TrustedProxies": [ "10.0.0.0/8", "172.18.0.5" ],
+      "ForwardLimit": 1
+    }
+  }
+}
+```
+
+Entries are single addresses or CIDR networks, and a malformed one fails startup rather than quietly
+leaving the throttle keyed on the proxy. `ForwardLimit` is how many hops to walk back through
+`X-Forwarded-For`; 1 matches a single proxy. Raise it only for a real chain of proxies you trust end
+to end - each extra hop is one more entry a caller could have forged if it is not.
+
+Weir ignores `X-Forwarded-For` until this is set, and that default is deliberate: the header is
+caller-supplied, so honouring it from an untrusted source is worse than ignoring it - an attacker
+would put a fresh address in every request and never be throttled at all. Only list proxies you
+control.
+
+Setting it also forwards the scheme, which is what lets `Weir:Security:RequireHttps` work behind a
+TLS-terminating proxy (without it the proxy's plain-HTTP hop to Weir redirects forever) and keeps
+`https://` in the generated OpenAPI server URL.
+
 ## Health probes
 
 - `/health/live` - liveness (process is up; no dependency checks). Safe for a Kubernetes liveness

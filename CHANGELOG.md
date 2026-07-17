@@ -8,6 +8,42 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+
+- **The sign-in throttle keyed on the socket address, which is the proxy's behind the reverse proxy the
+  deployment docs mandate - so every admin shared one bucket.** Five bad passwords from an anonymous
+  caller locked every admin out of every instance for the lockout window, repeatable forever, and brute
+  force was barely slowed because all attackers shared the bucket too. Phase 14 made this worse rather
+  than better: persisting the throttle turned a per-process annoyance into a shared, restart-surviving
+  one. New `Weir:Network:TrustedProxies` (addresses or CIDR networks, validated on start) turns on
+  forwarded headers, and the throttle, the security log, `RequireHttps` and the OpenAPI server URL all
+  start seeing the real caller and scheme. Off unless proxies are named, deliberately: `X-Forwarded-For`
+  is caller-supplied, so honouring it from an untrusted source would be worse than the bug - an attacker
+  would put a fresh address in every request and never be throttled at all.
+- **The dashboard hub pushed raw driver error text to viewers, around the redaction written to stop
+  exactly that.** `GET /admin/api/connections/health` gives full admins the driver's message and viewers
+  a bare "unreachable", because that text discloses server, database and login names. The Phase 11
+  broadcaster re-probed and sent the result to `Clients.All` - and the hub is `[Authorize]`, not
+  `AdminOnly`, so viewers were included. Since Phase 11 replaced the dashboard's polling with the hub,
+  the redaction was bypassed on the very path it was written for. Connections now join a role group on
+  connect and health is sent per group: viewers still see which connection is down and how slow it is,
+  without the driver text.
+
+### Fixed
+
+- `AdminSecurityOptions` documented itself as locking a **username**, in memory, per instance. It has
+  keyed on the caller address, in the control plane, shared across instances since Phase 14. The doc
+  described the design the IP-keying hazard hid behind.
+
+### Changed
+
+- The logs timing bar passes raw millisecond durations to `FlareMeter` again, and sets no `Format`:
+  Flare 0.6.0 scales the grow factors internally and makes label values follow `ShowValues`, so both
+  workarounds are gone. Verified on a real 0.5531 ms call - factors `83.475` / `16.525`, full track.
+- Dropped the `.flare-switch` token block from the admin CSS. Flare's VisualStudio theme has set those
+  exact thumb tokens since 0.2.0, so it had been dead through four version bumps; the drawer padding
+  override next to it stays, since Flare still ships `padding: spacing-4 0` there.
+
 ## [1.2.0] - 2026-07-17
 
 ### Added
