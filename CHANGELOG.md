@@ -31,6 +31,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **Disabling or demoting the last enabled admin locked everyone out for good.** Neither route checked
+  that an Admin would remain, and both are `AdminOnly` - so nobody was left who could undo it. A restart
+  did not rescue you either: the bootstrap account is only created when the admins table is empty, and a
+  disabled row still fills it, leaving the database by hand as the only way back. Both routes now refuse
+  with 409 while they would strand the control plane, and allow the change as soon as another enabled
+  Admin exists, so handing over still works.
 - `AdminSecurityOptions` documented itself as locking a **username**, in memory, per instance. It has
   keyed on the caller address, in the control plane, shared across instances since Phase 14. The doc
   described the design the IP-keying hazard hid behind.

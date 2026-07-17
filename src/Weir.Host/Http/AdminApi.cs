@@ -134,6 +134,43 @@ public static class AdminApi
         }).RequireAuthorization("AdminOnly");
     }
 
+    /// <summary>
+    /// Whether a pending change to one admin would leave the control plane with no enabled Admin. Both
+    /// routes that can cause it are AdminOnly, so nobody would be left who could undo it: the only way
+    /// back is editing the database by hand, since the bootstrap account is only created when the table
+    /// is empty and a disabled admin still fills it.
+    /// </summary>
+    /// <param name="store">The control-plane store.</param>
+    /// <param name="id">The admin being changed.</param>
+    /// <param name="newRole">The role being assigned, or null when the role is unchanged.</param>
+    /// <param name="newEnabled">The enabled state being assigned, or null when it is unchanged.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when no enabled Admin would remain.</returns>
+    private static async Task<bool> WouldStrandControlPlaneAsync(
+        IControlPlaneStore store,
+        Guid id,
+        string? newRole,
+        bool? newEnabled,
+        CancellationToken cancellationToken = default)
+    {
+        var admins = await store.GetAdminsAsync(cancellationToken);
+        return !admins.Any(admin =>
+        {
+            // Apply the pending change to the one row it touches, then ask the question of the result.
+            var role = admin.Id == id && newRole is not null ? newRole : admin.Role;
+            var enabled = admin.Id == id && newEnabled is not null ? newEnabled.Value : admin.Enabled;
+            return enabled && string.Equals(role, AdminRoles.Admin, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    /// <summary>The refusal returned when a change would strand the control plane.</summary>
+    /// <returns>A 409 problem response.</returns>
+    private static IResult LastAdminProblem() => Results.Problem(
+        statusCode: StatusCodes.Status409Conflict,
+        title: "Last admin",
+        detail: "This would leave no enabled admin, and the routes that could undo it are admin-only. "
+              + "Grant the Admin role to another enabled account first.");
+
     /// <summary>Maps authentication routes.</summary>
     /// <param name="group">The admin route group.</param>
     private static void MapAuth(RouteGroupBuilder group)
@@ -753,6 +790,11 @@ public static class AdminApi
                     detail: $"'{request.Role}' is not a valid role.");
             }
 
+            if (await WouldStrandControlPlaneAsync(store, id, newRole: request.Role, newEnabled: null))
+            {
+                return LastAdminProblem();
+            }
+
             await store.UpdateAdminRoleAsync(id, request.Role);
             await AuditActionAsync(store, clock, user, "admin.role_changed", $"{id} -> {request.Role}");
             return Results.NoContent();
@@ -760,6 +802,11 @@ public static class AdminApi
 
         group.MapPut("/admins/{id:guid}/enabled", async (Guid id, AdminEnabledRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
         {
+            if (await WouldStrandControlPlaneAsync(store, id, newRole: null, newEnabled: request.Enabled))
+            {
+                return LastAdminProblem();
+            }
+
             await store.UpdateAdminEnabledAsync(id, request.Enabled);
             await AuditActionAsync(store, clock, user, request.Enabled ? "admin.enabled" : "admin.disabled", id.ToString());
             return Results.NoContent();
