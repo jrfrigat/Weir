@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-17
+
 ### Added
 
 - **Response delivery is now a setting rather than an accident.** Streaming and buffering trade memory
@@ -53,6 +55,11 @@ All notable changes to this project are documented here. The format is based on
   set them; `FlareSliderZone` is removed and there is no slider here. Padding measured identical to the
   old override at 24px, verified with the override deleted from the CSSOM so a stale copy could not
   answer for it.
+- The logs timing bar passes raw millisecond durations to `FlareMeter` again, and sets no `Format`:
+  Flare 0.6.0 scales the grow factors internally and makes label values follow `ShowValues`, so both
+  workarounds are gone. Verified on a real 0.5531 ms call - factors `83.475` / `16.525`, full track.
+- Dropped the `.flare-switch` token block from the admin CSS. Flare's VisualStudio theme has set those
+  exact thumb tokens since 0.2.0, so it had been dead through four version bumps.
 - Cache stores no longer run before the response is written, and no longer take every bucket lock in the
   backing dictionary to read a size. An in-process cache runs the store inline, so storing first made the
   caller wait through admission and any eviction it triggered - work for the next caller's benefit. And
@@ -114,15 +121,6 @@ All notable changes to this project are documented here. The format is based on
 - `AdminSecurityOptions` documented itself as locking a **username**, in memory, per instance. It has
   keyed on the caller address, in the control plane, shared across instances since Phase 14. The doc
   described the design the IP-keying hazard hid behind.
-
-### Changed
-
-- The logs timing bar passes raw millisecond durations to `FlareMeter` again, and sets no `Format`:
-  Flare 0.6.0 scales the grow factors internally and makes label values follow `ShowValues`, so both
-  workarounds are gone. Verified on a real 0.5531 ms call - factors `83.475` / `16.525`, full track.
-- Dropped the `.flare-switch` token block from the admin CSS. Flare's VisualStudio theme has set those
-  exact thumb tokens since 0.2.0, so it had been dead through four version bumps; the drawer padding
-  override next to it stays, since Flare still ships `padding: spacing-4 0` there.
 
 ## [1.2.0] - 2026-07-17
 
@@ -807,7 +805,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/jrfrigat/weir/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jrfrigat/weir/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jrfrigat/weir/compare/v1.0.5...v1.1.0
 [1.0.5]: https://github.com/jrfrigat/weir/compare/v1.0.4...v1.0.5
