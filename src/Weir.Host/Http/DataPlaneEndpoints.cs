@@ -111,15 +111,10 @@ public static class DataPlaneEndpoints
         timeoutCts?.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         var cancellationToken = timeoutCts?.Token ?? context.RequestAborted;
 
-        if (!catalog.TryResolve(context.Request.Method, route, out var match))
-        {
-            await ProblemResults.WriteAsync(context, StatusCodes.Status404NotFound, "Endpoint not found",
-                $"No endpoint is mapped to {context.Request.Method} /api/{route}.");
-            return null;
-        }
-
-        var endpoint = match.Endpoint;
-
+        // Authenticate before resolving the route, not after. Resolving first told an anonymous caller
+        // which routes exist - 404 for one that does not, 401 for one that does - so /api could be
+        // enumerated without a key. An unauthenticated caller now gets 401 whatever it asks for, and
+        // learns nothing; a caller with a key still gets a useful 404 for a typo.
         var key = await authenticator.AuthenticateAsync(context, cancellationToken);
         if (key is null)
         {
@@ -128,6 +123,15 @@ public static class DataPlaneEndpoints
                 "A valid API key is required.");
             return null;
         }
+
+        if (!catalog.TryResolve(context.Request.Method, route, out var match))
+        {
+            await ProblemResults.WriteAsync(context, StatusCodes.Status404NotFound, "Endpoint not found",
+                $"No endpoint is mapped to {context.Request.Method} /api/{route}.");
+            return key.Prefix;
+        }
+
+        var endpoint = match.Endpoint;
 
         if (!HasRequiredScopes(endpoint, key) || !IsGrantedResource(endpoint, key))
         {

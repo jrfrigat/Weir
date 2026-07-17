@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+
+- **`/api` could be enumerated without a key.** The data plane resolved the route before authenticating,
+  so an anonymous caller learned which endpoints exist from the status alone: 404 for one that does not,
+  401 for one that does - and the 404's body named the route back. Authentication now comes first, so an
+  unauthenticated caller gets the same 401 whatever it asks for. A caller with a key still gets a useful
+  404 for a typo, which is the only audience that answer was ever for.
+
 ### Fixed
 
 - **Every graceful shutdown threw away the queued audit and request-log entries, and said nothing.**
