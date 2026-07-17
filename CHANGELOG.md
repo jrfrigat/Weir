@@ -31,6 +31,26 @@ All notable changes to this project are documented here. The format is based on
   the writer's buffer becomes a large-object allocation on every call - the exact cost the flushing
   avoids - and below 1024 most rows cost a write of their own instead of batching.
 
+- **The admins page can now change a role and disable an account.** Both routes existed and neither was
+  reachable from the panel: it rendered Role and Status as read-only chips and offered only "Reset
+  password", so offboarding a departing admin meant a hand-written call - against the project's own rule
+  that a setting is surfaced where it is administered. When the server refuses (the change would leave
+  nobody able to administer the control plane) the page shows its reason rather than a button that
+  quietly does nothing.
+
+### Changed
+
+- Cache stores no longer run before the response is written, and no longer take every bucket lock in the
+  backing dictionary to read a size. An in-process cache runs the store inline, so storing first made the
+  caller wait through admission and any eviction it triggered - work for the next caller's benefit. And
+  `GetCurrentStatistics()` was called on every store for `CurrentEstimatedSize`, but it also builds the
+  entry count from `MemoryCache.Count`, which locks every bucket. A running total answers the common
+  "there is plainly room" case; the cache's own figure is still consulted near the bound.
+- A buffered response releases its bulkhead permit before the client downloads it. The reader and
+  connection are closed by then, so `MaxConcurrentRequestsPerConnection` was counting slow readers as
+  database work. The streaming path still holds it - its reader is live - which is the trade that mode
+  carries.
+
 ### Security
 
 - **The sign-in throttle keyed on the socket address, which is the proxy's behind the reverse proxy the

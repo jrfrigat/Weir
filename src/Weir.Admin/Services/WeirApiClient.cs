@@ -1,8 +1,17 @@
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Weir.Contracts;
 
 namespace Weir.Admin.Services;
+
+/// <summary>
+/// The part of an RFC 7807 error body this client reads back. Declared here rather than pulled in from
+/// ASP.NET: the admin is a WebAssembly app, and one property is not worth a server-side dependency.
+/// </summary>
+/// <param name="Title">Short summary of the problem type.</param>
+/// <param name="Detail">The explanation meant for a human, which is what gets shown.</param>
+internal sealed record ProblemDetail(string? Title, string? Detail);
 
 /// <summary>Typed client for the Weir admin API under <c>/admin/api</c>.</summary>
 public sealed class WeirApiClient
@@ -382,6 +391,56 @@ public sealed class WeirApiClient
     {
         var response = await _http.PostAsJsonAsync($"admin/api/admins/{id}/password", new ChangePasswordRequest { Password = password });
         return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>Changes an admin's role (requires the Admin role).</summary>
+    /// <param name="id">The admin id.</param>
+    /// <param name="role">The role to assign.</param>
+    /// <returns>Null on success, otherwise the server's reason for refusing.</returns>
+    public Task<string?> SetAdminRoleAsync(Guid id, string role) =>
+        SendAdminChangeAsync($"admin/api/admins/{id}/role", new AdminRoleRequest { Role = role });
+
+    /// <summary>Enables or disables an admin account (requires the Admin role).</summary>
+    /// <param name="id">The admin id.</param>
+    /// <param name="enabled">Whether the account may sign in.</param>
+    /// <returns>Null on success, otherwise the server's reason for refusing.</returns>
+    public Task<string?> SetAdminEnabledAsync(Guid id, bool enabled) =>
+        SendAdminChangeAsync($"admin/api/admins/{id}/enabled", new AdminEnabledRequest { Enabled = enabled });
+
+    /// <summary>
+    /// Puts a change to one admin and reports why it was refused, if it was. The server declines a change
+    /// that would leave nobody able to administer the control plane, and the reason it gives is the useful
+    /// half of that - a bare failure would leave the operator guessing.
+    /// </summary>
+    /// <param name="url">The route to put to.</param>
+    /// <param name="request">The request body.</param>
+    /// <returns>Null on success, otherwise the problem detail or a status-derived fallback.</returns>
+    private async Task<string?> SendAdminChangeAsync(string url, object request)
+    {
+        var response = await _http.PutAsJsonAsync(url, request);
+        if (response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        try
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ProblemDetail>();
+            if (!string.IsNullOrWhiteSpace(problem?.Detail))
+            {
+                return problem.Detail;
+            }
+        }
+        catch (JsonException)
+        {
+            // Not a problem+json body; fall back to the status line below.
+        }
+        catch (NotSupportedException)
+        {
+            // Unexpected content type; same fallback.
+        }
+
+        return $"{(int)response.StatusCode} {response.ReasonPhrase}";
     }
 
     // ----- Audit -----------------------------------------------------------------------------

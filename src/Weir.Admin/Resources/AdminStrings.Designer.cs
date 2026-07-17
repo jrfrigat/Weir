@@ -502,6 +502,51 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Make admin.
+        /// </summary>
+        public static string Admins_MakeAdmin {
+            get {
+                return ResourceManager.GetString("Admins_MakeAdmin", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Make viewer.
+        /// </summary>
+        public static string Admins_MakeViewer {
+            get {
+                return ResourceManager.GetString("Admins_MakeViewer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enable.
+        /// </summary>
+        public static string Admins_Enable {
+            get {
+                return ResourceManager.GetString("Admins_Enable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Disable.
+        /// </summary>
+        public static string Admins_Disable {
+            get {
+                return ResourceManager.GetString("Admins_Disable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Change refused.
+        /// </summary>
+        public static string Admins_ChangeRefusedTitle {
+            get {
+                return ResourceManager.GetString("Admins_ChangeRefusedTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Reset password.
         /// </summary>
         public static string Admins_ResetPassword {

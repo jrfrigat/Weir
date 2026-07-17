@@ -38,6 +38,11 @@
     }
     else
     {
+        @if (_actionError is not null)
+        {
+            <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Admins_ChangeRefusedTitle">@_actionError</FlareAlert>
+        }
+
         <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true">
             <Columns>
                 <FlareColumn TItem="AdminUserInfo" Id="login" Title="@AdminStrings.Admins_Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
@@ -62,7 +67,18 @@
                 <FlareColumn TItem="AdminUserInfo" Id="created" Title="@AdminStrings.Admins_Created" Field="@(a => (object?)a.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
                 <FlareColumn TItem="AdminUserInfo" Id="actions" Title="" Align="ColumnAlign.End">
                     <Template>
-                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">@AdminStrings.Admins_ResetPassword</FlareButton>
+                        <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => StartReset(context.Id))">@AdminStrings.Admins_ResetPassword</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Disabled="_busyId == context.Id"
+                                         OnClick="@(() => ToggleRoleAsync(context))">
+                                @(context.Role == AdminRoles.Admin ? AdminStrings.Admins_MakeViewer : AdminStrings.Admins_MakeAdmin)
+                            </FlareButton>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" Disabled="_busyId == context.Id"
+                                         Color="@(context.Enabled ? FlareColor.Error : FlareColor.Success)"
+                                         OnClick="@(() => ToggleEnabledAsync(context))">
+                                @(context.Enabled ? AdminStrings.Admins_Disable : AdminStrings.Admins_Enable)
+                            </FlareButton>
+                        </FlareStack>
                     </Template>
                 </FlareColumn>
             </Columns>
@@ -105,6 +121,8 @@
     private string _resetPassword = string.Empty;
     private bool _resetBusy;
     private string? _resetMessage;
+    private Guid? _busyId;
+    private string? _actionError;
 
     /// <summary>Loads the admin list.</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -130,6 +148,40 @@
         _password = string.Empty;
         _role = AdminRoles.Admin;
         _showAdd = false;
+        await LoadAsync();
+    }
+
+    /// <summary>Flips an admin between Admin and Viewer.</summary>
+    /// <param name="admin">The admin whose role is changing.</param>
+    private Task ToggleRoleAsync(AdminUserInfo admin) =>
+        RunAsync(admin.Id, () => Api.SetAdminRoleAsync(
+            admin.Id, admin.Role == AdminRoles.Admin ? AdminRoles.Viewer : AdminRoles.Admin));
+
+    /// <summary>Enables or disables an admin account.</summary>
+    /// <param name="admin">The admin being enabled or disabled.</param>
+    private Task ToggleEnabledAsync(AdminUserInfo admin) =>
+        RunAsync(admin.Id, () => Api.SetAdminEnabledAsync(admin.Id, !admin.Enabled));
+
+    /// <summary>
+    /// Runs one admin change, showing the server's reason when it refuses. The server declines a change
+    /// that would leave nobody able to administer the control plane, and saying so is the point - the
+    /// alternative is a button that silently does nothing.
+    /// </summary>
+    /// <param name="id">The admin being changed, held busy while the call runs.</param>
+    /// <param name="call">The call to make.</param>
+    private async Task RunAsync(Guid id, Func<Task<string?>> call)
+    {
+        _actionError = null;
+        _busyId = id;
+        try
+        {
+            _actionError = await call();
+        }
+        finally
+        {
+            _busyId = null;
+        }
+
         await LoadAsync();
     }
 

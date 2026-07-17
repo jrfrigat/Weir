@@ -337,6 +337,21 @@
   <data name="Admins_Created" xml:space="preserve">
     <value>Создан</value>
   </data>
+  <data name="Admins_MakeAdmin" xml:space="preserve">
+    <value>Сделать админом</value>
+  </data>
+  <data name="Admins_MakeViewer" xml:space="preserve">
+    <value>Сделать наблюдателем</value>
+  </data>
+  <data name="Admins_Enable" xml:space="preserve">
+    <value>Включить</value>
+  </data>
+  <data name="Admins_Disable" xml:space="preserve">
+    <value>Отключить</value>
+  </data>
+  <data name="Admins_ChangeRefusedTitle" xml:space="preserve">
+    <value>Изменение отклонено</value>
+  </data>
   <data name="Admins_ResetPassword" xml:space="preserve">
     <value>Сбросить пароль</value>
   </data>

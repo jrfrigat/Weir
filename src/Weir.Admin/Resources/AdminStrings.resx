@@ -337,6 +337,21 @@
   <data name="Admins_Created" xml:space="preserve">
     <value>Created</value>
   </data>
+  <data name="Admins_MakeAdmin" xml:space="preserve">
+    <value>Make admin</value>
+  </data>
+  <data name="Admins_MakeViewer" xml:space="preserve">
+    <value>Make viewer</value>
+  </data>
+  <data name="Admins_Enable" xml:space="preserve">
+    <value>Enable</value>
+  </data>
+  <data name="Admins_Disable" xml:space="preserve">
+    <value>Disable</value>
+  </data>
+  <data name="Admins_ChangeRefusedTitle" xml:space="preserve">
+    <value>Change refused</value>
+  </data>
   <data name="Admins_ResetPassword" xml:space="preserve">
     <value>Reset password</value>
   </data>
