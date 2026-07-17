@@ -679,6 +679,21 @@
   <data name="Endpoints_DeliveryModeFull" xml:space="preserve">
     <value>Full (build, then send)</value>
   </data>
+  <data name="Endpoints_CompressionModeLabel" xml:space="preserve">
+    <value>Compression</value>
+  </data>
+  <data name="Endpoints_CompressionModeDefault" xml:space="preserve">
+    <value>Default (from Settings)</value>
+  </data>
+  <data name="Endpoints_CompressionModeAuto" xml:space="preserve">
+    <value>Auto (by result shape)</value>
+  </data>
+  <data name="Endpoints_CompressionModeOn" xml:space="preserve">
+    <value>On (always compress)</value>
+  </data>
+  <data name="Endpoints_CompressionModeOff" xml:space="preserve">
+    <value>Off (never compress)</value>
+  </data>
   <data name="Endpoints_DeliveryFlushBytesLabel" xml:space="preserve">
     <value>Flush bytes</value>
   </data>
@@ -1171,6 +1186,18 @@
   </data>
   <data name="Settings_DeliveryModeFull" xml:space="preserve">
     <value>Full (build, then send)</value>
+  </data>
+  <data name="Settings_CompressionModeLabel" xml:space="preserve">
+    <value>Default compression</value>
+  </data>
+  <data name="Settings_CompressionModeAuto" xml:space="preserve">
+    <value>Auto (by result shape)</value>
+  </data>
+  <data name="Settings_CompressionModeOn" xml:space="preserve">
+    <value>On (always compress)</value>
+  </data>
+  <data name="Settings_CompressionModeOff" xml:space="preserve">
+    <value>Off (never compress)</value>
   </data>
   <data name="Settings_ResponseFlushBytesLabel" xml:space="preserve">
     <value>Flush bytes</value>

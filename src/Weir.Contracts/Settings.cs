@@ -132,6 +132,17 @@ public sealed record WeirSystemSettings
     /// </para>
     /// </summary>
     public int ResponseFlushBytes { get; init; } = 32_768;
+
+    /// <summary>
+    /// Whether response bodies are compressed (Brotli/gzip, negotiated from the caller's
+    /// <c>Accept-Encoding</c>) by default. An endpoint can override it (see <c>DeliveryPolicy.Compression</c>).
+    /// <para>
+    /// <see cref="ResponseCompressionMode.Auto"/> compresses the row-returning results and skips the ones
+    /// declared small, which is the right split for almost every system: a large JSON array pays for the
+    /// CPU many times over on the wire, while compressing a single row or scalar costs more than it saves.
+    /// </para>
+    /// </summary>
+    public ResponseCompressionMode ResponseCompressionMode { get; init; } = ResponseCompressionMode.Auto;
 }
 
 /// <summary>

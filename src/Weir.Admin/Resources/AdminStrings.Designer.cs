@@ -1420,6 +1420,51 @@ namespace Weir.Admin.Resources {
         }
 
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Compression.
+        /// </summary>
+        public static string Endpoints_CompressionModeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default (from Settings).
+        /// </summary>
+        public static string Endpoints_CompressionModeDefault {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Endpoints_CompressionModeAuto {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeAuto", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на On (always compress).
+        /// </summary>
+        public static string Endpoints_CompressionModeOn {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeOn", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Off (never compress).
+        /// </summary>
+        public static string Endpoints_CompressionModeOff {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeOff", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Flush bytes.
         /// </summary>
         public static string Endpoints_DeliveryFlushBytesLabel {
@@ -1488,6 +1533,42 @@ namespace Weir.Admin.Resources {
         public static string Settings_DeliveryModeFull {
             get {
                 return ResourceManager.GetString("Settings_DeliveryModeFull", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default compression.
+        /// </summary>
+        public static string Settings_CompressionModeLabel {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Settings_CompressionModeAuto {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeAuto", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на On (always compress).
+        /// </summary>
+        public static string Settings_CompressionModeOn {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeOn", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Off (never compress).
+        /// </summary>
+        public static string Settings_CompressionModeOff {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeOff", resourceCulture);
             }
         }
 

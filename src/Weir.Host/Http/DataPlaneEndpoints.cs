@@ -184,7 +184,23 @@ public static class DataPlaneEndpoints
             };
 
             context.Response.ContentType = "application/json; charset=utf-8";
-            await engine.ExecuteAsync(invocation, context.Response.Body, BuildResponseControl(context), cancellationToken);
+
+            // Compress per endpoint here, not in the generic middleware: the data plane is excluded from
+            // it (see Program) because its routes are dynamic and its compression is a per-endpoint
+            // decision. Null means the endpoint opts out or the caller accepts no coding Weir offers.
+            var encoding = ResponseCompression.Negotiate(endpoint, settings.Current, context.Request.Headers.AcceptEncoding);
+            await using var compressing = encoding is null
+                ? null
+                : new LazyCompressingStream(context.Response.Body, context.Response, encoding);
+            if (compressing is not null)
+            {
+                // The body now depends on Accept-Encoding, so caches must key on it. Correct on a 304
+                // too: its emptiness is reflected by Content-Encoding, which the wrapper sets only if a
+                // body is actually written.
+                context.Response.Headers.Append("Vary", "Accept-Encoding");
+            }
+
+            await engine.ExecuteAsync(invocation, compressing ?? context.Response.Body, BuildResponseControl(context), cancellationToken);
         }
         catch (OperationCanceledException) when (!context.Response.HasStarted)
         {

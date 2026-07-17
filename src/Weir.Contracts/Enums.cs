@@ -103,6 +103,27 @@ public enum ResponseDeliveryMode
     Full,
 }
 
+/// <summary>Whether a data-plane response body is compressed (Brotli/gzip) before it is sent.</summary>
+public enum ResponseCompressionMode
+{
+    /// <summary>
+    /// Decide from the endpoint's <see cref="ResultMode"/>: compress the row-returning results
+    /// (<see cref="ResultMode.MultiRow"/>), where a large JSON body pays for the CPU many times over on
+    /// the wire, and skip the ones declared small (<see cref="ResultMode.SingleRow"/>,
+    /// <see cref="ResultMode.Scalar"/>, <see cref="ResultMode.NonQuery"/>), where compression would cost
+    /// more than it saves. The default, and the right answer for almost every endpoint.
+    /// </summary>
+    Auto,
+
+    /// <summary>Always compress, whatever the result shape. For a route whose small-looking result is
+    /// in fact large, or that is always read over a slow link.</summary>
+    On,
+
+    /// <summary>Never compress. For a route on a fast internal network where the bytes are cheap and the
+    /// CPU is not, or whose payload is already incompressible.</summary>
+    Off,
+}
+
 /// <summary>A provider-agnostic classification of a database failure, for error-rate telemetry.</summary>
 public enum DbErrorCategory
 {

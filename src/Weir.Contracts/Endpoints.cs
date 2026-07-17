@@ -124,9 +124,11 @@ public sealed record EndpointLogging
 /// How one endpoint's response body reaches the caller. Both fields are overrides: null takes the
 /// value from the system settings, which is what almost every endpoint should do.
 /// <para>
-/// Neither field decides anything for an endpoint that caches its responses or captures its result for
-/// the request log. Both of those need the whole body in hand before they can do their job, so they
-/// buffer whatever is set here - the setting is not ignored so much as already satisfied.
+/// <see cref="Mode"/> and <see cref="FlushBytes"/> decide nothing for an endpoint that caches its
+/// responses or captures its result for the request log: both of those need the whole body in hand
+/// before they can do their job, so they buffer whatever is set there - the setting is not ignored so
+/// much as already satisfied. <see cref="Compression"/> is independent of that - a buffered or cached
+/// response is still compressed on its way out.
 /// </para>
 /// </summary>
 public sealed record DeliveryPolicy
@@ -148,6 +150,14 @@ public sealed record DeliveryPolicy
     /// allocation on every call, which is the thing the flushing exists to avoid.
     /// </summary>
     public int? FlushBytes { get; init; }
+
+    /// <summary>
+    /// Whether the response body is compressed, overriding the global <c>ResponseCompressionMode</c>
+    /// setting. Null uses that setting. Set <see cref="ResponseCompressionMode.On"/> on a route whose
+    /// result is declared small but is in fact large, or <see cref="ResponseCompressionMode.Off"/> on
+    /// one served over a fast internal link where the CPU costs more than the bytes saved.
+    /// </summary>
+    public ResponseCompressionMode? Compression { get; init; }
 }
 
 /// <summary>Definition of one endpoint parameter and how it binds to the database.</summary>

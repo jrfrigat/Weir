@@ -166,6 +166,28 @@ for the request log, needs the whole body before it can do either - there is not
 until it exists - so it buffers whatever the mode says. This is not the mode being overridden so much
 as already satisfied. The admin panel says so next to the field when it applies.
 
+## Compression
+
+The response body is compressed (Brotli or gzip, negotiated from the caller's `Accept-Encoding`) per
+endpoint. A large JSON array pays for the compression CPU many times over on the wire; a single row or
+scalar does not, so compressing it costs more than it saves. Which is which is a property of the
+endpoint, so the choice lives on the endpoint.
+
+| Mode | Behaviour |
+| :-- | :-- |
+| Auto | Compress when `ResultMode` is `MultiRow`; skip the small shapes. The default. |
+| On | Always compress. For a route whose small-looking result is in fact large. |
+| Off | Never compress. For a route on a fast internal link where the bytes are cheap and the CPU is not, or whose payload is already incompressible. |
+
+`ResponseCompressionMode` in **Settings** sets the default for every endpoint; `Delivery.Compression`
+on an **endpoint** overrides it, and left empty follows the system - the same shape as the delivery
+mode. Compression is independent of delivery and of caching: a streamed, buffered or cached response
+is compressed on its way out all the same (the cache holds the uncompressed bytes, so a cache hit is
+compressed as it is served). A `304 Not Modified` carries no body and so no compression.
+
+Unlike delivery, compression is negotiated with the client: a caller that sends no `Accept-Encoding`,
+or only codings Weir does not offer, receives the response uncompressed whatever the mode says.
+
 ## Caching
 
 Set a per-endpoint cache policy: `Enabled`, `TtlSeconds`, `VaryByParameters` (the input parameters

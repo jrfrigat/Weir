@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Weir.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Weir.Core\Weir.Core.csproj" />
     <ProjectReference Include="..\Weir.Diagnostics\Weir.Diagnostics.csproj" />
     <ProjectReference Include="..\Weir.ControlPlane.Sqlite\Weir.ControlPlane.Sqlite.csproj" />

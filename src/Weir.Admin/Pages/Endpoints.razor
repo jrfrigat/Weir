@@ -217,6 +217,9 @@
                                  Style="min-width:14rem;" />
                     <FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_DeliveryFlushBytesLabel" Size="FieldSize.Sm"
                                        @bind-Value="_editing.DeliveryFlushBytes" Style="max-width:11rem;" />
+                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_CompressionModeLabel" Size="FieldSize.Sm"
+                                 @bind-Value="_editing.CompressionMode" Items="CompressionModeOptions" ItemLabel="CompressionModeLabel"
+                                 Style="min-width:14rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DeliveryHelp</FlareText>
                 @if (_editing.DeliveryFlushBytes >= LargeObjectHeapThresholdBytes)
@@ -1118,6 +1121,17 @@
         _ => AdminStrings.Endpoints_DeliveryModeDefault,
     };
 
+    private static readonly string[] CompressionModeOptions =
+        ["", nameof(ResponseCompressionMode.Auto), nameof(ResponseCompressionMode.On), nameof(ResponseCompressionMode.Off)];
+
+    private static string CompressionModeLabel(string value) => value switch
+    {
+        nameof(ResponseCompressionMode.Auto) => AdminStrings.Endpoints_CompressionModeAuto,
+        nameof(ResponseCompressionMode.On) => AdminStrings.Endpoints_CompressionModeOn,
+        nameof(ResponseCompressionMode.Off) => AdminStrings.Endpoints_CompressionModeOff,
+        _ => AdminStrings.Endpoints_CompressionModeDefault,
+    };
+
     private static string TypeLabel(WeirDbType dbType, string? typeName, int? size) =>
         typeName is not null ? typeName
         : size is > 0 ? $"{dbType}({size})"
@@ -1166,6 +1180,7 @@
         public bool CacheCoalesceRequests { get; set; } = true;
         public string DeliveryMode { get; set; } = "";
         public int? DeliveryFlushBytes { get; set; }
+        public string CompressionMode { get; set; } = "";
         public HashSet<string> Scopes { get; } = new(StringComparer.Ordinal);
         public List<ParamEditModel> Parameters { get; } = [];
 
@@ -1195,6 +1210,7 @@
                 CacheCoalesceRequests = endpoint.Cache.CoalesceRequests,
                 DeliveryMode = endpoint.Delivery.Mode?.ToString() ?? "",
                 DeliveryFlushBytes = endpoint.Delivery.FlushBytes,
+                CompressionMode = endpoint.Delivery.Compression?.ToString() ?? "",
             };
 
             foreach (var scope in endpoint.RequiredScopes)
@@ -1251,6 +1267,7 @@
                 // An empty pick means "follow the system setting", which is null on the wire.
                 Mode = Enum.TryParse<ResponseDeliveryMode>(DeliveryMode, out var mode) ? mode : null,
                 FlushBytes = DeliveryFlushBytes is > 0 ? DeliveryFlushBytes : null,
+                Compression = Enum.TryParse<ResponseCompressionMode>(CompressionMode, out var compression) ? compression : null,
             },
             RequiredScopes = Scopes.ToList(),
             Parameters = Parameters.Select(parameter => parameter.ToParameter()).ToList(),

@@ -405,7 +405,14 @@ app.Use(async (context, next) =>
 // One structured summary line per request (method, path, status, elapsed) at Information level.
 app.UseSerilogRequestLogging();
 
-app.UseResponseCompression();
+// Everything but the data plane compresses through the generic middleware (the admin API, the served
+// PWA, health). The data plane (/api) is excluded and compresses itself, per endpoint, in
+// DataPlaneEndpoints - the generic middleware is all-or-nothing by MIME type and cannot make that
+// call per endpoint, and the data plane's routes are dynamic, so there is no route metadata for it to
+// read either. StartsWithSegments("/api") does not match the admin API at /admin/api.
+app.UseWhen(
+    static context => !context.Request.Path.StartsWithSegments("/api"),
+    static branch => branch.UseResponseCompression());
 
 // Security: optional HTTPS redirect (off by default; usually TLS is terminated at the proxy), HSTS
 // outside Development, and hardening response headers on every response.

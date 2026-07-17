@@ -88,8 +88,9 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 
 `MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `DefaultApiKeyRateLimitPerMinute`,
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
-`ApiKeyFailureThreshold` and `ResponseCacheMaxBytes` are editable at runtime from the admin
-**Settings** screen (or `GET` / `PUT /admin/api/settings`, Admin role, audited).
+`ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` and
+`ResponseCacheMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /
+`PUT /admin/api/settings`, Admin role, audited).
 The edited values are stored in the control plane, so they survive restarts and reach every instance
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to
 the web server at startup and needs a restart to change.

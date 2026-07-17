@@ -42,6 +42,9 @@
                                  @bind-Value="_responseDeliveryMode" Items="Enum.GetValues<ResponseDeliveryMode>()"
                                  ItemLabel="DeliveryModeLabel" Style="min-width:16rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ResponseFlushBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseFlushBytes" Style="max-width:12rem;" />
+                    <FlareSelect TValue="ResponseCompressionMode" Label="@AdminStrings.Settings_CompressionModeLabel" Size="FieldSize.Sm"
+                                 @bind-Value="_responseCompressionMode" Items="Enum.GetValues<ResponseCompressionMode>()"
+                                 ItemLabel="CompressionModeLabel" Style="min-width:16rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DeliveryHelp</FlareText>
                 @if (_responseFlushBytes >= LargeObjectHeapThresholdBytes)
@@ -171,6 +174,7 @@
     private long _responseCacheMaxBytes;
     private ResponseDeliveryMode _responseDeliveryMode;
     private int _responseFlushBytes;
+    private ResponseCompressionMode _responseCompressionMode;
     private long _maxRequestBodyBytes;
     private WeirLoggingInfo? _logging;
     private bool _exporting;
@@ -206,6 +210,7 @@
             _responseCacheMaxBytes = view.Settings.ResponseCacheMaxBytes;
             _responseDeliveryMode = view.Settings.ResponseDeliveryMode;
             _responseFlushBytes = view.Settings.ResponseFlushBytes;
+            _responseCompressionMode = view.Settings.ResponseCompressionMode;
             _maxRequestBodyBytes = view.MaxRequestBodyBytes;
             _logging = view.Logging;
         }
@@ -282,6 +287,7 @@
                 ResponseCacheMaxBytes = _responseCacheMaxBytes,
                 ResponseDeliveryMode = _responseDeliveryMode,
                 ResponseFlushBytes = _responseFlushBytes,
+                ResponseCompressionMode = _responseCompressionMode,
             });
 
             if (applied is null)
@@ -320,6 +326,14 @@
         ResponseDeliveryMode.Auto => AdminStrings.Settings_DeliveryModeAuto,
         ResponseDeliveryMode.Stream => AdminStrings.Settings_DeliveryModeStream,
         ResponseDeliveryMode.Full => AdminStrings.Settings_DeliveryModeFull,
+        _ => mode.ToString(),
+    };
+
+    private static string CompressionModeLabel(ResponseCompressionMode mode) => mode switch
+    {
+        ResponseCompressionMode.Auto => AdminStrings.Settings_CompressionModeAuto,
+        ResponseCompressionMode.On => AdminStrings.Settings_CompressionModeOn,
+        ResponseCompressionMode.Off => AdminStrings.Settings_CompressionModeOff,
         _ => mode.ToString(),
     };
 }

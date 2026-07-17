@@ -8,6 +8,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Response compression is now a per-endpoint choice, not an app-wide one.** Whether a JSON body is
+  worth compressing is a property of the endpoint - a large result array pays for the CPU many times
+  over on the wire, a single row or scalar does not - but the generic compression middleware decides by
+  MIME type for the whole app, and the data plane's routes are dynamic, so it could not vary per
+  endpoint even in principle. The data plane is now excluded from that middleware and compresses itself:
+  `ResponseCompressionMode` in **Settings** sets the default (`Auto` compresses the `MultiRow` shapes
+  and skips the small ones), and `Delivery.Compression` overrides it per endpoint (`On` / `Off` /
+  follow-settings), the same shape as the delivery mode. The coding (Brotli or gzip) is still negotiated
+  from the caller's `Accept-Encoding`, and a `304 Not Modified` still carries no body and so no coding.
+  The cache holds uncompressed bytes, so a cache hit is compressed as it is served (caching the
+  compressed form is a later optimisation). No migration: the field rides in the endpoint's existing
+  delivery-policy JSON.
+
 ### Security
 
 - **A flood of random API keys was a database-exhaustion DoS reachable with no credential.** A resolved

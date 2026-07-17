@@ -679,6 +679,21 @@
   <data name="Endpoints_DeliveryModeFull" xml:space="preserve">
     <value>Целиком (собрать, затем отдать)</value>
   </data>
+  <data name="Endpoints_CompressionModeLabel" xml:space="preserve">
+    <value>Сжатие</value>
+  </data>
+  <data name="Endpoints_CompressionModeDefault" xml:space="preserve">
+    <value>По умолчанию (из настроек)</value>
+  </data>
+  <data name="Endpoints_CompressionModeAuto" xml:space="preserve">
+    <value>Авто (по форме результата)</value>
+  </data>
+  <data name="Endpoints_CompressionModeOn" xml:space="preserve">
+    <value>Вкл (всегда сжимать)</value>
+  </data>
+  <data name="Endpoints_CompressionModeOff" xml:space="preserve">
+    <value>Выкл (никогда не сжимать)</value>
+  </data>
   <data name="Endpoints_DeliveryFlushBytesLabel" xml:space="preserve">
     <value>Порог сброса, байт</value>
   </data>
@@ -1171,6 +1186,18 @@
   </data>
   <data name="Settings_DeliveryModeFull" xml:space="preserve">
     <value>Целиком (собрать, затем отдать)</value>
+  </data>
+  <data name="Settings_CompressionModeLabel" xml:space="preserve">
+    <value>Сжатие по умолчанию</value>
+  </data>
+  <data name="Settings_CompressionModeAuto" xml:space="preserve">
+    <value>Авто (по форме результата)</value>
+  </data>
+  <data name="Settings_CompressionModeOn" xml:space="preserve">
+    <value>Вкл (всегда сжимать)</value>
+  </data>
+  <data name="Settings_CompressionModeOff" xml:space="preserve">
+    <value>Выкл (никогда не сжимать)</value>
   </data>
   <data name="Settings_ResponseFlushBytesLabel" xml:space="preserve">
     <value>Порог сброса, байт</value>
