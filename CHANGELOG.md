@@ -44,6 +44,18 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **The admin panel swallowed failed saves and deletes on three pages.** Creating or saving an endpoint,
+  creating or revoking a key, and adding or deleting a scope reported nothing when the server refused:
+  the drawer or dialog closed as if it had worked, or the raw failure fell through to the generic Blazor
+  error boundary. Each now catches the refusal and shows the server's own reason (the RFC 7807 problem
+  `detail` - a route conflict, a duplicate name, the last-admin guard) in a `FlareAlert`, keeping the
+  editor open so it can be corrected and retried. The pages that already did this (admins, account,
+  settings) now read the reason through the same one helper.
+
+- **The endpoint and request-log grids did not paginate, while the audit grid did.** Both now page in
+  the grid at the same size the audit log uses, so a large deployment's endpoint list and a busy log no
+  longer render every loaded row at once.
+
 - **An endpoint edited on one instance went on being served from the old cached body by every other
   one.** The admin API evicts the cache of the instance that happens to serve the edit, and only that
   one; the others reloaded the new definition on their next catalog poll but kept answering from
