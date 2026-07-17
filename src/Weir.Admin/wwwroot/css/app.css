@@ -54,12 +54,3 @@ html, body {
     z-index: 1100;
 }
 
-/* Overlay drawer (Edit endpoint / Test / log detail) side padding. Flare's default gives the drawer
-   content vertical padding but zero horizontal (padding: spacing-4 0), so fields run edge-to-edge;
-   FluentUI2 / Visual Studio 2026 panels inset their content horizontally like the header. Add the same
-   horizontal inset as the header (spacing-12). Scoped to the overlay .flare-drawer, so the layout nav
-   drawer (.flare-layout-drawer) is unaffected. */
-.flare-drawer__content {
-    padding-left: var(--flare-spacing-12);
-    padding-right: var(--flare-spacing-12);
-}

@@ -40,6 +40,19 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Flare 0.6.0 -> 0.7.0, and the admin now overrides none of Flare's internals.** 0.7.0 adds
+  `FlareDrawer.ContentPadding`, which is the capability Weir filed an issue for: the drawer's content was
+  full-bleed while its header was inset, so every form in a drawer had to restyle
+  `.flare-drawer__content` from outside. The three drawers ask for `FlareSpacing.Large` instead, and that
+  was the last such override - `app.css` is down to the boot splash, Blazor's error bar and the offline
+  banner, all of which live outside the render tree and genuinely cannot be Flare components.
+
+  0.7.0's other breaking changes miss Weir, and each was checked rather than assumed: the drawer's
+  default width going 280px -> 360px does not reach ours, which pass `Width` explicitly (measured: 672px,
+  unchanged); `InputTokens.FocusBorder` / `FocusBorderBottom` are gone but the Command Center theme never
+  set them; `FlareSliderZone` is removed and there is no slider here. Padding measured identical to the
+  old override at 24px, verified with the override deleted from the CSSOM so a stale copy could not
+  answer for it.
 - Cache stores no longer run before the response is written, and no longer take every bucket lock in the
   backing dictionary to read a size. An in-process cache runs the store inline, so storing first made the
   caller wait through admission and any eviction it triggered - work for the next caller's benefit. And
