@@ -104,6 +104,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **The endpoints Import control rendered a raw browser file input.** Flare ships one CSS bundle per
+  component package and `index.html` links them by name; the upload component lived in
+  `Flare.Components.Media`, whose bundle was never linked. Without it the rule that hides the native
+  input did not apply, so "Choose file / No file chosen" sat in the toolbar next to an unstyled label.
+  Present since the control was adopted, and invisible to the build - a missing stylesheet is not a
+  compile error.
 - **The streaming path did not stream.** `Utf8JsonWriter` over a stream writes nothing until it is
   flushed - it accumulates in an internal buffer that starts at 256 B and doubles on plain heap arrays -
   and `WeirResponseWriter` flushed once, after the last row. So the whole envelope was built in memory
