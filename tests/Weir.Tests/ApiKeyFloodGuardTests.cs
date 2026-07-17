@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
@@ -77,7 +77,7 @@ public class ApiKeyFloodGuardTests
             builder.UseSetting("Weir:Admin:Username", "admin");
             builder.UseSetting("Weir:Admin:Password", "admin-password");
             builder.UseSetting("Weir:Jwt:SigningKey", "flood-guard-test-signing-key-0123456789");
-            builder.UseSetting("Weir:DataPlane:ApiKeyFailureThreshold", _threshold.ToString());
+            builder.UseSetting("Weir:DataPlane:ApiKeyFailureThreshold", _threshold.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>Deletes the throwaway database.</summary>
