@@ -143,7 +143,16 @@
             return;
         }
 
-        await Api.CreateAdminAsync(new CreateAdminRequest { Username = _username, Password = _password, Role = _role });
+        try
+        {
+            await Api.CreateAdminAsync(new CreateAdminRequest { Username = _username, Password = _password, Role = _role });
+        }
+        catch (WeirApiException ex)
+        {
+            _createMessage = ex.Message;
+            return;
+        }
+
         _username = string.Empty;
         _password = string.Empty;
         _role = AdminRoles.Admin;

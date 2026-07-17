@@ -40,7 +40,7 @@
     }
     else
     {
-        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" RowClick="@(e => OpenDetail(e))">
+        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" RowClick="@(e => OpenDetail(e))">
             <Columns>
                 <FlareColumn TItem="RequestLogEntry" Id="time" Title="@AdminStrings.Logs_Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
                 <FlareColumn TItem="RequestLogEntry" Id="method" Title="@AdminStrings.Logs_Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">

@@ -25,6 +25,11 @@
         <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
     }
 
+    @if (_deleteError is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_deleteError</FlareAlert>
+    }
+
     <FlareTabs ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
         <FlareTab Label="@AdminStrings.Endpoints_TabEndpoints">
             @if (_endpoints is null)
@@ -49,7 +54,7 @@
                         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
                     }
                 </FlareStack>
-                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu">
+                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50">
                     <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <Columns>
                         <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
@@ -339,6 +344,10 @@
                 <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddParameter">@AdminStrings.Endpoints_AddParameter</FlareButton></FlareStack>
 
                 <FlareDivider />
+                @if (_saveError is not null)
+                {
+                    <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_saveError</FlareAlert>
+                }
                 <FlareStack Row Gap="FlareSpacing.Small" Justify="FlareJustifyContent.End">
                     <FlareButton Variant="ButtonVariant.Text" OnClick="CancelEdit">@AdminStrings.Common_Cancel</FlareButton>
                     <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Loading="_busy">@AdminStrings.Endpoints_SaveEndpoint</FlareButton>
@@ -449,6 +458,8 @@
     private bool _busy;
     private bool _discovering;
     private string? _discoverError;
+    private string? _saveError;
+    private string? _deleteError;
     private string? _notice;
     private bool _openApiBusy;
     private bool _syncBusy;
@@ -708,7 +719,11 @@
     private void OpenLogs(EndpointDefinition endpoint) =>
         Nav.NavigateTo($"logs?endpoint={endpoint.Id}&label={Uri.EscapeDataString(endpoint.Route)}");
 
-    private void CancelEdit() => _editing = null;
+    private void CancelEdit()
+    {
+        _editing = null;
+        _saveError = null;
+    }
 
     private async Task SaveAsync()
     {
@@ -718,8 +733,22 @@
         }
 
         _busy = true;
-        await Api.SaveEndpointAsync(_editing.ToDefinition());
-        _busy = false;
+        _saveError = null;
+        try
+        {
+            await Api.SaveEndpointAsync(_editing.ToDefinition());
+        }
+        catch (WeirApiException ex)
+        {
+            // Leave the editor open with its content so the reported problem can be fixed and re-saved.
+            _saveError = ex.Message;
+            return;
+        }
+        finally
+        {
+            _busy = false;
+        }
+
         _editing = null;
         await LoadAsync();
     }
@@ -737,7 +766,17 @@
             return;
         }
 
-        await Api.DeleteEndpointAsync(endpoint.Id);
+        _deleteError = null;
+        try
+        {
+            await Api.DeleteEndpointAsync(endpoint.Id);
+        }
+        catch (WeirApiException ex)
+        {
+            _deleteError = ex.Message;
+            return;
+        }
+
         await LoadAsync();
     }
 

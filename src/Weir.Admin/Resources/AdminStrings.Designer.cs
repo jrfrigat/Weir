@@ -824,7 +824,16 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Common_Delete", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Action failed.
+        /// </summary>
+        public static string Common_ActionFailed {
+            get {
+                return ResourceManager.GetString("Common_ActionFailed", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на Description.
         /// </summary>

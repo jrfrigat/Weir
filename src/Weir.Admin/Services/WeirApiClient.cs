@@ -13,6 +13,20 @@ namespace Weir.Admin.Services;
 /// <param name="Detail">The explanation meant for a human, which is what gets shown.</param>
 internal sealed record ProblemDetail(string? Title, string? Detail);
 
+/// <summary>
+/// A mutation the admin API refused. Carries the server's own explanation (the RFC 7807 problem
+/// <c>detail</c>, or a status fallback), so a page can show why a save or delete failed instead of
+/// letting the raw failure reach the generic Blazor error boundary.
+/// </summary>
+public sealed class WeirApiException : Exception
+{
+    /// <summary>Creates the exception with a human-readable message drawn from the failed response.</summary>
+    /// <param name="message">The message to show.</param>
+    public WeirApiException(string message) : base(message)
+    {
+    }
+}
+
 /// <summary>Typed client for the Weir admin API under <c>/admin/api</c>.</summary>
 public sealed class WeirApiClient
 {
@@ -139,17 +153,15 @@ public sealed class WeirApiClient
     /// <returns>The stored endpoint.</returns>
     public async Task<EndpointDefinition?> SaveEndpointAsync(EndpointDefinition endpoint)
     {
-        var response = await _http.PostAsJsonAsync("admin/api/endpoints", endpoint);
-        return response.IsSuccessStatusCode
-            ? await response.Content.ReadFromJsonAsync<EndpointDefinition>()
-            : null;
+        var response = await EnsureSuccessAsync(await _http.PostAsJsonAsync("admin/api/endpoints", endpoint));
+        return await response.Content.ReadFromJsonAsync<EndpointDefinition>();
     }
 
     /// <summary>Deletes an endpoint by id.</summary>
     /// <param name="id">The endpoint id.</param>
     /// <returns>A task that completes when deleted; throws if the server rejects the delete.</returns>
     public async Task DeleteEndpointAsync(Guid id) =>
-        (await _http.DeleteAsync($"admin/api/endpoints/{id}")).EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.DeleteAsync($"admin/api/endpoints/{id}"));
 
     /// <summary>Lists the stored procedures and functions on a connection.</summary>
     /// <param name="connection">The connection name.</param>
@@ -339,17 +351,15 @@ public sealed class WeirApiClient
     /// <returns>The created key with its plaintext.</returns>
     public async Task<ApiKeyCreated?> CreateKeyAsync(ApiKeyCreate request)
     {
-        var response = await _http.PostAsJsonAsync("admin/api/keys", request);
-        return response.IsSuccessStatusCode
-            ? await response.Content.ReadFromJsonAsync<ApiKeyCreated>()
-            : null;
+        var response = await EnsureSuccessAsync(await _http.PostAsJsonAsync("admin/api/keys", request));
+        return await response.Content.ReadFromJsonAsync<ApiKeyCreated>();
     }
 
     /// <summary>Revokes an API key by id.</summary>
     /// <param name="id">The key id.</param>
     /// <returns>A task that completes when revoked; throws if the server rejects the revoke.</returns>
     public async Task RevokeKeyAsync(Guid id) =>
-        (await _http.DeleteAsync($"admin/api/keys/{id}")).EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.DeleteAsync($"admin/api/keys/{id}"));
 
     // ----- Scopes ----------------------------------------------------------------------------
 
@@ -362,13 +372,13 @@ public sealed class WeirApiClient
     /// <param name="scope">The scope.</param>
     /// <returns>A task that completes when saved; throws if the server rejects the save.</returns>
     public async Task SaveScopeAsync(Scope scope) =>
-        (await _http.PostAsJsonAsync("admin/api/scopes", scope)).EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.PostAsJsonAsync("admin/api/scopes", scope));
 
     /// <summary>Deletes a scope by name.</summary>
     /// <param name="name">The scope name.</param>
     /// <returns>A task that completes when deleted; throws if the server rejects the delete.</returns>
     public async Task DeleteScopeAsync(string name) =>
-        (await _http.DeleteAsync($"admin/api/scopes/{Uri.EscapeDataString(name)}")).EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.DeleteAsync($"admin/api/scopes/{Uri.EscapeDataString(name)}"));
 
     // ----- Admins ----------------------------------------------------------------------------
 
@@ -381,7 +391,7 @@ public sealed class WeirApiClient
     /// <param name="request">The new admin details.</param>
     /// <returns>A task that completes when created; throws if the server rejects the request.</returns>
     public async Task CreateAdminAsync(CreateAdminRequest request) =>
-        (await _http.PostAsJsonAsync("admin/api/admins", request)).EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.PostAsJsonAsync("admin/api/admins", request));
 
     /// <summary>Resets another admin account's password (requires the Admin role).</summary>
     /// <param name="id">The admin id.</param>
@@ -418,17 +428,46 @@ public sealed class WeirApiClient
     private async Task<string?> SendAdminChangeAsync(string url, object request)
     {
         var response = await _http.PutAsJsonAsync(url, request);
-        if (response.IsSuccessStatusCode)
+        return response.IsSuccessStatusCode ? null : await ReadErrorAsync(response);
+    }
+
+    /// <summary>
+    /// Throws a <see cref="WeirApiException"/> carrying the server's explanation when a mutation
+    /// response is not a success. Used by the create/save/delete methods so a failed mutation surfaces
+    /// a message a page can show, rather than a bare <c>EnsureSuccessStatusCode</c> throw or a silent
+    /// null the page mistakes for success.
+    /// </summary>
+    /// <param name="response">The mutation response.</param>
+    /// <returns>The response, when it was a success, so callers can read a returned body.</returns>
+    private static async Task<HttpResponseMessage> EnsureSuccessAsync(HttpResponseMessage response)
+    {
+        if (!response.IsSuccessStatusCode)
         {
-            return null;
+            throw new WeirApiException(await ReadErrorAsync(response));
         }
 
+        return response;
+    }
+
+    /// <summary>
+    /// Reads a failed response's RFC 7807 <c>detail</c> (then <c>title</c>), falling back to the status
+    /// line when the body is not problem+json. The one place that turns a failure into a human message.
+    /// </summary>
+    /// <param name="response">The failed response.</param>
+    /// <returns>The message to show.</returns>
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response)
+    {
         try
         {
             var problem = await response.Content.ReadFromJsonAsync<ProblemDetail>();
             if (!string.IsNullOrWhiteSpace(problem?.Detail))
             {
                 return problem.Detail;
+            }
+
+            if (!string.IsNullOrWhiteSpace(problem?.Title))
+            {
+                return problem.Title;
             }
         }
         catch (JsonException)

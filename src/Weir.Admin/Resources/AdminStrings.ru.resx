@@ -67,6 +67,9 @@
   <data name="Common_Delete" xml:space="preserve">
     <value>Удалить</value>
   </data>
+  <data name="Common_ActionFailed" xml:space="preserve">
+    <value>Действие не выполнено</value>
+  </data>
   <data name="Common_Edit" xml:space="preserve">
     <value>Изменить</value>
   </data>

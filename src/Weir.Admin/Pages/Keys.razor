@@ -26,6 +26,11 @@
         </FlareAlert>
     }
 
+    @if (_error is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_error</FlareAlert>
+    }
+
     @if (_keys is null)
     {
         <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
@@ -69,6 +74,10 @@
 <FlareDialog @bind-Visible="_showCreate" Title="@AdminStrings.Keys_CreateDialogTitle" Size="DialogSize.Md" ShowCloseButton="true" BeforeClose="ConfirmDiscardAsync">
     <ChildContent>
         <FlareStack Gap="FlareSpacing.Medium">
+            @if (_createError is not null)
+            {
+                <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_createError</FlareAlert>
+            }
             <FlareField Label="@AdminStrings.Common_Name" @bind-Value="_newName" Placeholder="@AdminStrings.Keys_NamePlaceholder" />
             <div>
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Scopes</FlareText>
@@ -125,6 +134,8 @@
     private bool _copied;
     private string _newName = string.Empty;
     private ApiKeyCreated? _created;
+    private string? _error;
+    private string? _createError;
 
     /// <summary>Loads keys, the available scopes and connections.</summary>
     protected override async Task OnInitializedAsync()
@@ -143,6 +154,7 @@
         _newName = string.Empty;
         _selectedScopes.Clear();
         _grants.Clear();
+        _createError = null;
         _showCreate = true;
     }
 
@@ -188,13 +200,27 @@
         }
 
         _busy = true;
-        _created = await Api.CreateKeyAsync(new ApiKeyCreate
+        _createError = null;
+        try
         {
-            Name = _newName,
-            Scopes = _selectedScopes.ToList(),
-            Grants = _grants.Select(g => g.ToGrant()).ToList(),
-        });
-        _busy = false;
+            _created = await Api.CreateKeyAsync(new ApiKeyCreate
+            {
+                Name = _newName,
+                Scopes = _selectedScopes.ToList(),
+                Grants = _grants.Select(g => g.ToGrant()).ToList(),
+            });
+        }
+        catch (WeirApiException ex)
+        {
+            // Keep the dialog open with its content, so the failure can be corrected and retried.
+            _createError = ex.Message;
+            return;
+        }
+        finally
+        {
+            _busy = false;
+        }
+
         _copied = false;
         _showCreate = false;
         _newName = string.Empty;
@@ -239,7 +265,17 @@
             return;
         }
 
-        await Api.RevokeKeyAsync(key.Id);
+        _error = null;
+        try
+        {
+            await Api.RevokeKeyAsync(key.Id);
+        }
+        catch (WeirApiException ex)
+        {
+            _error = ex.Message;
+            return;
+        }
+
         await LoadAsync();
     }
 

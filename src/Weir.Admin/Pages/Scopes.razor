@@ -11,6 +11,11 @@
         </Actions>
     </PageHeader>
 
+    @if (_error is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_error</FlareAlert>
+    }
+
     @if (_showAdd)
     {
         <FlareCard Variant="CardVariant.Outlined">
@@ -63,6 +68,7 @@
     private string _name = string.Empty;
     private string? _description;
     private bool _showAdd;
+    private string? _error;
 
     /// <summary>Loads the scope list plus keys and endpoints (for the usage counts).</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -95,7 +101,17 @@
             return;
         }
 
-        await Api.SaveScopeAsync(new Scope { Name = _name, Description = _description });
+        _error = null;
+        try
+        {
+            await Api.SaveScopeAsync(new Scope { Name = _name, Description = _description });
+        }
+        catch (WeirApiException ex)
+        {
+            _error = ex.Message;
+            return;
+        }
+
         _name = string.Empty;
         _description = null;
         _showAdd = false;
@@ -120,7 +136,17 @@
             return;
         }
 
-        await Api.DeleteScopeAsync(name);
+        _error = null;
+        try
+        {
+            await Api.DeleteScopeAsync(name);
+        }
+        catch (WeirApiException ex)
+        {
+            _error = ex.Message;
+            return;
+        }
+
         await LoadAsync();
     }
 }
