@@ -42,6 +42,16 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Flare 0.8.0: the Import button joins its toolbar, and the Media package reference is gone.** 0.8.0
+  splits `FlareFileUpload` into `FlareFileUploadZone` and `FlareFileUploadButton` (the `FileUploadVariant`
+  enum with it) and gives the button `FlareButton`'s own vocabulary - the capability Weir filed an issue
+  for. The endpoints toolbar's Import is now `Variant="Outlined" Size="Sm"` like every button beside it:
+  measured 24px tall on a 79px baseline with a 4px radius and 13px text, identical to all four peers,
+  where it used to be a fixed 36px that matched nothing.
+
+  File upload also moved from `Flare.Components.Media` into `Flare.Components`, so the package reference
+  and the `flare-media.css` link both go - upload was the only thing Weir used Media for, and the
+  stylesheet link added a day earlier to fix the button is already unnecessary.
 - **Flare 0.6.0 -> 0.7.0, and the admin now overrides none of Flare's internals.** 0.7.0 adds
   `FlareDrawer.ContentPadding`, which is the capability Weir filed an issue for: the drawer's content was
   full-bleed while its header was inset, so every form in a drawer had to restyle

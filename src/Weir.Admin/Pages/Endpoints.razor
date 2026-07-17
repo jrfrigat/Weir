@@ -13,7 +13,7 @@
     <PageHeader Title="@AdminStrings.Endpoints_PageTitle" Description="@AdminStrings.Endpoints_PageDescription">
         <Actions>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">@AdminStrings.Endpoints_SyncAllButton</FlareButton>
-            <FlareFileUpload Variant="FileUploadVariant.Button" Accept=".json" ButtonText="@AdminStrings.Endpoints_ImportButton" OnFilesChanged="ImportFilesAsync" />
+            <FlareFileUploadButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" Accept=".json" Text="@AdminStrings.Endpoints_ImportButton" OnFilesChanged="ImportFilesAsync" />
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="ExportAsync">@AdminStrings.Endpoints_ExportButton</FlareButton>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="BuildOpenApiAsync" Loading="_openApiBusy">OpenAPI</FlareButton>
             <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">@AdminStrings.Endpoints_NewEndpoint</FlareButton>

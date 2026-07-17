@@ -27,7 +27,6 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Flare.Blazor" />
     <PackageReference Include="Flare.Components.IDE" />
-    <PackageReference Include="Flare.Components.Media" />
     <PackageReference Include="Flare.Theme.VisualStudio" />
   </ItemGroup>
 

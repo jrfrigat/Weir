@@ -17,7 +17,6 @@
   </ItemGroup>
   <ItemGroup Label="Data access">
     <PackageVersion Include="Dapper" Version="2.1.79" />
-    <PackageVersion Include="Flare.Components.Media" Version="0.7.0" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
@@ -63,9 +62,9 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.10" />
-    <PackageVersion Include="Flare.Blazor" Version="0.7.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.7.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.7.0" />
+    <PackageVersion Include="Flare.Blazor" Version="0.8.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.8.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.8.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
