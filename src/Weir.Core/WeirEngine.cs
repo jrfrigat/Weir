@@ -294,16 +294,20 @@ public sealed class WeirEngine : IDisposable
                     context.CapturedResult = CaptureResult(built.Payload.Span);
                 }
 
-                if (built.ETag is { } builtETag)
-                {
-                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds));
-                }
-
                 var builtStreamStart = Stopwatch.GetTimestamp();
                 metadata = built.ETag is { } emitETag
                     ? await EmitCacheableAsync(output, built.Payload, emitETag, cacheHit: false, endpoint.Cache.TtlSeconds, control, cancellationToken)
                     : await EmitRawAsync(output, built.Payload, built.Truncated, cancellationToken);
                 context.StreamingDurationMs = Stopwatch.GetElapsedTime(builtStreamStart).TotalMilliseconds;
+
+                // Store after the client has its bytes, not before. An in-process cache runs this inline,
+                // so storing first made the caller wait through admission and any eviction it triggered -
+                // work that is for the next caller's benefit, not this one's. The coalescing path already
+                // publishes before storing for the same reason.
+                if (built.ETag is { } builtETag)
+                {
+                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds));
+                }
 
                 context.RowsReturned = built.RowCount;
                 context.StatusCode = metadata.NotModified ? 304 : 200;
@@ -319,55 +323,72 @@ public sealed class WeirEngine : IDisposable
             guard.EnsureClosed(settings.CircuitBreakerFailureThreshold);
 
             WeirResponseWriter.WriteResult result;
-            using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
+            // Set on the buffered path and written to the client after the guard is released: by then the
+            // reader and connection are closed and the buffer stands on its own, so a slow client holding
+            // a permit would be limiting database concurrency with a download. The direct path cannot do
+            // this - its reader is live for the whole write - which is the trade that mode carries.
+            MemoryStream? pending = null;
+            try
             {
-                try
+                using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
                 {
-                    // Buffer the body when the endpoint captures its result for the request log, or when
-                    // the delivery mode asks for it; otherwise write straight to the output.
-                    if (bufferResponse)
+                    try
                     {
-                        using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
-                        // DB phase: execute and drain all rows into the buffer. Streaming to the client
-                        // is measured separately below, so the two phases do not overlap.
-                        var dbStart = Stopwatch.GetTimestamp();
-                        await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
+                        // Buffer the body when the endpoint captures its result for the request log, or when
+                        // the delivery mode asks for it; otherwise write straight to the output.
+                        if (bufferResponse)
                         {
-                            result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
+                            var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
+                            pending = buffer;
+                            // DB phase: execute and drain all rows into the buffer. Streaming to the client
+                            // is measured separately below, so the two phases do not overlap.
+                            var dbStart = Stopwatch.GetTimestamp();
+                            await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
+                            {
+                                result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
+                            }
+
+                            context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
+                            RecordBufferSize(endpoint.Id, buffer.Length);
+                            if (captureResult)
+                            {
+                                context.CapturedResult = CaptureResult(buffer);
+                            }
+
+                            metadata = new WeirResponseMetadata { Truncated = result.Truncated };
+                        }
+                        else
+                        {
+                            // DB and streaming are fused on the direct-to-output path (rows are written to
+                            // the client as they are read), so they cannot be separated; attribute the whole
+                            // span to the DB phase and leave StreamingDurationMs at zero.
+                            var dbStart = Stopwatch.GetTimestamp();
+                            await using var execution = await connector.ExecuteAsync(request, cancellationToken);
+                            result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
+                            context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
+                            metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                         }
 
-                        context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
-                        RecordBufferSize(endpoint.Id, buffer.Length);
-                        if (captureResult)
-                        {
-                            context.CapturedResult = CaptureResult(buffer);
-                        }
-
-                        var streamStart = Stopwatch.GetTimestamp();
-                        buffer.Position = 0;
-                        await buffer.CopyToAsync(output, cancellationToken);
-                        context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
-                        metadata = new WeirResponseMetadata { Truncated = result.Truncated };
+                        guard.RecordSuccess();
                     }
-                    else
+                    catch (Exception ex) when (TripsBreaker(ex))
                     {
-                        // DB and streaming are fused on the direct-to-output path (rows are written to
-                        // the client as they are read), so they cannot be separated; attribute the whole
-                        // span to the DB phase and leave StreamingDurationMs at zero.
-                        var dbStart = Stopwatch.GetTimestamp();
-                        await using var execution = await connector.ExecuteAsync(request, cancellationToken);
-                        result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
-                        context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
-                        metadata = new WeirResponseMetadata { Truncated = result.Truncated };
+                        guard.RecordFailure(settings.CircuitBreakerFailureThreshold, settings.CircuitBreakerResetSeconds);
+                        throw;
                     }
+                }
 
-                    guard.RecordSuccess();
-                }
-                catch (Exception ex) when (TripsBreaker(ex))
+                if (pending is not null)
                 {
-                    guard.RecordFailure(settings.CircuitBreakerFailureThreshold, settings.CircuitBreakerResetSeconds);
-                    throw;
+                    var streamStart = Stopwatch.GetTimestamp();
+                    pending.Position = 0;
+                    await pending.CopyToAsync(output, cancellationToken);
+                    context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                 }
+            }
+            finally
+            {
+                pending?.Dispose();
             }
 
             context.RowsReturned = result.RowCount;

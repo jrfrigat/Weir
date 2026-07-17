@@ -79,11 +79,22 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
 
         var options = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl, Size = size };
         options.RegisterPostEvictionCallback(
-            static (evictedKey, _, _, state) => ((ConcurrentDictionary<string, byte>)state!).TryRemove((string)evictedKey, out _),
-            generation.Keys);
+            static (evictedKey, value, reason, state) =>
+            {
+                var evictedFrom = (Generation)state!;
+                evictedFrom.Keys.TryRemove((string)evictedKey, out _);
+                if (value is CachedResponse evicted)
+                {
+                    evictedFrom.AddBytes(-evicted.Bytes.Length);
+                }
+            },
+            generation);
 
         generation.Keys[key] = 0;
         generation.Cache.Set(key, entry, options);
+        // After the Set, so that replacing an entry has already fired its eviction callback and taken the
+        // old size off: adding first would leave the total reading low if the callback ran late.
+        generation.AddBytes(size);
         return ValueTask.CompletedTask;
     }
 
@@ -174,6 +185,14 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
             return;
         }
 
+        // The common case is a cache with room to spare, and it should not cost a lock. The running total
+        // can only read high (see Generation), so "plainly fits" is a conclusion it is safe to draw from;
+        // anything closer falls through to the cache's own figure below.
+        if (generation.EstimatedBytes + incoming <= generation.Limit)
+        {
+            return;
+        }
+
         for (var attempt = 0; attempt < MaxCompactionAttempts; attempt++)
         {
             var used = generation.Cache.GetCurrentStatistics()?.CurrentEstimatedSize ?? 0;
@@ -226,5 +245,28 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
         /// post-eviction callback, so this set does not outgrow the cache.
         /// </summary>
         internal ConcurrentDictionary<string, byte> Keys { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// A running total of stored bytes, maintained here rather than read from the cache. The
+        /// authoritative figure is <c>GetCurrentStatistics().CurrentEstimatedSize</c>, but that call also
+        /// builds <c>CurrentEntryCount</c> from <c>MemoryCache.Count</c>, which takes every bucket lock in
+        /// the backing dictionary - a serialization point on the store path, paid on every miss, to read a
+        /// number this class never uses.
+        /// <para>
+        /// This total is an estimate and is only ever used to decide that there is plainly room, never to
+        /// decide that there is not: eviction callbacks may run after the entry is gone, so subtractions
+        /// can lag and the total can read high. That bias is the safe one - a high reading falls through to
+        /// the authoritative check, which is merely slower. A low reading would skip admission control, and
+        /// cannot happen from lag.
+        /// </para>
+        /// </summary>
+        private long _estimatedBytes;
+
+        /// <summary>The running total of stored bytes; see <see cref="_estimatedBytes"/>.</summary>
+        internal long EstimatedBytes => Interlocked.Read(ref _estimatedBytes);
+
+        /// <summary>Adds a stored payload's size to the running total.</summary>
+        /// <param name="bytes">Size of the payload, negative when it leaves the cache.</param>
+        internal void AddBytes(long bytes) => Interlocked.Add(ref _estimatedBytes, bytes);
     }
 }
