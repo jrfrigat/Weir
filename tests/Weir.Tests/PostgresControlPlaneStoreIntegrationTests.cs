@@ -70,5 +70,19 @@ public class PostgresControlPlaneStoreIntegrationTests
         await store.AppendAuditAsync(new AuditEntry { Category = "endpoint.call", Actor = "wk_test", Outcome = "ok" });
         var entries = await store.QueryAuditAsync(new AuditQuery { Limit = 10 });
         Assert.Contains(entries, e => e.Category == "endpoint.call");
+
+        // Cache purges (ON CONFLICT upsert, so a second purge of the same route moves the stamp rather
+        // than failing on the primary key - the normal case, since a route is purged again and again).
+        var first = new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+        await store.RecordCachePurgeAsync(["widgets", "orders/get"], first);
+        var purges = await store.GetCachePurgesAsync();
+        Assert.Equal(first, purges["widgets"]);
+        Assert.Equal(first, purges["orders/get"]);
+
+        var second = first.AddMinutes(5);
+        await store.RecordCachePurgeAsync(["widgets"], second);
+        purges = await store.GetCachePurgesAsync();
+        Assert.Equal(second, purges["widgets"]);
+        Assert.Equal(first, purges["orders/get"]);
     }
 }

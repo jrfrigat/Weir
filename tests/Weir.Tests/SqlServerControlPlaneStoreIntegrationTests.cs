@@ -79,5 +79,20 @@ public class SqlServerControlPlaneStoreIntegrationTests
         // Runtime settings (single-row document upsert).
         await store.SaveSettingsJsonAsync("{\"maxRows\":100}");
         Assert.Equal("{\"maxRows\":100}", await store.GetSettingsJsonAsync());
+
+        // Cache purges (UPDATE-then-INSERT upsert, so a second purge of the same route moves the stamp
+        // rather than failing on the primary key - the normal case, since a route is purged again and
+        // again).
+        var first = new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+        await store.RecordCachePurgeAsync(["widgets", "orders/get"], first);
+        var purges = await store.GetCachePurgesAsync();
+        Assert.Equal(first, purges["widgets"]);
+        Assert.Equal(first, purges["orders/get"]);
+
+        var second = first.AddMinutes(5);
+        await store.RecordCachePurgeAsync(["widgets"], second);
+        purges = await store.GetCachePurgesAsync();
+        Assert.Equal(second, purges["widgets"]);
+        Assert.Equal(first, purges["orders/get"]);
     }
 }
