@@ -394,6 +394,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Change refused.
+        /// </summary>
+        public static string Admins_ChangeRefusedTitle {
+            get {
+                return ResourceManager.GetString("Admins_ChangeRefusedTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Created.
         /// </summary>
         public static string Admins_Created {
@@ -412,6 +421,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Disable.
+        /// </summary>
+        public static string Admins_Disable {
+            get {
+                return ResourceManager.GetString("Admins_Disable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Create an admin account above..
         /// </summary>
         public static string Admins_EmptyDescription {
@@ -426,6 +444,15 @@ namespace Weir.Admin.Resources {
         public static string Admins_EmptyTitle {
             get {
                 return ResourceManager.GetString("Admins_EmptyTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enable.
+        /// </summary>
+        public static string Admins_Enable {
+            get {
+                return ResourceManager.GetString("Admins_Enable", resourceCulture);
             }
         }
         
@@ -466,6 +493,24 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Make admin.
+        /// </summary>
+        public static string Admins_MakeAdmin {
+            get {
+                return ResourceManager.GetString("Admins_MakeAdmin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Make viewer.
+        /// </summary>
+        public static string Admins_MakeViewer {
+            get {
+                return ResourceManager.GetString("Admins_MakeViewer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на New admin.
         /// </summary>
         public static string Admins_NewAdmin {
@@ -501,51 +546,6 @@ namespace Weir.Admin.Resources {
             }
         }
         
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Make admin.
-        /// </summary>
-        public static string Admins_MakeAdmin {
-            get {
-                return ResourceManager.GetString("Admins_MakeAdmin", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Make viewer.
-        /// </summary>
-        public static string Admins_MakeViewer {
-            get {
-                return ResourceManager.GetString("Admins_MakeViewer", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Enable.
-        /// </summary>
-        public static string Admins_Enable {
-            get {
-                return ResourceManager.GetString("Admins_Enable", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Disable.
-        /// </summary>
-        public static string Admins_Disable {
-            get {
-                return ResourceManager.GetString("Admins_Disable", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Change refused.
-        /// </summary>
-        public static string Admins_ChangeRefusedTitle {
-            get {
-                return ResourceManager.GetString("Admins_ChangeRefusedTitle", resourceCulture);
-            }
-        }
-
         /// <summary>
         ///   Ищет локализованную строку, похожую на Reset password.
         /// </summary>
@@ -745,6 +745,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Action failed.
+        /// </summary>
+        public static string Common_ActionFailed {
+            get {
+                return ResourceManager.GetString("Common_ActionFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Actions.
         /// </summary>
         public static string Common_Actions {
@@ -824,25 +833,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Common_Delete", resourceCulture);
             }
         }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Action failed.
-        /// </summary>
-        public static string Common_ActionFailed {
-            get {
-                return ResourceManager.GetString("Common_ActionFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Saved.
-        /// </summary>
-        public static string Common_Saved {
-            get {
-                return ResourceManager.GetString("Common_Saved", resourceCulture);
-            }
-        }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Deleted.
         /// </summary>
@@ -876,6 +867,24 @@ namespace Weir.Admin.Resources {
         public static string Common_Enabled {
             get {
                 return ResourceManager.GetString("Common_Enabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Above 85000 bytes the writer&apos;s buffer becomes a large-object allocation on every call - the exact cost the flushing exists to avoid. Raise it only with a measured reason..
+        /// </summary>
+        public static string Common_FlushBytesLohWarning {
+            get {
+                return ResourceManager.GetString("Common_FlushBytesLohWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Below 1024 bytes most rows cost a write of their own, which trades away the batching the threshold is for. The default 32768 sits above a typical row and below the large-object threshold..
+        /// </summary>
+        public static string Common_FlushBytesTinyWarning {
+            get {
+                return ResourceManager.GetString("Common_FlushBytesTinyWarning", resourceCulture);
             }
         }
         
@@ -952,6 +961,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Saved.
+        /// </summary>
+        public static string Common_Saved {
+            get {
+                return ResourceManager.GetString("Common_Saved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Saving....
         /// </summary>
         public static string Common_Saving {
@@ -966,6 +984,42 @@ namespace Weir.Admin.Resources {
         public static string Common_Search {
             get {
                 return ResourceManager.GetString("Common_Search", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на d.
+        /// </summary>
+        public static string Common_UnitDay {
+            get {
+                return ResourceManager.GetString("Common_UnitDay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на h.
+        /// </summary>
+        public static string Common_UnitHour {
+            get {
+                return ResourceManager.GetString("Common_UnitHour", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на m.
+        /// </summary>
+        public static string Common_UnitMinute {
+            get {
+                return ResourceManager.GetString("Common_UnitMinute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на s.
+        /// </summary>
+        public static string Common_UnitSecond {
+            get {
+                return ResourceManager.GetString("Common_UnitSecond", resourceCulture);
             }
         }
         
@@ -1348,6 +1402,24 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Callers that arrive while a response for the same cache key is already being produced wait for it instead of each running the procedure. Keeps a burst on a cold or just-expired key from becoming one database call per caller. Turn it off to have every call run the procedure for itself..
+        /// </summary>
+        public static string Endpoints_CacheCoalesceHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_CacheCoalesceHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Coalesce concurrent calls.
+        /// </summary>
+        public static string Endpoints_CacheCoalesceLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_CacheCoalesceLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на No parameters defined; one response is cached for the whole endpoint..
         /// </summary>
         public static string Endpoints_CacheNoParameters {
@@ -1391,250 +1463,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Endpoints_CacheVaryByApiKeyLabel", resourceCulture);
             }
         }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Delivery.
-        /// </summary>
-        public static string Endpoints_DeliverySection {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliverySection", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Response delivery.
-        /// </summary>
-        public static string Endpoints_DeliveryModeLabel {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryModeLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default (from Settings).
-        /// </summary>
-        public static string Endpoints_DeliveryModeDefault {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryModeDefault", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Auto (by result shape).
-        /// </summary>
-        public static string Endpoints_DeliveryModeAuto {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryModeAuto", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
-        /// </summary>
-        public static string Endpoints_DeliveryModeStream {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryModeStream", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Full (build, then send).
-        /// </summary>
-        public static string Endpoints_DeliveryModeFull {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryModeFull", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Compression.
-        /// </summary>
-        public static string Endpoints_CompressionModeLabel {
-            get {
-                return ResourceManager.GetString("Endpoints_CompressionModeLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default (from Settings).
-        /// </summary>
-        public static string Endpoints_CompressionModeDefault {
-            get {
-                return ResourceManager.GetString("Endpoints_CompressionModeDefault", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Auto (by result shape).
-        /// </summary>
-        public static string Endpoints_CompressionModeAuto {
-            get {
-                return ResourceManager.GetString("Endpoints_CompressionModeAuto", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на On (always compress).
-        /// </summary>
-        public static string Endpoints_CompressionModeOn {
-            get {
-                return ResourceManager.GetString("Endpoints_CompressionModeOn", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Off (never compress).
-        /// </summary>
-        public static string Endpoints_CompressionModeOff {
-            get {
-                return ResourceManager.GetString("Endpoints_CompressionModeOff", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Flush bytes.
-        /// </summary>
-        public static string Endpoints_DeliveryFlushBytesLabel {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryFlushBytesLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Streaming keeps memory flat and starts sending sooner  [rest of string was truncated]&quot;;.
-        /// </summary>
-        public static string Endpoints_DeliveryHelp {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryHelp", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на This endpoint caches or logs its result, so it builds  [rest of string was truncated]&quot;;.
-        /// </summary>
-        public static string Endpoints_DeliveryForcedHelp {
-            get {
-                return ResourceManager.GetString("Endpoints_DeliveryForcedHelp", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на RESPONSE DELIVERY.
-        /// </summary>
-        public static string Settings_SectionDelivery {
-            get {
-                return ResourceManager.GetString("Settings_SectionDelivery", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default delivery mode.
-        /// </summary>
-        public static string Settings_DeliveryModeLabel {
-            get {
-                return ResourceManager.GetString("Settings_DeliveryModeLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Auto (by result shape).
-        /// </summary>
-        public static string Settings_DeliveryModeAuto {
-            get {
-                return ResourceManager.GetString("Settings_DeliveryModeAuto", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
-        /// </summary>
-        public static string Settings_DeliveryModeStream {
-            get {
-                return ResourceManager.GetString("Settings_DeliveryModeStream", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Full (build, then send).
-        /// </summary>
-        public static string Settings_DeliveryModeFull {
-            get {
-                return ResourceManager.GetString("Settings_DeliveryModeFull", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default compression.
-        /// </summary>
-        public static string Settings_CompressionModeLabel {
-            get {
-                return ResourceManager.GetString("Settings_CompressionModeLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Auto (by result shape).
-        /// </summary>
-        public static string Settings_CompressionModeAuto {
-            get {
-                return ResourceManager.GetString("Settings_CompressionModeAuto", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на On (always compress).
-        /// </summary>
-        public static string Settings_CompressionModeOn {
-            get {
-                return ResourceManager.GetString("Settings_CompressionModeOn", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Off (never compress).
-        /// </summary>
-        public static string Settings_CompressionModeOff {
-            get {
-                return ResourceManager.GetString("Settings_CompressionModeOff", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Flush bytes.
-        /// </summary>
-        public static string Settings_ResponseFlushBytesLabel {
-            get {
-                return ResourceManager.GetString("Settings_ResponseFlushBytesLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на How response bodies reach callers, unless an endpoint  [rest of string was truncated]&quot;;.
-        /// </summary>
-        public static string Settings_DeliveryHelp {
-            get {
-                return ResourceManager.GetString("Settings_DeliveryHelp", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Coalesce concurrent calls.
-        /// </summary>
-        public static string Endpoints_CacheCoalesceLabel {
-            get {
-                return ResourceManager.GetString("Endpoints_CacheCoalesceLabel", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Callers that arrive while a response for the same cache key is  [rest of string was truncated]&quot;;.
-        /// </summary>
-        public static string Endpoints_CacheCoalesceHelp {
-            get {
-                return ResourceManager.GetString("Endpoints_CacheCoalesceHelp", resourceCulture);
-            }
-        }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Vary cache by parameters.
         /// </summary>
@@ -1717,6 +1546,51 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Endpoints_CompressionModeAuto {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeAuto", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default (from Settings).
+        /// </summary>
+        public static string Endpoints_CompressionModeDefault {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeDefault", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Compression.
+        /// </summary>
+        public static string Endpoints_CompressionModeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Off (never compress).
+        /// </summary>
+        public static string Endpoints_CompressionModeOff {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на On (always compress).
+        /// </summary>
+        public static string Endpoints_CompressionModeOn {
+            get {
+                return ResourceManager.GetString("Endpoints_CompressionModeOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Connection.
         /// </summary>
         public static string Endpoints_ConnectionLabel {
@@ -1749,6 +1623,87 @@ namespace Weir.Admin.Resources {
         public static string Endpoints_DeleteConfirmTitle {
             get {
                 return ResourceManager.GetString("Endpoints_DeleteConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Flush bytes.
+        /// </summary>
+        public static string Endpoints_DeliveryFlushBytesLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryFlushBytesLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This endpoint caches or logs its result, so it builds the whole body regardless of the mode - there is nothing to store or log until it exists..
+        /// </summary>
+        public static string Endpoints_DeliveryForcedHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryForcedHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Streaming keeps memory flat and starts sending sooner, but once bytes are on the wire a database error part-way through aborts the connection instead of returning a clean error. Full trades memory for that. Leave both empty to follow Settings..
+        /// </summary>
+        public static string Endpoints_DeliveryHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Endpoints_DeliveryModeAuto {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeAuto", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default (from Settings).
+        /// </summary>
+        public static string Endpoints_DeliveryModeDefault {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeDefault", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Full (build, then send).
+        /// </summary>
+        public static string Endpoints_DeliveryModeFull {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeFull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Response delivery.
+        /// </summary>
+        public static string Endpoints_DeliveryModeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
+        /// </summary>
+        public static string Endpoints_DeliveryModeStream {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliveryModeStream", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Delivery.
+        /// </summary>
+        public static string Endpoints_DeliverySection {
+            get {
+                return ResourceManager.GetString("Endpoints_DeliverySection", resourceCulture);
             }
         }
         
@@ -2590,6 +2545,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Key revoked.
+        /// </summary>
+        public static string Keys_KeyRevoked {
+            get {
+                return ResourceManager.GetString("Keys_KeyRevoked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на e.g. checkout-service.
         /// </summary>
         public static string Keys_NamePlaceholder {
@@ -2660,16 +2624,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Keys_Revoke", resourceCulture);
             }
         }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Key revoked.
-        /// </summary>
-        public static string Keys_KeyRevoked {
-            get {
-                return ResourceManager.GetString("Keys_KeyRevoked", resourceCulture);
-            }
-        }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Revoke &quot;{0}&quot;? Any client using it will immediately be denied. This cannot be undone..
         /// </summary>
@@ -3284,24 +3239,6 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Above 85000 bytes the writer's buffer becomes a larg  [rest of string was truncated]&quot;;
-        /// </summary>
-        public static string Common_FlushBytesLohWarning {
-            get {
-                return ResourceManager.GetString("Common_FlushBytesLohWarning", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Below 1024 bytes most rows cost a write of their own  [rest of string was truncated]&quot;;
-        /// </summary>
-        public static string Common_FlushBytesTinyWarning {
-            get {
-                return ResourceManager.GetString("Common_FlushBytesTinyWarning", resourceCulture);
-            }
-        }
-
-        /// <summary>
         ///   Ищет локализованную строку, похожую на overview.
         /// </summary>
         public static string Nav_Overview {
@@ -3455,6 +3392,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Unresolved-key budget (per caller, per minute).
+        /// </summary>
+        public static string Settings_ApiKeyFailureThresholdLabel {
+            get {
+                return ResourceManager.GetString("Settings_ApiKeyFailureThresholdLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Audit entries older than this are pruned in the background. Zero keeps history forever..
         /// </summary>
         public static string Settings_AuditHelp {
@@ -3500,6 +3446,42 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Settings_CompressionModeAuto {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeAuto", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default compression.
+        /// </summary>
+        public static string Settings_CompressionModeLabel {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Off (never compress).
+        /// </summary>
+        public static string Settings_CompressionModeOff {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на On (always compress).
+        /// </summary>
+        public static string Settings_CompressionModeOn {
+            get {
+                return ResourceManager.GetString("Settings_CompressionModeOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на A bulkhead per data connection rejects excess concurrency with HTTP 503 (zero = unlimited). After the threshold of consecutive failures the breaker opens and short-circuits with 503 until the reset window elapses (zero threshold disables it)..
         /// </summary>
         public static string Settings_ConnectionResilienceHelp {
@@ -3525,16 +3507,52 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_DefaultRateLimitLabel", resourceCulture);
             }
         }
-
+        
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Unresolved-key budget (per caller, per minute).
+        ///   Ищет локализованную строку, похожую на How response bodies reach callers, unless an endpoint overrides it. Auto streams row-returning endpoints and buffers the ones declaring a small result. Streaming keeps memory flat, but once bytes are sent a database error part-way through aborts the connection rather than returning a clean error. Flush bytes is how much may pile up before a streaming response pushes it out: the default 32768 sits above one typical row and below the 85 KB large-object threshold. Endpoints that cache or log their result buffe [остаток строки не уместился]&quot;;.
         /// </summary>
-        public static string Settings_ApiKeyFailureThresholdLabel {
+        public static string Settings_DeliveryHelp {
             get {
-                return ResourceManager.GetString("Settings_ApiKeyFailureThresholdLabel", resourceCulture);
+                return ResourceManager.GetString("Settings_DeliveryHelp", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Auto (by result shape).
+        /// </summary>
+        public static string Settings_DeliveryModeAuto {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeAuto", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Full (build, then send).
+        /// </summary>
+        public static string Settings_DeliveryModeFull {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeFull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default delivery mode.
+        /// </summary>
+        public static string Settings_DeliveryModeLabel {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Stream rows as they are read.
+        /// </summary>
+        public static string Settings_DeliveryModeStream {
+            get {
+                return ResourceManager.GetString("Settings_DeliveryModeStream", resourceCulture);
+            }
+        }
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Directory.
         /// </summary>
@@ -3716,7 +3734,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Applied to API keys that set no limit of their own. Zero leaves them unthrottled..
+        ///   Ищет локализованную строку, похожую на Applied to API keys that set no limit of their own. Zero leaves them unthrottled. The failure budget caps how many unresolved keys one caller may present per minute before it is refused without a lookup; zero disables it..
         /// </summary>
         public static string Settings_RateLimitingHelp {
             get {
@@ -3750,7 +3768,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_RequestTimeoutLabel", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Total memory cached responses may occupy. Once full, the least recently used entries are evicted to make room; a response larger than the cap is never cached. Zero means unlimited, which lets an endpoint with many parameter combinations grow the cache until the process runs out of memory. Changing this clears the cache..
         /// </summary>
@@ -3759,7 +3777,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_ResponseCacheHelp", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Cache size cap (bytes).
         /// </summary>
@@ -3768,7 +3786,16 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_ResponseCacheMaxBytesLabel", resourceCulture);
             }
         }
-
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Flush bytes.
+        /// </summary>
+        public static string Settings_ResponseFlushBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ResponseFlushBytesLabel", resourceCulture);
+            }
+        }
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на all.
         /// </summary>
@@ -3851,6 +3878,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на RESPONSE DELIVERY.
+        /// </summary>
+        public static string Settings_SectionDelivery {
+            get {
+                return ResourceManager.GetString("Settings_SectionDelivery", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на // LOGGING (RESTART REQUIRED).
         /// </summary>
         public static string Settings_SectionLogging {
@@ -3876,7 +3912,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_SectionRequestLog", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на // RESPONSE CACHE.
         /// </summary>
@@ -3885,7 +3921,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_SectionResponseCache", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на The settings service did not respond..
         /// </summary>

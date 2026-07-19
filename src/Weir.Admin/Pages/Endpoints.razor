@@ -208,7 +208,7 @@
                     <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_SchemaLabel" Size="FieldSize.Sm" @bind-Value="_editing.Schema" /></FlareCol>
                     <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_ObjectLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectName" Placeholder="usp_CreateOrder" /></FlareCol>
                     <FlareCol Span="1"><FlareSelect TValue="ResultMode" Label="@AdminStrings.Endpoints_ResultModeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ResultMode" Items="Enum.GetValues<ResultMode>()" ItemLabel="@(v => v.ToString())" /></FlareCol>
-                    <FlareCol Span="1"><FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_TimeoutLabel" Size="FieldSize.Sm" @bind-Value="_editing.CommandTimeoutSeconds" /></FlareCol>
+                    <FlareCol Span="1"><FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_TimeoutLabel" Size="FieldSize.Sm" @bind-Value="_editing.CommandTimeoutSeconds" HelperText="@DurationHint.Humanize(_editing.CommandTimeoutSeconds)" /></FlareCol>
                 </FlareGrid>
 
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true">
@@ -244,7 +244,7 @@
                 <FlareDivider Text="@AdminStrings.Endpoints_CachingSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
                     <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="@AdminStrings.Endpoints_EnableCacheLabel" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Style="max-width:9rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" HelperText="@DurationHint.Humanize(_editing.CacheTtlSeconds)" Style="max-width:9rem;" />
                     <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="@AdminStrings.Endpoints_CacheVaryByApiKeyLabel" />
                     <FlareSwitch Value="_editing.CacheCoalesceRequests" ValueChanged="@(v => _editing.CacheCoalesceRequests = v)" Label="@AdminStrings.Endpoints_CacheCoalesceLabel" />
                 </FlareStack>

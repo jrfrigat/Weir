@@ -27,7 +27,7 @@
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionDataPlaneLimits</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
@@ -83,7 +83,7 @@
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxConcurrentPerConnectionLabel" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Style="max-width:16rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerThresholdLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Style="max-width:14rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerResetLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerResetLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" HelperText="@DurationHint.Humanize(_circuitBreakerResetSeconds)" Style="max-width:14rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ConnectionResilienceHelp</FlareText>
             </FlareStack>

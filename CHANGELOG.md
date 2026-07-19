@@ -31,6 +31,12 @@ All notable changes to this project are documented here. The format is based on
   announces itself and fades. Pages that already confirm in place (settings, the created-key panel) keep
   what they had.
 
+- **The seconds-valued admin fields read back their value in human units.** Cache TTL, the per-endpoint
+  command timeout, the request timeout and the circuit-breaker reset are configured in seconds, because
+  the value maps straight onto HTTP `max-age` and the runtime settings - but a large second-count is
+  awkward to read. Each such field now shows a live helper line (`3600` -> `1 h`, `86400` -> `1 d`) as
+  you type. The stored and transmitted value is unchanged; only the label is friendlier.
+
 ### Changed
 
 - **Flare 0.10.0, and the admin's icons move to the new typed icon system.** Flare 0.10.0 replaces its

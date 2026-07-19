@@ -76,6 +76,18 @@
   <data name="Common_Deleted" xml:space="preserve">
     <value>Deleted</value>
   </data>
+  <data name="Common_UnitDay" xml:space="preserve">
+    <value>d</value>
+  </data>
+  <data name="Common_UnitHour" xml:space="preserve">
+    <value>h</value>
+  </data>
+  <data name="Common_UnitMinute" xml:space="preserve">
+    <value>m</value>
+  </data>
+  <data name="Common_UnitSecond" xml:space="preserve">
+    <value>s</value>
+  </data>
   <data name="Common_Edit" xml:space="preserve">
     <value>Edit</value>
   </data>
