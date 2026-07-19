@@ -842,7 +842,7 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Common_Deleted", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Description.
         /// </summary>
@@ -3878,7 +3878,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на RESPONSE DELIVERY.
+        ///   Ищет локализованную строку, похожую на // RESPONSE DELIVERY.
         /// </summary>
         public static string Settings_SectionDelivery {
             get {
