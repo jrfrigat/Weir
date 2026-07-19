@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-19
+
 ### Added
 
 - **Response compression is now a per-endpoint choice, not an app-wide one.** Whether a JSON body is
@@ -931,7 +933,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/jrfrigat/weir/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jrfrigat/weir/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jrfrigat/weir/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jrfrigat/weir/compare/v1.0.5...v1.1.0

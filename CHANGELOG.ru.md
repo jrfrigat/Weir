@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-19
+
 ### Добавлено
 
 - **Сжатие ответа теперь выбор на каждый endpoint, а не на всё приложение.** Стоит ли сжимать
@@ -993,7 +995,8 @@
 - SQLitePCLRaw закреплён на 3.0.3, чтобы закрыть advisory NU1903 на транзитивную нативную библиотеку
   2.1.11; проверено во время выполнения тестами на SQLite.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/jrfrigat/weir/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jrfrigat/weir/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jrfrigat/weir/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jrfrigat/weir/compare/v1.0.5...v1.1.0
