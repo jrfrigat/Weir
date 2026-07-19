@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inherits LocalizedPage
 @inject WeirApiClient Api
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Admins_Title" Description="@AdminStrings.Admins_Description">
@@ -157,6 +158,7 @@
         _password = string.Empty;
         _role = AdminRoles.Admin;
         _showAdd = false;
+        Snackbar.Show(AdminStrings.Common_Saved, SnackbarSeverity.Success);
         await LoadAsync();
     }
 

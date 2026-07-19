@@ -3,6 +3,7 @@
 @inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IDialogService Dialog
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Scopes_Title" Description="@AdminStrings.Scopes_Description">
@@ -115,6 +116,7 @@
         _name = string.Empty;
         _description = null;
         _showAdd = false;
+        Snackbar.Show(AdminStrings.Common_Saved, SnackbarSeverity.Success);
         await LoadAsync();
     }
 
@@ -147,6 +149,7 @@
             return;
         }
 
+        Snackbar.Show(AdminStrings.Common_Deleted, SnackbarSeverity.Success);
         await LoadAsync();
     }
 }

@@ -4,6 +4,7 @@
 @inject WeirApiClient Api
 @inject IFlareClipboard Clipboard
 @inject IDialogService Dialog
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Keys_PageTitle" Description="@AdminStrings.Keys_PageDescription">
@@ -276,6 +277,7 @@
             return;
         }
 
+        Snackbar.Show(AdminStrings.Keys_KeyRevoked, SnackbarSeverity.Success);
         await LoadAsync();
     }
 

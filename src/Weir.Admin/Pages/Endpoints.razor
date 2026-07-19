@@ -8,6 +8,7 @@
 @inject IDialogService Dialog
 @inject NavigationManager Nav
 @inject IFlareDownload Download
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Endpoints_PageTitle" Description="@AdminStrings.Endpoints_PageDescription">
@@ -750,6 +751,7 @@
         }
 
         _editing = null;
+        Snackbar.Show(AdminStrings.Common_Saved, SnackbarSeverity.Success);
         await LoadAsync();
     }
 
@@ -777,6 +779,7 @@
             return;
         }
 
+        Snackbar.Show(AdminStrings.Common_Deleted, SnackbarSeverity.Success);
         await LoadAsync();
     }
 

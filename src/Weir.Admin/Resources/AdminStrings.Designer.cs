@@ -835,6 +835,24 @@ namespace Weir.Admin.Resources {
         }
 
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Saved.
+        /// </summary>
+        public static string Common_Saved {
+            get {
+                return ResourceManager.GetString("Common_Saved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Deleted.
+        /// </summary>
+        public static string Common_Deleted {
+            get {
+                return ResourceManager.GetString("Common_Deleted", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Description.
         /// </summary>
         public static string Common_Description {
@@ -2642,7 +2660,16 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Keys_Revoke", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Key revoked.
+        /// </summary>
+        public static string Keys_KeyRevoked {
+            get {
+                return ResourceManager.GetString("Keys_KeyRevoked", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на Revoke &quot;{0}&quot;? Any client using it will immediately be denied. This cannot be undone..
         /// </summary>

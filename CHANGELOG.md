@@ -23,6 +23,14 @@ All notable changes to this project are documented here. The format is based on
   compressed form is a later optimisation). No migration: the field rides in the endpoint's existing
   delivery-policy JSON.
 
+- **A successful admin action now confirms itself with a toast.** Saving or deleting an endpoint,
+  adding or deleting a scope, revoking a key and creating an admin used to reload the list silently, so
+  a success looked the same as a no-op. Each now shows a brief success snackbar (Flare's
+  `ISnackbarService`, which shipped in 0.10.0). This is the success half of the same story as the
+  swallowed-error fix below: a failure shows its reason inline and stays until dealt with, a success
+  announces itself and fades. Pages that already confirm in place (settings, the created-key panel) keep
+  what they had.
+
 ### Changed
 
 - **Flare 0.10.0, and the admin's icons move to the new typed icon system.** Flare 0.10.0 replaces its

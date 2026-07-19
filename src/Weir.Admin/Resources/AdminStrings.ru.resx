@@ -70,6 +70,12 @@
   <data name="Common_ActionFailed" xml:space="preserve">
     <value>Действие не выполнено</value>
   </data>
+  <data name="Common_Saved" xml:space="preserve">
+    <value>Сохранено</value>
+  </data>
+  <data name="Common_Deleted" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
   <data name="Common_Edit" xml:space="preserve">
     <value>Изменить</value>
   </data>
@@ -921,6 +927,9 @@
   </data>
   <data name="Keys_Revoke" xml:space="preserve">
     <value>Отозвать</value>
+  </data>
+  <data name="Keys_KeyRevoked" xml:space="preserve">
+    <value>Ключ отозван</value>
   </data>
   <data name="Keys_CreateDialogTitle" xml:space="preserve">
     <value>Создать API-ключ</value>
