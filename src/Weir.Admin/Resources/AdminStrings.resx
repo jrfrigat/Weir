@@ -1197,7 +1197,7 @@
     <value>Zero means unlimited. A response beyond the row cap is truncated and not cached.</value>
   </data>
   <data name="Settings_SectionDelivery" xml:space="preserve">
-    <value>RESPONSE DELIVERY</value>
+    <value>// RESPONSE DELIVERY</value>
   </data>
   <data name="Settings_DeliveryModeLabel" xml:space="preserve">
     <value>Default delivery mode</value>

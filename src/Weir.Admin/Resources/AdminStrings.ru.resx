@@ -1197,7 +1197,7 @@
     <value>Ноль означает без ограничений. Ответ сверх лимита строк усекается и не кэшируется.</value>
   </data>
   <data name="Settings_SectionDelivery" xml:space="preserve">
-    <value>ОТДАЧА ОТВЕТА</value>
+    <value>// ОТДАЧА ОТВЕТА</value>
   </data>
   <data name="Settings_DeliveryModeLabel" xml:space="preserve">
     <value>Режим отдачи по умолчанию</value>
