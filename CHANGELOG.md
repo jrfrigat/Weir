@@ -23,6 +23,17 @@ All notable changes to this project are documented here. The format is based on
   compressed form is a later optimisation). No migration: the field rides in the endpoint's existing
   delivery-policy JSON.
 
+### Changed
+
+- **Flare 0.10.0, and the admin's icons move to the new typed icon system.** Flare 0.10.0 replaces its
+  string-named icon font with typed, tree-shakeable inline-SVG icons: `<FlareIcon Name="key" />` becomes
+  `<FlareIconView Value="@MaterialDesign3Icons.Regular.Key" />`, and component icon parameters
+  (`FlareMenuItem.Icon`, ...) take a typed `FlareIcon` value instead of a name string. Every admin icon
+  is migrated. A wrong icon is now a compile error rather than a silently blank glyph. This also lets the
+  admin **drop the self-hosted Material Symbols web font** (`material-symbols.css` and its ~200 KB woff2):
+  nothing renders through the font any more - the admin's own icons and Flare's own chrome are all inline
+  SVG - so the PWA no longer downloads it.
+
 ### Security
 
 - **A flood of random API keys was a database-exhaustion DoS reachable with no credential.** A resolved

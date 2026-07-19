@@ -22,7 +22,7 @@
     <FlareCard Variant="CardVariant.Filled">
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Large" Wrap="true">
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-                <FlareIcon Name="@(total == 0 ? "pending" : allOk ? "monitor_heart" : "error")" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
+                <FlareIconView Value="@(total == 0 ? MaterialDesign3Icons.Regular.Pending : allOk ? MaterialDesign3Icons.Regular.MonitorHeart : MaterialDesign3Icons.Regular.Error)" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
                 <FlareStack Gap="FlareSpacing.None">
                     <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? AdminStrings.Dashboard_StatusStarting : allOk ? AdminStrings.Dashboard_StatusOperational : AdminStrings.Dashboard_StatusDegraded)</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? AdminStrings.Dashboard_StatusCheckingConnections : allOk ? AdminStrings.Dashboard_StatusAllNominal : string.Format(AdminStrings.Dashboard_StatusConnectionsDown, total - healthy, total))</FlareText>
@@ -57,7 +57,7 @@
             {
                 <FlareCard Variant="CardVariant.Outlined" Compact="true" Style="flex:1 1 16rem;min-width:15rem;">
                     <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-                        <FlareIcon Name="@(connection.Healthy ? "check_circle" : "error")" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)" Size="1rem" />
+                        <FlareIconView Value="@(connection.Healthy ? MaterialDesign3Icons.Regular.CheckCircle : MaterialDesign3Icons.Regular.Error)" Color="@(connection.Healthy ? FlareColor.Success : FlareColor.Error)" Size="1rem" />
                         <FlareStack Gap="FlareSpacing.None" Style="flex:1;min-width:0;">
                             <FlareText Mono="true" Typo="TypographyScale.LabelLarge">@connection.Name</FlareText>
                             <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(connection.Healthy ? (connection.Provider ?? AdminStrings.Dashboard_ConnectionConnected) : (connection.Error ?? AdminStrings.Dashboard_ConnectionUnreachable))</FlareText>

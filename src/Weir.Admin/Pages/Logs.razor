@@ -35,7 +35,7 @@
     else if (_entries.Count == 0)
     {
         <FlareEmptyState Title="@AdminStrings.Logs_EmptyTitle" Description="@AdminStrings.Logs_EmptyDescription">
-            <Icon><FlareIcon Name="receipt_long" /></Icon>
+            <Icon><FlareIconView Value="@MaterialDesign3Icons.Regular.ReceiptLong" /></Icon>
         </FlareEmptyState>
     }
     else
@@ -58,7 +58,7 @@
                         <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.End">
                             @if (context.Slow)
                             {
-                                <FlareTooltip Content="@SlowHint(context)" Arrow="true"><FlareIcon Name="warning" Size="0.85rem" Color="FlareColor.Warning" /></FlareTooltip>
+                                <FlareTooltip Content="@SlowHint(context)" Arrow="true"><FlareIconView Value="@MaterialDesign3Icons.Regular.Warning" Size="0.85rem" Color="FlareColor.Warning" /></FlareTooltip>
                             }
                             <FlareText Element="span" Mono="true" Color="@(context.Slow ? FlareColor.Warning : FlareColor.OnSurface)">@Ms(context.DurationMs)</FlareText>
                         </FlareStack>

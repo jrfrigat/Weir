@@ -28,6 +28,7 @@
     <PackageReference Include="Flare.Blazor" />
     <PackageReference Include="Flare.Components.IDE" />
     <PackageReference Include="Flare.Theme.VisualStudio" />
+    <PackageReference Include="Flare.Icons.MaterialDesign3.Svg" />
   </ItemGroup>
 
   <ItemGroup>

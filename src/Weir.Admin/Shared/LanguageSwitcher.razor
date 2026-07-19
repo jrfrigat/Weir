@@ -7,7 +7,7 @@
 <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="@AdminStrings.Layout_LanguageMenuAriaLabel">
     <Activator>
         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
-            <LeadingIcon><FlareIcon Name="translate" Size="1.05rem" /></LeadingIcon>
+            <LeadingIcon><FlareIconView Value="@MaterialDesign3Icons.Regular.Translate" Size="1.05rem" /></LeadingIcon>
             <ChildContent>@Lang.CurrentCulture.ToUpperInvariant()</ChildContent>
         </FlareButton>
     </Activator>
@@ -15,7 +15,7 @@
         @foreach (var (code, displayName) in LanguageService.SupportedCultures)
         {
             var target = code;
-            <FlareMenuItem Icon="@(Lang.CurrentCulture == target ? "radio_button_checked" : "radio_button_unchecked")"
+            <FlareMenuItem Icon="@(Lang.CurrentCulture == target ? MaterialDesign3Icons.Regular.RadioButtonChecked : MaterialDesign3Icons.Regular.RadioButtonUnchecked)"
                            OnClick="@(() => Lang.SetCultureAsync(target))">
                 @displayName
             </FlareMenuItem>

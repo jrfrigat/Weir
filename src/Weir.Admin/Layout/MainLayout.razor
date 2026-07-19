@@ -42,12 +42,12 @@
                         <Activator>
                             <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
                                 <ChildContent>@context.User.Identity?.Name</ChildContent>
-                                <TrailingIcon><FlareIcon Name="expand_more" Size="1.05rem" /></TrailingIcon>
+                                <TrailingIcon><FlareIconView Value="@FlareIcons.ExpandMore" Size="1.05rem" /></TrailingIcon>
                             </FlareButton>
                         </Activator>
                         <ChildContent>
-                            <FlareMenuItem Icon="account_circle" Href="/account">@AdminStrings.Layout_Account</FlareMenuItem>
-                            <FlareMenuItem Icon="logout" OnClick="LogoutAsync">@AdminStrings.Layout_SignOut</FlareMenuItem>
+                            <FlareMenuItem Icon="@MaterialDesign3Icons.Regular.AccountCircle" Href="/account">@AdminStrings.Layout_Account</FlareMenuItem>
+                            <FlareMenuItem Icon="@MaterialDesign3Icons.Regular.Logout" OnClick="LogoutAsync">@AdminStrings.Layout_SignOut</FlareMenuItem>
                         </ChildContent>
                     </FlareMenu>
                 </Authorized>

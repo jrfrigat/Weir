@@ -13,7 +13,7 @@
     else if (_entries.Count == 0)
     {
         <FlareEmptyState Title="@AdminStrings.Audit_EmptyTitle">
-            <Icon><FlareIcon Name="history" /></Icon>
+            <Icon><FlareIconView Value="@MaterialDesign3Icons.Regular.History" /></Icon>
         </FlareEmptyState>
     }
     else
@@ -27,7 +27,7 @@
                 <FlareColumn TItem="AuditEntry" Id="category" Title="@AdminStrings.Audit_ColumnCategory" Field="@(e => (object?)e.Category)" Sortable="true" Filterable="true">
                     <Template>
                         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
-                            <FlareIcon Name="fiber_manual_record" Size="0.7rem" Color="@KindColor(context.Category)" />
+                            <FlareIconView Value="@MaterialDesign3Icons.Regular.FiberManualRecord" Size="0.7rem" Color="@KindColor(context.Category)" />
                             <FlareText Element="span" Mono="true">@context.Category</FlareText>
                         </FlareStack>
                     </Template>
