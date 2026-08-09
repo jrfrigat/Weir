@@ -164,7 +164,7 @@
                             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson(AdminStrings.Logs_ParametersTitle, _selected!.Parameters!))">@AdminStrings.Logs_View</FlareButton>
                         </FlareStack>
                     </FlareStack>
-                    <FlareCodeBlock Value="@Preview(_selected.Parameters)" Language="json" ReadOnly="true" />
+                    <FlareCodeBlock Value="@Preview(_selected.Parameters)" Language="json" ReadOnly="true" Wrap="true" />
                 }
 
                 @if (!string.IsNullOrEmpty(_selected.Result))
@@ -177,7 +177,7 @@
                             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="@(() => ViewJson(AdminStrings.Logs_ResultTitle, _selected!.Result!))">@AdminStrings.Logs_View</FlareButton>
                         </FlareStack>
                     </FlareStack>
-                    <FlareCodeBlock Value="@Preview(_selected.Result)" Language="json" ReadOnly="true" />
+                    <FlareCodeBlock Value="@Preview(_selected.Result)" Language="json" ReadOnly="true" Wrap="true" />
                 }
 
                 @if (string.IsNullOrEmpty(_selected.Parameters) && string.IsNullOrEmpty(_selected.Result))
@@ -195,7 +195,7 @@
 <FlareDialog @bind-Visible="_showJson" Title="@_jsonTitle" Size="DialogSize.Md" ShowCloseButton="true">
     <ChildContent>
         <div style="max-height:70vh;overflow:auto;">
-            <FlareCodeBlock Value="@_jsonBody" Language="json" ReadOnly="true" />
+            <FlareCodeBlock Value="@_jsonBody" Language="json" ReadOnly="true" Wrap="true" />
         </div>
     </ChildContent>
     <Actions>

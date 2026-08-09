@@ -1,6 +1,7 @@
 @page "/endpoints"
 @attribute [Authorize]
 @using System.Globalization
+@using System.Text
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @inherits LocalizedPage
@@ -381,7 +382,9 @@
 
                 @if (_testRaw)
                 {
-                    <FlareTextArea @bind-Value="_testRawBody" Rows="10" />
+                    <FlareCodeBlock Value="@_testRawBody" ValueChanged="OnRawBodyChanged" Language="json"
+                                    ReadOnly="false" Rows="12" LineNumbers="true" MaxSuggestions="12"
+                                    SuggestionProvider="@SuggestBodyKeys" Markers="@_testRawMarkers" />
                 }
                 else if (_testInputParameters.Count == 0)
                 {
@@ -428,7 +431,7 @@
                 @if (_testResponse is not null)
                 {
                     <FlareDivider Text="@AdminStrings.Endpoints_ResponseSection" TextAlign="DividerTextAlign.Left" />
-                    <FlareCodeBlock Value="@_testResponse" Language="json" ReadOnly="true" />
+                    <FlareCodeBlock Value="@_testResponse" Language="json" ReadOnly="true" Wrap="true" />
                 }
 
                 <FlareDivider />
@@ -480,6 +483,9 @@
     private List<EndpointParameter> _testInputParameters = [];
     private bool _testRaw;
     private string _testRawBody = "{}";
+
+    /// <summary>What is wrong with the raw body, underlined in the editor as it is written.</summary>
+    private IReadOnlyList<FlareCodeMarker> _testRawMarkers = [];
     private string? _testResponse;
     private bool _testBusy;
 
@@ -938,6 +944,7 @@
         _testing = endpoint;
         _testResponse = null;
         _testRaw = false;
+        _testRawMarkers = [];
         _testValues.Clear();
         _testRows.Clear();
         _testInputParameters = endpoint.Parameters
@@ -958,7 +965,239 @@
         if (_testRaw)
         {
             _testRawBody = BuildTestBody();
+            _testRawMarkers = CheckTestBody(_testRawBody);
         }
+    }
+
+    /// <summary>
+    /// Takes an edit to the raw request body and re-checks it, so a body this endpoint cannot accept is
+    /// underlined while it is written rather than after a round trip.
+    /// </summary>
+    /// <param name="value">The body as it now stands.</param>
+    private void OnRawBodyChanged(string value)
+    {
+        _testRawBody = value;
+        _testRawMarkers = CheckTestBody(value);
+    }
+
+    /// <summary>
+    /// Checks a raw request body against the endpoint being tested: that it parses, that its root is an
+    /// object (the API contract is a flat object whose properties are the parameters), that every
+    /// property names a parameter, and that no required parameter is left out.
+    /// </summary>
+    /// <param name="json">The body to check.</param>
+    /// <returns>One marker per problem; empty when the body is usable.</returns>
+    private IReadOnlyList<FlareCodeMarker> CheckTestBody(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(json);
+        }
+        catch (JsonException ex)
+        {
+            var at = OffsetOf(json, ex.LineNumber, ex.BytePositionInLine);
+            return [new FlareCodeMarker(at, 1, AdminStrings.Endpoints_RawJsonMalformed)];
+        }
+
+        if (root is not JsonObject)
+        {
+            return [new FlareCodeMarker(0, json.Length, AdminStrings.Endpoints_RawJsonNotObject)];
+        }
+
+        var markers = new List<FlareCodeMarker>();
+        var known = _testInputParameters.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, start, length) in RootPropertySpans(json))
+        {
+            present.Add(name);
+            if (!known.Contains(name))
+            {
+                markers.Add(new FlareCodeMarker(
+                    start, length,
+                    string.Format(CultureInfo.CurrentCulture, AdminStrings.Endpoints_RawJsonUnknownParameter, name),
+                    FlareCodeSeverity.Warning));
+            }
+        }
+
+        var missing = _testInputParameters
+            .Where(p => p.Required && p.DefaultValue is null && !present.Contains(p.Name))
+            .Select(p => p.Name)
+            .ToList();
+        if (missing.Count > 0)
+        {
+            markers.Add(new FlareCodeMarker(
+                0, 1,
+                string.Format(
+                    CultureInfo.CurrentCulture,
+                    AdminStrings.Endpoints_RawJsonMissingRequired,
+                    string.Join(", ", missing))));
+        }
+
+        return markers;
+    }
+
+    /// <summary>
+    /// Finds each top-level property name in a body with the span it occupies, so a marker underlines the
+    /// name the reader is looking at. The editor measures in characters and the JSON reader in UTF-8
+    /// bytes, so every offset is converted rather than assumed equal.
+    /// </summary>
+    /// <param name="json">The body to scan; it must already parse.</param>
+    /// <returns>The name, start offset and length of every property of the root object.</returns>
+    private static List<(string Name, int Start, int Length)> RootPropertySpans(string json)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var reader = new Utf8JsonReader(bytes);
+        var spans = new List<(string, int, int)>();
+        var depth = 0;
+        while (reader.Read())
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
+                    depth++;
+                    break;
+                case JsonTokenType.EndObject:
+                case JsonTokenType.EndArray:
+                    depth--;
+                    break;
+                case JsonTokenType.PropertyName when depth == 1:
+                    // TokenStartIndex is the opening quote; the raw span is what sits between the quotes.
+                    var byteStart = (int)reader.TokenStartIndex;
+                    var raw = reader.HasValueSequence ? (int)reader.ValueSequence.Length : reader.ValueSpan.Length;
+                    var byteLength = Math.Min(raw + 2, bytes.Length - byteStart);
+                    spans.Add((
+                        reader.GetString() ?? string.Empty,
+                        Encoding.UTF8.GetString(bytes, 0, byteStart).Length,
+                        Encoding.UTF8.GetString(bytes, byteStart, byteLength).Length));
+                    break;
+            }
+        }
+
+        return spans;
+    }
+
+    /// <summary>
+    /// Turns the line and byte column a JSON parse error reports into a character offset into the text.
+    /// </summary>
+    /// <param name="text">The text that failed to parse.</param>
+    /// <param name="line">Zero-based line the parser stopped on, when it said.</param>
+    /// <param name="bytePositionInLine">UTF-8 bytes into that line, when it said.</param>
+    /// <returns>The character offset, clamped to the text.</returns>
+    private static int OffsetOf(string text, long? line, long? bytePositionInLine)
+    {
+        var index = 0;
+        for (var seen = 0L; seen < (line ?? 0) && index < text.Length; seen++)
+        {
+            var next = text.IndexOf('\n', index);
+            if (next < 0)
+            {
+                break;
+            }
+
+            index = next + 1;
+        }
+
+        for (var seen = 0L; seen < (bytePositionInLine ?? 0) && index < text.Length;)
+        {
+            var step = char.IsHighSurrogate(text[index]) && index + 1 < text.Length ? 2 : 1;
+            seen += Encoding.UTF8.GetByteCount(text.AsSpan(index, step));
+            index += step;
+        }
+
+        return Math.Min(index, Math.Max(0, text.Length - 1));
+    }
+
+    /// <summary>
+    /// Offers the endpoint's own parameter names at the caret, so a raw body is written from what the
+    /// endpoint actually takes rather than from memory.
+    /// </summary>
+    /// <param name="context">Where the caret is and the text around it.</param>
+    /// <returns>The parameter names matching what has been typed so far.</returns>
+    private ValueTask<IReadOnlyList<FlareCodeSuggestion>> SuggestBodyKeys(FlareCodeContext context)
+    {
+        var (start, length, prefix, needsColon) = RawKeyAt(context.Text, context.Caret);
+        IReadOnlyList<FlareCodeSuggestion> matches = _testInputParameters
+            .Where(p => prefix.Length == 0 || p.Name.Contains(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(p => new FlareCodeSuggestion($"\"{p.Name}\"{(needsColon ? ": " : "")}", p.Name)
+            {
+                Detail = RawKeyDetail(p),
+                Kind = p.DbType.ToString(),
+                ReplaceStart = start,
+                ReplaceLength = length,
+            })
+            .ToList();
+
+        return ValueTask.FromResult(matches);
+    }
+
+    /// <summary>
+    /// Works out what a completion at the caret replaces: the word being typed, plus the quotes around it
+    /// when the caret sits inside a string, so accepting one never leaves a stray quote behind.
+    /// </summary>
+    /// <param name="text">The body being edited.</param>
+    /// <param name="caret">Zero-based caret offset.</param>
+    /// <returns>The span to replace, what has been typed so far, and whether a colon is still needed.</returns>
+    private static (int Start, int Length, string Prefix, bool NeedsColon) RawKeyAt(string text, int caret)
+    {
+        caret = Math.Clamp(caret, 0, text.Length);
+        var start = caret;
+        while (start > 0 && (char.IsLetterOrDigit(text[start - 1]) || text[start - 1] == '_'))
+        {
+            start--;
+        }
+
+        var end = caret;
+        while (end < text.Length && (char.IsLetterOrDigit(text[end]) || text[end] == '_'))
+        {
+            end++;
+        }
+
+        var prefix = text[start..end];
+        if (start > 0 && text[start - 1] == '"')
+        {
+            start--;
+            if (end < text.Length && text[end] == '"')
+            {
+                end++;
+            }
+        }
+
+        var after = end;
+        while (after < text.Length && char.IsWhiteSpace(text[after]))
+        {
+            after++;
+        }
+
+        return (start, end - start, prefix, after >= text.Length || text[after] != ':');
+    }
+
+    /// <summary>
+    /// The caption shown beside a suggested parameter: whether it has to be there, and where the request
+    /// carries it when that is not the body.
+    /// </summary>
+    /// <param name="parameter">The parameter being suggested.</param>
+    /// <returns>The caption, or null when there is nothing worth saying about it.</returns>
+    private static string? RawKeyDetail(EndpointParameter parameter)
+    {
+        var parts = new List<string>(2);
+        if (parameter.Required)
+        {
+            parts.Add(AdminStrings.Endpoints_RawJsonRequired);
+        }
+
+        if (parameter.Source != ParameterSource.Body)
+        {
+            parts.Add(parameter.Source.ToString());
+        }
+
+        return parts.Count == 0 ? null : string.Join(" - ", parts);
     }
 
     /// <summary>The type/source hint shown under a test-console input.</summary>

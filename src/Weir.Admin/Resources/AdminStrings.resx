@@ -799,6 +799,21 @@
   <data name="Endpoints_RawJsonLabel" xml:space="preserve">
     <value>Raw JSON</value>
   </data>
+  <data name="Endpoints_RawJsonMalformed" xml:space="preserve">
+    <value>From here on this is not valid JSON.</value>
+  </data>
+  <data name="Endpoints_RawJsonNotObject" xml:space="preserve">
+    <value>The body must be a JSON object whose properties are the endpoint parameters.</value>
+  </data>
+  <data name="Endpoints_RawJsonUnknownParameter" xml:space="preserve">
+    <value>"{0}" is not a parameter of this endpoint; it will be ignored.</value>
+  </data>
+  <data name="Endpoints_RawJsonMissingRequired" xml:space="preserve">
+    <value>Required parameters are missing: {0}.</value>
+  </data>
+  <data name="Endpoints_RawJsonRequired" xml:space="preserve">
+    <value>required</value>
+  </data>
   <data name="Endpoints_NoInputParameters" xml:space="preserve">
     <value>This endpoint takes no input parameters.</value>
   </data>

@@ -799,6 +799,21 @@
   <data name="Endpoints_RawJsonLabel" xml:space="preserve">
     <value>Сырой JSON</value>
   </data>
+  <data name="Endpoints_RawJsonMalformed" xml:space="preserve">
+    <value>Отсюда это уже не корректный JSON.</value>
+  </data>
+  <data name="Endpoints_RawJsonNotObject" xml:space="preserve">
+    <value>Тело должно быть JSON-объектом, свойства которого - параметры эндпоинта.</value>
+  </data>
+  <data name="Endpoints_RawJsonUnknownParameter" xml:space="preserve">
+    <value>"{0}" не является параметром этого эндпоинта; значение будет проигнорировано.</value>
+  </data>
+  <data name="Endpoints_RawJsonMissingRequired" xml:space="preserve">
+    <value>Не хватает обязательных параметров: {0}.</value>
+  </data>
+  <data name="Endpoints_RawJsonRequired" xml:space="preserve">
+    <value>обязательный</value>
+  </data>
   <data name="Endpoints_NoInputParameters" xml:space="preserve">
     <value>Этот эндпоинт не принимает входных параметров.</value>
   </data>

@@ -2165,7 +2165,52 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Endpoints_RawJsonLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на From here on this is not valid JSON.
+        /// </summary>
+        public static string Endpoints_RawJsonMalformed {
+            get {
+                return ResourceManager.GetString("Endpoints_RawJsonMalformed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The body must be a JSON object whose properties are the endpoint parameters.
+        /// </summary>
+        public static string Endpoints_RawJsonNotObject {
+            get {
+                return ResourceManager.GetString("Endpoints_RawJsonNotObject", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на &quot;{0}&quot; is not a parameter of this endpoint; it will be ignored.
+        /// </summary>
+        public static string Endpoints_RawJsonUnknownParameter {
+            get {
+                return ResourceManager.GetString("Endpoints_RawJsonUnknownParameter", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required parameters are missing: {0}.
+        /// </summary>
+        public static string Endpoints_RawJsonMissingRequired {
+            get {
+                return ResourceManager.GetString("Endpoints_RawJsonMissingRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на required.
+        /// </summary>
+        public static string Endpoints_RawJsonRequired {
+            get {
+                return ResourceManager.GetString("Endpoints_RawJsonRequired", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Ищет локализованную строку, похожую на Remove column.
         /// </summary>
