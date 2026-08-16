@@ -8,6 +8,32 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-08-16
+
+### Fixed
+
+- **A shutdown could still discard the entire audit queue, and say nothing.** Draining the queue on
+  stop was added so that a redeploy would not take the tail of the audit with it, but the drain lived
+  in `ExecuteAsync`, and a `BackgroundService` schedules that method rather than running it inline. On a
+  machine short of CPU, a host that starts and stops in quick succession cancels the scheduled work
+  before the delegate is ever invoked: the read loop then never runs a single line, the execute task
+  reports itself cancelled, `StopAsync` sees a completed task and returns, and everything queued goes
+  out with the process. Same loss as before, one layer further down, and just as silent - the entries
+  were never refused, so nothing counted them. `StopAsync` now writes whatever is still queued itself,
+  once the read loop is known to be finished; when the loop did run this finds an empty queue and does
+  nothing. Reproduced on two CPUs under Linux, where it struck roughly one run in five, and confirmed
+  over 25 consecutive clean runs on the same setup.
+
+### Added
+
+- **An audit entry that fails to persist is now counted, not only logged.** The auditor already counted
+  entries it refused - a full queue - as `DroppedCount`, but an entry it accepted and then failed to
+  write was reported to the log and nowhere else. Those are different losses and both matter for a
+  compliance record: a drop means Weir never took the entry, a write failure means it took it and lost
+  it. `WriteFailureCount` reports the second. This is also what made the bug above legible: the writes
+  happen inside a catch that deliberately swallows, so one bad entry cannot stall the queue, and
+  without a counter a run that persisted nothing looked exactly like a run with nothing to persist.
+
 ## [1.5.0] - 2026-08-16
 
 ### Added
@@ -978,7 +1004,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/jrfrigat/weir/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/jrfrigat/weir/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jrfrigat/weir/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jrfrigat/weir/compare/v1.2.0...v1.3.0

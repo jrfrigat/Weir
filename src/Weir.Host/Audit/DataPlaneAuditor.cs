@@ -33,6 +33,13 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
     /// <summary>Cumulative number of audit entries dropped because the queue was full.</summary>
     private long _dropped;
 
+    /// <summary>
+    /// Cumulative number of entries that were taken off the queue but could not be written. This is the
+    /// other way an accepted entry can be lost, and it used to be visible only as a log line - so a run
+    /// that persisted nothing looked exactly like a run with nothing to persist.
+    /// </summary>
+    private long _writeFailures;
+
     /// <summary>The dropped count last surfaced in a warning, so only new drops are reported.</summary>
     private long _lastReportedDrops;
 
@@ -60,6 +67,13 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
 
     /// <summary>Cumulative number of audit entries dropped because the queue was full.</summary>
     public long DroppedCount => Interlocked.Read(ref _dropped);
+
+    /// <summary>
+    /// Cumulative number of entries that failed to persist after being taken off the queue. Counted
+    /// separately from <see cref="DroppedCount"/> because the two are different losses: a drop means
+    /// Weir never accepted the entry, a write failure means it did and then lost it.
+    /// </summary>
+    public long WriteFailureCount => Interlocked.Read(ref _writeFailures);
 
     /// <inheritdoc />
     public bool Enabled { get; }
@@ -95,6 +109,61 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
         // the completion here shutdown would hang until the host's timeout fired.
         _channel.Writer.TryComplete();
         await base.StopAsync(cancellationToken);
+
+        // The read loop is not guaranteed to have run at all. BackgroundService schedules ExecuteAsync
+        // rather than running it inline, so on a busy machine a host that starts and stops quickly can
+        // cancel that scheduled work before the delegate is ever invoked - the execute task then reports
+        // Canceled having drained nothing, base.StopAsync sees a completed task, and the whole backlog
+        // goes out with it. Draining here closes that hole: when the loop did run the queue is already
+        // empty and this is a no-op, and when it did not, the entries are still written.
+        //
+        // Only when the loop is finished, though - the channel is single-reader by construction, and if
+        // the caller's token cut base.StopAsync short the loop is still draining and still owns it.
+        if (ExecuteTask is null or { IsCompleted: true })
+        {
+            await DrainAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Writes whatever is still queued, without waiting for more. Bounded by the shutdown token, so a
+    /// host that is out of time stops here rather than holding the process open.
+    /// </summary>
+    /// <param name="cancellationToken">The shutdown token; it bounds the drain.</param>
+    private async Task DrainAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested && _channel.Reader.TryRead(out var entry))
+        {
+            await WriteAsync(entry);
+        }
+    }
+
+    /// <summary>
+    /// Persists one entry, absorbing a failure so that neither the read loop nor a shutdown drain stops
+    /// on a single bad entry. The failure is counted rather than lost.
+    /// </summary>
+    /// <param name="entry">The entry to write.</param>
+    private async Task WriteAsync(AuditEntry entry)
+    {
+        try
+        {
+            // CancellationToken.None deliberately: an entry taken off the queue is one Weir has accepted
+            // responsibility for, and cancelling its write would drop it after the fact.
+            await _store.AppendAuditAsync(entry, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Interlocked.Increment(ref _writeFailures);
+            Log.AuditWriteFailed(_logger, ex);
+        }
+
+        // Surface any new drops in one warning per batch of 100, off the request hot path.
+        var dropped = Interlocked.Read(ref _dropped);
+        if (dropped - _lastReportedDrops >= 100)
+        {
+            Log.AuditEntriesDropped(_logger, dropped);
+            _lastReportedDrops = dropped;
+        }
     }
 
     /// <inheritdoc />
@@ -110,24 +179,7 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
         // host's shutdown timeout still bounds how long that may take.
         await foreach (var entry in _channel.Reader.ReadAllAsync(CancellationToken.None))
         {
-            try
-            {
-                // CancellationToken.None for the same reason: an entry taken off the queue is one Weir
-                // has accepted responsibility for, and cancelling its write would drop it after the fact.
-                await _store.AppendAuditAsync(entry, CancellationToken.None);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                Log.AuditWriteFailed(_logger, ex);
-            }
-
-            // Surface any new drops in one warning per batch of 100, off the request hot path.
-            var dropped = Interlocked.Read(ref _dropped);
-            if (dropped - _lastReportedDrops >= 100)
-            {
-                Log.AuditEntriesDropped(_logger, dropped);
-                _lastReportedDrops = dropped;
-            }
+            await WriteAsync(entry);
         }
     }
 }
