@@ -8,6 +8,51 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-16
+
+### Added
+
+- **The raw JSON request body in the endpoint test console is checked as it is written.** The Raw JSON
+  toggle used to open a plain text area, where a body the endpoint cannot accept looked exactly like one
+  it can and the first sign of a typo was the server's 400. It is a JSON editor now, with line numbers,
+  and it answers three questions in place. Completion offers the endpoint's own parameters, each tagged
+  with its type and - when the request does not carry it in the body - its source, so a body is written
+  from what the endpoint actually takes rather than from memory. Markers underline a problem the moment
+  it exists: where the text stops being JSON, a root that is not an object, a property naming no
+  parameter (a warning, since the gateway ignores it), and any required parameter left out. Accepting a
+  completion inside a half-typed key replaces the quotes around it rather than nesting a second pair.
+  The read-only JSON views - the test response, and the three on the request-log page - wrap long lines
+  now instead of scrolling sideways.
+
+### Changed
+
+- **Flare 0.11.0 through 0.17.0.** Six releases of Flare's token mandate, in which the core stops
+  deciding on every theme's behalf how an interaction state looks and hands each one to the theme as a
+  token. Weir's Command Center theme takes its `DesignTokens` from the Visual Studio reference
+  wholesale, so each "a custom theme must now set N more members" break passes it by; what it gains is
+  that the selected row's wash and the switch's focus halo are painted from the Command Center palette,
+  where before they were core constants no theme could reach. Three fixes land visibly in the admin: the
+  chevron on a select opens *and* closes the list (on a searchable one it could only ever open), a menu
+  opened with the pointer no longer highlights its first item as though it had been chosen, and a
+  dropdown grows to its content instead of truncating values longer than its field. One matters on a
+  phone: a wide data grid used to be clipped rather than scrolled, so the columns past the viewport were
+  unreachable by touch, and the endpoints grid now scrolls by exactly what it needs.
+
+- **Dependencies moved to their current releases.** The .NET 10 packages - ASP.NET Core components, the
+  SignalR client, JWT bearer, `Microsoft.Data.Sqlite` and the `Microsoft.Extensions.*` abstractions -
+  move to 10.0.11 as one set, which Flare forces rather than merely invites: its
+  `Microsoft.AspNetCore.Components.Web` floats to the newest patch of the major, so a pin left behind is
+  a package downgrade and a restore error. Also `MySqlConnector` 2.6.2, `StackExchange.Redis` 3.1.13,
+  the OpenTelemetry instrumentation 1.17.0, `Microsoft.SourceLink.GitHub` 10.0.400, and the test
+  tooling: test SDK 18.9.0, Testcontainers 4.14.0, and the xunit Visual Studio runner 4.0.0 (a major
+  version, which still discovers the suite against xunit 2.9.3).
+
+### Security
+
+- **A high-severity advisory on SSH.NET is closed.** Testcontainers 4.14.0 brings SSH.NET 2026.0.0 in
+  place of 2025.1.0, clearing GHSA-q939-rpr3-3284. The package reached only the test project's
+  dependency graph, Testcontainers being a test-only dependency, so no shipped artifact ever carried it.
+
 ## [1.4.0] - 2026-07-19
 
 ### Added
@@ -933,7 +978,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/jrfrigat/weir/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jrfrigat/weir/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jrfrigat/weir/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jrfrigat/weir/compare/v1.1.0...v1.2.0
