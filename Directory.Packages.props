@@ -26,10 +26,12 @@
     <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3" />
   </ItemGroup>
   <ItemGroup Label="Microsoft.Extensions">
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <!-- 10.0.11: Flare's Microsoft.AspNetCore.Components.Web floats to the newest 10.0.* patch, which
+         asks for these four at 10.0.11; the central pin would otherwise downgrade them (NU1109). -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup Label="Telemetry / observability">
@@ -62,10 +64,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.10" />
-    <PackageVersion Include="Flare.Blazor" Version="0.14.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.14.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.14.0" />
-    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.14.0" />
+    <PackageVersion Include="Flare.Blazor" Version="0.17.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.17.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.17.0" />
+    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.17.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
