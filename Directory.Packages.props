@@ -13,7 +13,7 @@
        git tag; Microsoft.SourceLink.GitHub embeds repo + commit metadata for source-debuggable packages. -->
   <ItemGroup>
     <GlobalPackageReference Include="MinVer" Version="7.0.0" />
-    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
   </ItemGroup>
   <ItemGroup Label="Data access">
     <PackageVersion Include="Dapper" Version="2.1.79" />
@@ -37,7 +37,7 @@
   <ItemGroup Label="Telemetry / observability">
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
   </ItemGroup>
   <ItemGroup Label="Logging">
@@ -60,7 +60,7 @@
   </ItemGroup>
   <ItemGroup Label="Blazor WASM admin">
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.10" />
