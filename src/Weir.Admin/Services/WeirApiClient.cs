@@ -178,6 +178,21 @@ public sealed class WeirApiClient
         _http.GetFromJsonAsync<List<DbParameterDescriptor>>(
             $"admin/api/introspect/{Uri.EscapeDataString(connection)}/parameters?schema={Uri.EscapeDataString(schema)}&obj={Uri.EscapeDataString(objectName)}");
 
+    /// <summary>Lists the tables and views on a connection, for a dictionary or import endpoint.</summary>
+    /// <param name="connection">The connection name.</param>
+    /// <returns>The discovered tables and views.</returns>
+    public Task<List<DbObjectDescriptor>?> GetDbTablesAsync(string connection) =>
+        _http.GetFromJsonAsync<List<DbObjectDescriptor>>($"admin/api/introspect/{Uri.EscapeDataString(connection)}/tables");
+
+    /// <summary>Describes the columns of a table or view.</summary>
+    /// <param name="connection">The connection name.</param>
+    /// <param name="schema">Object schema.</param>
+    /// <param name="objectName">Table or view name.</param>
+    /// <returns>The discovered columns, in ordinal order.</returns>
+    public Task<List<DbColumnDescriptor>?> GetDbColumnsAsync(string connection, string schema, string objectName) =>
+        _http.GetFromJsonAsync<List<DbColumnDescriptor>>(
+            $"admin/api/introspect/{Uri.EscapeDataString(connection)}/columns?schema={Uri.EscapeDataString(schema)}&obj={Uri.EscapeDataString(objectName)}");
+
     /// <summary>Imports a set of endpoint definitions (upsert), then reloads the catalog server-side.</summary>
     /// <param name="endpoints">The endpoints to import.</param>
     /// <returns>The number of imported endpoints.</returns>

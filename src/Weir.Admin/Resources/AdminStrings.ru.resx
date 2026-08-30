@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -153,6 +153,183 @@
   </data>
   <data name="Common_FlushBytesTinyWarning" xml:space="preserve">
     <value>Ниже 1024 байт почти каждая строка стоит отдельной записи, а это обменивает пачки, ради которых порог и нужен. Умолчание 32768 выше типичной строки и ниже порога LOH.</value>
+  </data>
+  <data name="Endpoints_ColumnsLoadFailed" xml:space="preserve">
+    <value>Не удалось прочитать столбцы.</value>
+  </data>
+  <data name="Endpoints_ColumnsNoneFound" xml:space="preserve">
+    <value>У объекта нет столбцов, либо подключение не может их прочитать.</value>
+  </data>
+  <data name="Endpoints_DictionaryAddFilter" xml:space="preserve">
+    <value>Добавить фильтр</value>
+  </data>
+  <data name="Endpoints_DictionaryAllowPaging" xml:space="preserve">
+    <value>Разрешить постраничность</value>
+  </data>
+  <data name="Endpoints_DictionaryColumns" xml:space="preserve">
+    <value>Возвращаемые столбцы</value>
+  </data>
+  <data name="Endpoints_DictionaryColumnsHelp" xml:space="preserve">
+    <value>Ничего не выбрано - вернутся все столбцы. Сейчас это удобно, но каждый новый столбец в таблице сразу расширит все ответы.</value>
+  </data>
+  <data name="Endpoints_DictionaryDefaultPageSize" xml:space="preserve">
+    <value>Размер страницы по умолчанию</value>
+  </data>
+  <data name="Endpoints_DictionaryDescending" xml:space="preserve">
+    <value>По убыванию</value>
+  </data>
+  <data name="Endpoints_DictionaryFilters" xml:space="preserve">
+    <value>Фильтры</value>
+  </data>
+  <data name="Endpoints_DictionaryHelp" xml:space="preserve">
+    <value>Зарезервированные параметры запроса: search, page, pageSize, sort и sortDir. Всё остальное сопоставляется с фильтрами ниже.</value>
+  </data>
+  <data name="Endpoints_DictionaryLabelColumn" xml:space="preserve">
+    <value>Столбец подписи</value>
+  </data>
+  <data name="Endpoints_DictionaryMaxPageSize" xml:space="preserve">
+    <value>Максимальный размер страницы</value>
+  </data>
+  <data name="Endpoints_DictionaryNoFilters" xml:space="preserve">
+    <value>Фильтров нет. Клиенты по-прежнему могут искать и листать.</value>
+  </data>
+  <data name="Endpoints_DictionaryOrderBy" xml:space="preserve">
+    <value>Сортировка</value>
+  </data>
+  <data name="Endpoints_DictionaryOrderHelp" xml:space="preserve">
+    <value>Постраничность требует устойчивого порядка. Если ничего не выбрано, используется столбец подписи или значения.</value>
+  </data>
+  <data name="Endpoints_DictionarySearchColumns" xml:space="preserve">
+    <value>Столбцы для поиска</value>
+  </data>
+  <data name="Endpoints_DictionarySearchHelp" xml:space="preserve">
+    <value>Поисковый запрос ищет по любому из них. Если не выбран ни один, запрос с search будет отклонён, а не вернёт всё подряд.</value>
+  </data>
+  <data name="Endpoints_DictionarySection" xml:space="preserve">
+    <value>Справочник</value>
+  </data>
+  <data name="Endpoints_DictionaryTotalCount" xml:space="preserve">
+    <value>Возвращать общее количество</value>
+  </data>
+  <data name="Endpoints_DictionaryTotalCountHelp" xml:space="preserve">
+    <value>Стоит второго запроса по тем же фильтрам, поэтому включайте только там, где клиент показывает общее число.</value>
+  </data>
+  <data name="Endpoints_DictionaryValueColumn" xml:space="preserve">
+    <value>Столбец значения</value>
+  </data>
+  <data name="Endpoints_FilterColumn" xml:space="preserve">
+    <value>Столбец</value>
+  </data>
+  <data name="Endpoints_FilterOperator" xml:space="preserve">
+    <value>Оператор</value>
+  </data>
+  <data name="Endpoints_FilterParameter" xml:space="preserve">
+    <value>Ключ запроса</value>
+  </data>
+  <data name="Endpoints_ImportBatchSize" xml:space="preserve">
+    <value>Строк в одном операторе</value>
+  </data>
+  <data name="Endpoints_ImportColumns" xml:space="preserve">
+    <value>Целевые столбцы</value>
+  </data>
+  <data name="Endpoints_ImportGeneratedHint" xml:space="preserve">
+    <value>Столбцы, которые база заполняет сама (identity, вычисляемые, со значением по умолчанию), не выбраны.</value>
+  </data>
+  <data name="Endpoints_ImportHelp" xml:space="preserve">
+    <value>Строки приходят в теле запроса. Больше ничего из тела до базы не доходит: таблица, столбцы и свойство для каждого столбца заданы здесь.</value>
+  </data>
+  <data name="Endpoints_ImportKeyColumns" xml:space="preserve">
+    <value>Ключевые столбцы</value>
+  </data>
+  <data name="Endpoints_ImportKeyHelp" xml:space="preserve">
+    <value>Столбцы, по которым ищется существующая строка. Нужны для режима вставки-обновления, остальными режимами игнорируются.</value>
+  </data>
+  <data name="Endpoints_ImportMaxRows" xml:space="preserve">
+    <value>Строк в одном запросе</value>
+  </data>
+  <data name="Endpoints_ImportMaxRowsHelp" xml:space="preserve">
+    <value>Ноль - используется системный лимит. Всегда действует меньшее из двух значений.</value>
+  </data>
+  <data name="Endpoints_ImportMode" xml:space="preserve">
+    <value>Режим</value>
+  </data>
+  <data name="Endpoints_ImportModeInsert" xml:space="preserve">
+    <value>Вставлять все строки</value>
+  </data>
+  <data name="Endpoints_ImportModeReplace" xml:space="preserve">
+    <value>Заменить содержимое таблицы</value>
+  </data>
+  <data name="Endpoints_ImportModeUpsert" xml:space="preserve">
+    <value>Вставлять новые, обновлять существующие</value>
+  </data>
+  <data name="Endpoints_ImportNoColumns" xml:space="preserve">
+    <value>Целевых столбцов пока нет. Загрузите их из базы и снимите те, которые клиент писать не должен.</value>
+  </data>
+  <data name="Endpoints_ImportRowsHelp" xml:space="preserve">
+    <value>Свойство тела, в котором лежит массив. Тело, которое само является массивом, принимается в любом случае.</value>
+  </data>
+  <data name="Endpoints_ImportRowsProperty" xml:space="preserve">
+    <value>Свойство со строками</value>
+  </data>
+  <data name="Endpoints_ImportSection" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Endpoints_ImportSourceProperty" xml:space="preserve">
+    <value>из свойства</value>
+  </data>
+  <data name="Endpoints_ImportTransactional" xml:space="preserve">
+    <value>Одна транзакция на запрос</value>
+  </data>
+  <data name="Endpoints_ImportTransactionalHelp" xml:space="preserve">
+    <value>Ошибка на середине оставит таблицу в прежнем виде. Замена содержимого всегда выполняется в транзакции.</value>
+  </data>
+  <data name="Endpoints_LoadColumns" xml:space="preserve">
+    <value>Загрузить столбцы из базы</value>
+  </data>
+  <data name="Endpoints_ObjectTypeTable" xml:space="preserve">
+    <value>Таблица</value>
+  </data>
+  <data name="Endpoints_ObjectTypeView" xml:space="preserve">
+    <value>Представление</value>
+  </data>
+  <data name="Endpoints_OperationDictionary" xml:space="preserve">
+    <value>Справочник из таблицы или представления</value>
+  </data>
+  <data name="Endpoints_OperationHelp" xml:space="preserve">
+    <value>Справочник и импорт указывают на таблицу, а не на вызываемый объект, и Weir сам собирает запрос из настроек ниже. Любое значение от клиента передаётся параметром; читаются и пишутся только перечисленные здесь столбцы.</value>
+  </data>
+  <data name="Endpoints_OperationImport" xml:space="preserve">
+    <value>Импорт в таблицу</value>
+  </data>
+  <data name="Endpoints_OperationInvoke" xml:space="preserve">
+    <value>Вызов процедуры или функции</value>
+  </data>
+  <data name="Endpoints_OperationLabel" xml:space="preserve">
+    <value>Операция</value>
+  </data>
+  <data name="Endpoints_ParamDirectionLabel" xml:space="preserve">
+    <value>Направление</value>
+  </data>
+  <data name="Endpoints_ParamNameLabel" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Endpoints_ParamRequiredLabel" xml:space="preserve">
+    <value>Обязательный</value>
+  </data>
+  <data name="Endpoints_ParamSizeLabel" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="Endpoints_ParamSourceLabel" xml:space="preserve">
+    <value>Источник</value>
+  </data>
+  <data name="Endpoints_ParamTypeLabel" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="Endpoints_SelectAll" xml:space="preserve">
+    <value>Все</value>
+  </data>
+  <data name="Endpoints_SelectNone" xml:space="preserve">
+    <value>Ничего</value>
   </data>
   <data name="Nav_Overview" xml:space="preserve">
     <value>обзор</value>
@@ -1183,6 +1360,12 @@
   </data>
   <data name="Scopes_DeleteConfirmBody" xml:space="preserve">
     <value>Удалить скоуп "{0}"?{1}</value>
+  </data>
+  <data name="Settings_MaxImportRowsHelp" xml:space="preserve">
+    <value>Максимум строк в одном запросе импорта. Эндпоинт может задать свой меньший лимит; поднять этот потолок нельзя.</value>
+  </data>
+  <data name="Settings_MaxImportRowsLabel" xml:space="preserve">
+    <value>Макс. строк импорта</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>настройки</value>

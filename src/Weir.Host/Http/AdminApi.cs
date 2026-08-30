@@ -108,7 +108,7 @@ public static class AdminApi
             WeirSystemSettings update, IRuntimeSettings settings, IControlPlaneStore store,
             ClaimsPrincipal user, TimeProvider clock, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
-            if (update.MaxRows < 0 || update.RequestTimeoutSeconds < 0 || update.MaxTvpRows < 0 ||
+            if (update.MaxRows < 0 || update.RequestTimeoutSeconds < 0 || update.MaxTvpRows < 0 || update.MaxImportRows < 0 ||
                 update.DefaultApiKeyRateLimitPerMinute < 0 || update.AuditRetentionDays < 0 ||
                 update.MaxConcurrentRequestsPerConnection < 0 || update.CircuitBreakerFailureThreshold < 0 ||
                 update.CircuitBreakerResetSeconds < 0 || update.ApiKeyFailureThreshold < 0 ||

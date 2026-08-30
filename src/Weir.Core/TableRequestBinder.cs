@@ -322,15 +322,22 @@ internal static class TableRequestBinder
             // Only a column the endpoint already projects, sorts by or filters on may be named. A sort
             // column arrives as text and ends up in the statement, so the allow-list is what keeps it
             // from being anything but a column this endpoint has declared.
-            var allowed = Allowed(policy);
+            var allowed = Allowed(policy).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var match = allowed.FirstOrDefault(column => string.Equals(column, requested, StringComparison.OrdinalIgnoreCase));
             if (match is null)
             {
+                // Name what is sortable rather than only what is not. An endpoint that projects every
+                // column still only sorts by the ones it declares somewhere, which is a surprise worth
+                // answering in the error instead of leaving the caller to guess.
+                var sortable = allowed.Count == 0
+                    ? "This endpoint declares no sortable columns."
+                    : "Sortable columns: " + string.Join(", ", allowed) + ".";
+
                 throw new WeirValidationException(
                     "Invalid sort column.",
                     new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
-                        [SortKey] = [$"'{requested}' is not a sortable column of this endpoint."],
+                        [SortKey] = [$"'{requested}' is not a sortable column of this endpoint. {sortable}"],
                     });
             }
 

@@ -51,6 +51,7 @@ public sealed class RuntimeSettings : IRuntimeSettings
             MaxRows = seed.MaxRows,
             RequestTimeoutSeconds = seed.RequestTimeoutSeconds,
             MaxTvpRows = seed.MaxTvpRows,
+            MaxImportRows = seed.MaxImportRows,
             DefaultApiKeyRateLimitPerMinute = seed.DefaultApiKeyRateLimitPerMinute,
             MaxConcurrentRequestsPerConnection = seed.MaxConcurrentRequestsPerConnection,
             CircuitBreakerFailureThreshold = seed.CircuitBreakerFailureThreshold,

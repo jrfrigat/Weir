@@ -152,7 +152,7 @@ builder.Services.AddSingleton<IWeirCallObserver, RequestLogObserver>();
 builder.Services.AddOptions<WeirDataPlaneOptions>()
     .Bind(builder.Configuration.GetSection("Weir:DataPlane"))
     .Validate(
-        o => o.MaxRows >= 0 && o.RequestTimeoutSeconds >= 0 && o.MaxTvpRows >= 0 && o.MaxRequestBodyBytes >= 0,
+        o => o.MaxRows >= 0 && o.RequestTimeoutSeconds >= 0 && o.MaxTvpRows >= 0 && o.MaxImportRows >= 0 && o.MaxRequestBodyBytes >= 0,
         "Weir:DataPlane limits must not be negative.")
     .ValidateOnStart();
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Weir:Security"));

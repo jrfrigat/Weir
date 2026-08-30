@@ -205,7 +205,8 @@
                     <FlareCol Span="1"><FlareSelect TValue="string" Label="@AdminStrings.Endpoints_MethodLabel" Size="FieldSize.Sm" @bind-Value="_editing.HttpMethod" Items="_methods" /></FlareCol>
                     <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_RouteLabel" Size="FieldSize.Sm" @bind-Value="_editing.Route" Placeholder="orders/create" /></FlareCol>
                     <FlareCol Span="1"><FlareSelect TValue="string" Label="@AdminStrings.Endpoints_ConnectionLabel" Size="FieldSize.Sm" @bind-Value="_editing.ConnectionName" Items="@ConnectionNames" /></FlareCol>
-                    <FlareCol Span="1"><FlareSelect TValue="DbObjectType" Label="@AdminStrings.Endpoints_ObjectTypeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectType" Items="Enum.GetValues<DbObjectType>()" ItemLabel="@(v => ObjectTypeLabel(v))" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="EndpointOperation" Label="@AdminStrings.Endpoints_OperationLabel" Size="FieldSize.Sm" Value="_editing.Operation" ValueChanged="OperationChanged" Items="Enum.GetValues<EndpointOperation>()" ItemLabel="@(v => OperationLabel(v))" /></FlareCol>
+                    <FlareCol Span="1"><FlareSelect TValue="DbObjectType" Label="@AdminStrings.Endpoints_ObjectTypeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectType" Items="ObjectTypesFor(_editing.Operation)" ItemLabel="@(v => ObjectTypeLabel(v))" /></FlareCol>
                     <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_SchemaLabel" Size="FieldSize.Sm" @bind-Value="_editing.Schema" /></FlareCol>
                     <FlareCol Span="1"><FlareField Label="@AdminStrings.Endpoints_ObjectLabel" Size="FieldSize.Sm" @bind-Value="_editing.ObjectName" Placeholder="usp_CreateOrder" /></FlareCol>
                     <FlareCol Span="1"><FlareSelect TValue="ResultMode" Label="@AdminStrings.Endpoints_ResultModeLabel" Size="FieldSize.Sm" @bind-Value="_editing.ResultMode" Items="Enum.GetValues<ResultMode>()" ItemLabel="@(v => v.ToString())" /></FlareCol>
@@ -305,6 +306,8 @@
                     }
                 </div>
 
+                @if (_editing.Operation == EndpointOperation.Invoke)
+                {
                 <FlareDivider Text="@AdminStrings.Endpoints_ParametersSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                     <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="DiscoverParametersAsync" Loading="_discovering">@AdminStrings.Endpoints_DiscoverParameters</FlareButton>
@@ -317,12 +320,13 @@
                 {
                     <FlareCard Variant="CardVariant.Outlined" Compact="true">
                         <FlareStack Gap="FlareSpacing.XSmall">
-                            <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Wrap="true">
-                                <FlareField TValue="string" Placeholder="@AdminStrings.Endpoints_ParamNamePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Name" />
-                                <FlareSelect TValue="ParameterSource" Size="FieldSize.Sm" @bind-Value="parameter.Source" Items="Enum.GetValues<ParameterSource>()" ItemLabel="@(v => v.ToString())" />
-                                <FlareSelect TValue="Weir.Contracts.ParameterDirection" Size="FieldSize.Sm" @bind-Value="parameter.Direction" Items="Enum.GetValues<Weir.Contracts.ParameterDirection>()" ItemLabel="@(v => v.ToString())" />
-                                <FlareSelect TValue="WeirDbType" Size="FieldSize.Sm" @bind-Value="parameter.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" />
-                                <FlareNumericField TValue="int?" Placeholder="@AdminStrings.Endpoints_ParamSizePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Size" Style="max-width:6rem;" />
+                            <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.End" Wrap="true">
+                                <FlareField TValue="string" Label="@AdminStrings.Endpoints_ParamNameLabel" Placeholder="@AdminStrings.Endpoints_ParamNamePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Name" Style="min-width:9rem;" />
+                                <FlareSelect TValue="ParameterSource" Label="@AdminStrings.Endpoints_ParamSourceLabel" Size="FieldSize.Sm" @bind-Value="parameter.Source" Items="Enum.GetValues<ParameterSource>()" ItemLabel="@(v => v.ToString())" Style="min-width:7rem;" />
+                                <FlareSelect TValue="Weir.Contracts.ParameterDirection" Label="@AdminStrings.Endpoints_ParamDirectionLabel" Size="FieldSize.Sm" @bind-Value="parameter.Direction" Items="Enum.GetValues<Weir.Contracts.ParameterDirection>()" ItemLabel="@(v => v.ToString())" Style="min-width:8rem;" />
+                                <FlareSelect TValue="WeirDbType" Label="@AdminStrings.Endpoints_ParamTypeLabel" Size="FieldSize.Sm" @bind-Value="parameter.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" Style="min-width:8rem;" />
+                                <FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_ParamSizeLabel" Placeholder="@AdminStrings.Endpoints_ParamSizePlaceholder" Size="FieldSize.Sm" @bind-Value="parameter.Size" Style="max-width:6rem;" />
+                                <FlareSwitch Value="parameter.Required" ValueChanged="@(v => parameter.Required = v)" Label="@AdminStrings.Endpoints_ParamRequiredLabel" />
                                 <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RemoveParameter(parameter))">@AdminStrings.Common_Remove</FlareButton>
                             </FlareStack>
                             @if (parameter.DbType == WeirDbType.Structured)
@@ -344,6 +348,180 @@
                     </FlareCard>
                 }
                 <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddParameter">@AdminStrings.Endpoints_AddParameter</FlareButton></FlareStack>
+                }
+
+                @if (_editing.Operation != EndpointOperation.Invoke)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_OperationHelp</FlareText>
+                    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small" Wrap="true">
+                        <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="LoadColumnsAsync" Loading="_loadingColumns">@AdminStrings.Endpoints_LoadColumns</FlareButton>
+                        @if (_columnsError is not null)
+                        {
+                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.Error">@_columnsError</FlareText>
+                        }
+                    </FlareStack>
+                }
+
+                @if (_editing.Operation == EndpointOperation.Dictionary)
+                {
+                    <FlareDivider Text="@AdminStrings.Endpoints_DictionarySection" TextAlign="DividerTextAlign.Left" />
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryHelp</FlareText>
+
+                    <div>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
+                            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryColumns</FlareText>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SetAllProjected(true))">@AdminStrings.Endpoints_SelectAll</FlareButton>
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => SetAllProjected(false))">@AdminStrings.Endpoints_SelectNone</FlareButton>
+                        </FlareStack>
+                        @if (KnownColumns.Count == 0)
+                        {
+                            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ColumnsNoneFound</FlareText>
+                        }
+                        else
+                        {
+                            <FlareStack Row Wrap="true" Gap="FlareSpacing.XSmall">
+                                @foreach (var column in KnownColumns)
+                                {
+                                    var on = _editing.DictColumns.Contains(column, StringComparer.OrdinalIgnoreCase);
+                                    <FlareChip Size="ChipSize.Sm" Label="@column"
+                                               Variant="@(on ? ChipVariant.Filled : ChipVariant.Outlined)"
+                                               Color="@(on ? FlareColor.Primary : FlareColor.Default)"
+                                               OnClick="@(() => Toggle(_editing.DictColumns, column))" />
+                                }
+                            </FlareStack>
+                        }
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryColumnsHelp</FlareText>
+                    </div>
+
+                    <FlareStack Row Gap="FlareSpacing.Small" Wrap="true" Align="FlareAlignItems.End">
+                        <FlareCombobox TValue="string" Label="@AdminStrings.Endpoints_DictionaryValueColumn" Size="FieldSize.Sm"
+                                       @bind-Value="_editing.DictValueColumn" Items="KnownColumns"
+                                       AllowsCustomValue="true" CustomValueFactory="@(text => text)" Style="min-width:12rem;" />
+                        <FlareCombobox TValue="string" Label="@AdminStrings.Endpoints_DictionaryLabelColumn" Size="FieldSize.Sm"
+                                       @bind-Value="_editing.DictLabelColumn" Items="KnownColumns"
+                                       AllowsCustomValue="true" CustomValueFactory="@(text => text)" Style="min-width:12rem;" />
+                    </FlareStack>
+
+                    <div>
+                        <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionarySearchColumns</FlareText>
+                        <FlareStack Row Wrap="true" Gap="FlareSpacing.XSmall">
+                            @foreach (var column in KnownColumns)
+                            {
+                                var on = _editing.DictSearchColumns.Contains(column, StringComparer.OrdinalIgnoreCase);
+                                <FlareChip Size="ChipSize.Sm" Label="@column"
+                                           Variant="@(on ? ChipVariant.Filled : ChipVariant.Outlined)"
+                                           Color="@(on ? FlareColor.Primary : FlareColor.Default)"
+                                           OnClick="@(() => Toggle(_editing.DictSearchColumns, column))" />
+                            }
+                        </FlareStack>
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionarySearchHelp</FlareText>
+                    </div>
+
+                    <FlareStack Row Gap="FlareSpacing.Small" Wrap="true" Align="FlareAlignItems.End">
+                        <FlareCombobox TValue="string" Label="@AdminStrings.Endpoints_DictionaryOrderBy" Size="FieldSize.Sm"
+                                       @bind-Value="_editing.DictOrderColumn" Items="KnownColumns"
+                                       AllowsCustomValue="true" CustomValueFactory="@(text => text)" Style="min-width:12rem;" />
+                        <FlareSwitch Value="_editing.DictOrderDescending" ValueChanged="@(v => _editing.DictOrderDescending = v)" Label="@AdminStrings.Endpoints_DictionaryDescending" />
+                    </FlareStack>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryOrderHelp</FlareText>
+
+                    <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
+                        <FlareSwitch Value="_editing.DictAllowPaging" ValueChanged="@(v => _editing.DictAllowPaging = v)" Label="@AdminStrings.Endpoints_DictionaryAllowPaging" />
+                        <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_DictionaryDefaultPageSize" Size="FieldSize.Sm" @bind-Value="_editing.DictDefaultPageSize" Style="max-width:9rem;" />
+                        <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_DictionaryMaxPageSize" Size="FieldSize.Sm" @bind-Value="_editing.DictMaxPageSize" Style="max-width:9rem;" />
+                        <FlareSwitch Value="_editing.DictIncludeTotalCount" ValueChanged="@(v => _editing.DictIncludeTotalCount = v)" Label="@AdminStrings.Endpoints_DictionaryTotalCount" />
+                    </FlareStack>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryTotalCountHelp</FlareText>
+
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryFilters</FlareText>
+                    @if (_editing.DictFilters.Count == 0)
+                    {
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_DictionaryNoFilters</FlareText>
+                    }
+                    @foreach (var filter in _editing.DictFilters)
+                    {
+                        <FlareCard Variant="CardVariant.Outlined" Compact="true">
+                            <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.End" Wrap="true">
+                                <FlareCombobox TValue="string" Label="@AdminStrings.Endpoints_FilterColumn" Size="FieldSize.Sm"
+                                               @bind-Value="filter.Column" Items="KnownColumns"
+                                               AllowsCustomValue="true" CustomValueFactory="@(text => text)" Style="min-width:10rem;" />
+                                <FlareSelect TValue="DictionaryOperator" Label="@AdminStrings.Endpoints_FilterOperator" Size="FieldSize.Sm"
+                                             @bind-Value="filter.Operator" Items="Enum.GetValues<DictionaryOperator>()" ItemLabel="@(v => v.ToString())" Style="min-width:9rem;" />
+                                <FlareField TValue="string" Label="@AdminStrings.Endpoints_FilterParameter" Size="FieldSize.Sm"
+                                            @bind-Value="filter.ParameterName" Placeholder="@filter.Column" Style="min-width:9rem;" />
+                                <FlareSelect TValue="WeirDbType" Label="@AdminStrings.Endpoints_ParamTypeLabel" Size="FieldSize.Sm"
+                                             @bind-Value="filter.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" Style="min-width:8rem;" />
+                                <FlareSwitch Value="filter.Required" ValueChanged="@(v => filter.Required = v)" Label="@AdminStrings.Endpoints_ParamRequiredLabel" />
+                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => _editing.DictFilters.Remove(filter))">@AdminStrings.Common_Remove</FlareButton>
+                            </FlareStack>
+                        </FlareCard>
+                    }
+                    <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddFilter">@AdminStrings.Endpoints_DictionaryAddFilter</FlareButton></FlareStack>
+                }
+
+                @if (_editing.Operation == EndpointOperation.Import)
+                {
+                    <FlareDivider Text="@AdminStrings.Endpoints_ImportSection" TextAlign="DividerTextAlign.Left" />
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportHelp</FlareText>
+
+                    <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.End">
+                        <FlareSelect TValue="ImportMode" Label="@AdminStrings.Endpoints_ImportMode" Size="FieldSize.Sm"
+                                     @bind-Value="_editing.ImportMode" Items="Enum.GetValues<ImportMode>()" ItemLabel="@(v => ImportModeLabel(v))" Style="min-width:16rem;" />
+                        <FlareField TValue="string" Label="@AdminStrings.Endpoints_ImportRowsProperty" Size="FieldSize.Sm"
+                                    @bind-Value="_editing.ImportRowsProperty" Placeholder="rows" Style="max-width:10rem;" />
+                        <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_ImportBatchSize" Size="FieldSize.Sm" @bind-Value="_editing.ImportBatchSize" Style="max-width:9rem;" />
+                        <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_ImportMaxRows" Size="FieldSize.Sm" @bind-Value="_editing.ImportMaxRows" Style="max-width:9rem;" />
+                        <FlareSwitch Value="_editing.ImportTransactional" ValueChanged="@(v => _editing.ImportTransactional = v)" Label="@AdminStrings.Endpoints_ImportTransactional" />
+                    </FlareStack>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportRowsHelp @AdminStrings.Endpoints_ImportMaxRowsHelp @AdminStrings.Endpoints_ImportTransactionalHelp</FlareText>
+
+                    @if (_editing.ImportMode == ImportMode.Upsert)
+                    {
+                        <div>
+                            <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportKeyColumns</FlareText>
+                            <FlareStack Row Wrap="true" Gap="FlareSpacing.XSmall">
+                                @foreach (var column in _editing.ImportColumns.Where(c => !string.IsNullOrWhiteSpace(c.Name)))
+                                {
+                                    var name = column.Name;
+                                    var on = _editing.ImportKeyColumns.Contains(name, StringComparer.OrdinalIgnoreCase);
+                                    <FlareChip Size="ChipSize.Sm" Label="@name"
+                                               Variant="@(on ? ChipVariant.Filled : ChipVariant.Outlined)"
+                                               Color="@(on ? FlareColor.Primary : FlareColor.Default)"
+                                               OnClick="@(() => Toggle(_editing.ImportKeyColumns, name))" />
+                                }
+                            </FlareStack>
+                            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportKeyHelp</FlareText>
+                        </div>
+                    }
+
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportColumns</FlareText>
+                    @if (_editing.ImportColumns.Count == 0)
+                    {
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportNoColumns</FlareText>
+                    }
+                    else
+                    {
+                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_ImportGeneratedHint</FlareText>
+                    }
+                    @foreach (var column in _editing.ImportColumns)
+                    {
+                        <FlareCard Variant="CardVariant.Outlined" Compact="true">
+                            <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.End" Wrap="true">
+                                <FlareCombobox TValue="string" Label="@AdminStrings.Endpoints_FilterColumn" Size="FieldSize.Sm"
+                                               @bind-Value="column.Name" Items="KnownColumns"
+                                               AllowsCustomValue="true" CustomValueFactory="@(text => text)" Style="min-width:10rem;" />
+                                <FlareField TValue="string" Label="@AdminStrings.Endpoints_ImportSourceProperty" Size="FieldSize.Sm"
+                                            @bind-Value="column.SourceProperty" Placeholder="@column.Name" Style="min-width:9rem;" />
+                                <FlareSelect TValue="WeirDbType" Label="@AdminStrings.Endpoints_ParamTypeLabel" Size="FieldSize.Sm"
+                                             @bind-Value="column.DbType" Items="Enum.GetValues<WeirDbType>()" ItemLabel="@(v => v.ToString())" Style="min-width:8rem;" />
+                                <FlareNumericField TValue="int?" Label="@AdminStrings.Endpoints_ParamSizeLabel" Size="FieldSize.Sm" @bind-Value="column.Size" Style="max-width:6rem;" />
+                                <FlareSwitch Value="column.Required" ValueChanged="@(v => column.Required = v)" Label="@AdminStrings.Endpoints_ParamRequiredLabel" />
+                                <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => _editing.ImportColumns.Remove(column))">@AdminStrings.Common_Remove</FlareButton>
+                            </FlareStack>
+                        </FlareCard>
+                    }
+                    <FlareStack Row><FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="AddImportColumn">@AdminStrings.Endpoints_AddColumn</FlareButton></FlareStack>
+                }
 
                 <FlareDivider />
                 @if (_saveError is not null)
@@ -462,6 +640,8 @@
     private bool _busy;
     private bool _discovering;
     private string? _discoverError;
+    private bool _loadingColumns;
+    private string? _columnsError;
     private string? _saveError;
     private string? _deleteError;
     private string? _notice;
@@ -673,7 +853,22 @@
 
         try
         {
-            _objects = await Api.GetDbObjectsAsync(_dbConnection) ?? [];
+            var callable = await Api.GetDbObjectsAsync(_dbConnection) ?? [];
+
+            // Tables and views come from a separate listing, and a connector is allowed to serve one
+            // and not the other, so a failure to read them leaves the procedures browsable rather than
+            // emptying the whole tab.
+            List<DbObjectDescriptor> tables;
+            try
+            {
+                tables = await Api.GetDbTablesAsync(_dbConnection) ?? [];
+            }
+            catch (HttpRequestException)
+            {
+                tables = [];
+            }
+
+            _objects = [.. callable, .. tables];
         }
         catch (Exception ex)
         {
@@ -703,16 +898,32 @@
     /// <param name="obj">The source object.</param>
     private async Task CreateFromObjectAsync(DbObjectDescriptor obj)
     {
+        // A table or a view has nothing to call, so it opens as a dictionary read - the useful default
+        // of the two, and the one that cannot damage anything if the route is left as it lands. An
+        // import over the same table is one change to the operation away.
+        var operation = obj.ObjectType is DbObjectType.Table or DbObjectType.View
+            ? EndpointOperation.Dictionary
+            : EndpointOperation.Invoke;
+
         _editing = new EndpointEditModel
         {
             ConnectionName = _dbConnection,
             Schema = obj.Schema,
             ObjectName = obj.Name,
             ObjectType = obj.ObjectType,
+            Operation = operation,
             Route = obj.Name.ToLowerInvariant(),
             HttpMethod = obj.ObjectType == DbObjectType.StoredProcedure ? "POST" : "GET",
         };
-        await DiscoverParametersAsync();
+
+        if (operation == EndpointOperation.Dictionary)
+        {
+            await LoadColumnsAsync();
+        }
+        else
+        {
+            await DiscoverParametersAsync();
+        }
     }
 
     // ----- List actions ---------------------------------------------------------------------------
@@ -1378,8 +1589,254 @@
         DbObjectType.StoredProcedure => AdminStrings.Endpoints_ObjectTypeProc,
         DbObjectType.TableValuedFunction => AdminStrings.Endpoints_ObjectTypeTableFn,
         DbObjectType.ScalarFunction => AdminStrings.Endpoints_ObjectTypeScalarFn,
+        DbObjectType.Table => AdminStrings.Endpoints_ObjectTypeTable,
+        DbObjectType.View => AdminStrings.Endpoints_ObjectTypeView,
         _ => type.ToString(),
     };
+
+    /// <summary>Human label for one endpoint operation.</summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>The localized label.</returns>
+    private static string OperationLabel(EndpointOperation operation) => operation switch
+    {
+        EndpointOperation.Dictionary => AdminStrings.Endpoints_OperationDictionary,
+        EndpointOperation.Import => AdminStrings.Endpoints_OperationImport,
+        _ => AdminStrings.Endpoints_OperationInvoke,
+    };
+
+    /// <summary>Human label for one import mode.</summary>
+    /// <param name="mode">The mode.</param>
+    /// <returns>The localized label.</returns>
+    private static string ImportModeLabel(ImportMode mode) => mode switch
+    {
+        ImportMode.Upsert => AdminStrings.Endpoints_ImportModeUpsert,
+        ImportMode.Replace => AdminStrings.Endpoints_ImportModeReplace,
+        _ => AdminStrings.Endpoints_ImportModeInsert,
+    };
+
+    /// <summary>
+    /// The object types one operation can target. A procedure cannot be read as a dictionary and a view
+    /// cannot be written to, so offering the whole enum would only offer ways to build an endpoint the
+    /// server then refuses.
+    /// </summary>
+    /// <param name="operation">The operation being configured.</param>
+    /// <returns>The object types to offer.</returns>
+    private static DbObjectType[] ObjectTypesFor(EndpointOperation operation) => operation switch
+    {
+        EndpointOperation.Dictionary => [DbObjectType.Table, DbObjectType.View],
+        EndpointOperation.Import => [DbObjectType.Table],
+        _ => [DbObjectType.StoredProcedure, DbObjectType.TableValuedFunction, DbObjectType.ScalarFunction],
+    };
+
+    /// <summary>
+    /// Moves the editor to another operation, carrying the object type to one the new operation can
+    /// use. Without this the type stays on whatever the previous operation allowed, and the select
+    /// shows a value that is not among its own options.
+    /// </summary>
+    /// <param name="operation">The operation the user chose.</param>
+    private void OperationChanged(EndpointOperation operation)
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.Operation = operation;
+        var allowed = ObjectTypesFor(operation);
+        if (!allowed.Contains(_editing.ObjectType))
+        {
+            _editing.ObjectType = allowed[0];
+        }
+
+        // The two read shapes differ: a dictionary returns rows, an import returns a count.
+        _editing.ResultMode = operation switch
+        {
+            EndpointOperation.Dictionary => ResultMode.MultiRow,
+            EndpointOperation.Import => ResultMode.NonQuery,
+            _ => _editing.ResultMode,
+        };
+
+        if (operation == EndpointOperation.Import && _editing.HttpMethod == "GET")
+        {
+            // An import carries its rows in the body, which a GET has nowhere to put.
+            _editing.HttpMethod = "POST";
+        }
+
+        _columnsError = null;
+    }
+
+    /// <summary>
+    /// The column names offered by the pickers: what the database reported, plus anything the endpoint
+    /// already names. The second half matters when the connection is unreachable or the object has been
+    /// renamed - the editor still shows what is configured instead of appearing to have lost it.
+    /// </summary>
+    private List<string> KnownColumns
+    {
+        get
+        {
+            if (_editing is null)
+            {
+                return [];
+            }
+
+            var names = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var column in _editing.AvailableColumns)
+            {
+                if (seen.Add(column.Name))
+                {
+                    names.Add(column.Name);
+                }
+            }
+
+            foreach (var configured in ConfiguredColumnNames(_editing))
+            {
+                if (!string.IsNullOrWhiteSpace(configured) && seen.Add(configured))
+                {
+                    names.Add(configured);
+                }
+            }
+
+            return names;
+        }
+    }
+
+    /// <summary>Every column name the endpoint's own settings already mention.</summary>
+    /// <param name="model">The endpoint being edited.</param>
+    /// <returns>The configured column names, with duplicates and blanks left in for the caller to filter.</returns>
+    private static IEnumerable<string?> ConfiguredColumnNames(EndpointEditModel model)
+    {
+        foreach (var column in model.DictColumns)
+        {
+            yield return column;
+        }
+
+        foreach (var column in model.DictSearchColumns)
+        {
+            yield return column;
+        }
+
+        foreach (var filter in model.DictFilters)
+        {
+            yield return filter.Column;
+        }
+
+        foreach (var column in model.ImportColumns)
+        {
+            yield return column.Name;
+        }
+
+        yield return model.DictValueColumn;
+        yield return model.DictLabelColumn;
+        yield return model.DictOrderColumn;
+    }
+
+    /// <summary>
+    /// Reads the target object's columns. For an import with nothing configured yet it also seeds the
+    /// target column list, leaving out the ones the database fills itself: writing to an identity or a
+    /// computed column either fails outright or defeats the mechanism that was the point of declaring it.
+    /// </summary>
+    private async Task LoadColumnsAsync()
+    {
+        if (_editing is null || string.IsNullOrWhiteSpace(_editing.ConnectionName) || string.IsNullOrWhiteSpace(_editing.ObjectName))
+        {
+            _columnsError = AdminStrings.Endpoints_DiscoverNeedsConnection;
+            return;
+        }
+
+        _loadingColumns = true;
+        _columnsError = null;
+        try
+        {
+            var columns = await Api.GetDbColumnsAsync(_editing.ConnectionName, _editing.Schema, _editing.ObjectName);
+            _editing.AvailableColumns.Clear();
+            if (columns is not null)
+            {
+                _editing.AvailableColumns.AddRange(columns);
+            }
+
+            if (_editing.AvailableColumns.Count == 0)
+            {
+                _columnsError = AdminStrings.Endpoints_ColumnsNoneFound;
+            }
+            else if (_editing.Operation == EndpointOperation.Import && _editing.ImportColumns.Count == 0)
+            {
+                foreach (var column in _editing.AvailableColumns.Where(c => !c.Generated))
+                {
+                    _editing.ImportColumns.Add(new ImportColumnEditModel
+                    {
+                        Name = column.Name,
+                        DbType = column.DbType,
+                        Size = column.Size,
+                        Precision = column.Precision,
+                        Scale = column.Scale,
+                        Required = !column.Nullable,
+                    });
+                }
+
+                foreach (var key in _editing.AvailableColumns.Where(c => c.PrimaryKey))
+                {
+                    Toggle(_editing.ImportKeyColumns, key.Name, on: true);
+                }
+            }
+            else if (_editing.Operation == EndpointOperation.Dictionary && _editing.DictColumns.Count == 0)
+            {
+                // Seed the value and label columns from the key and the first text column, which is
+                // what a lookup almost always wants, and leave the projection empty so the endpoint
+                // starts by returning everything until someone narrows it.
+                _editing.DictValueColumn ??= _editing.AvailableColumns.FirstOrDefault(c => c.PrimaryKey)?.Name;
+                _editing.DictLabelColumn ??= _editing.AvailableColumns
+                    .FirstOrDefault(c => c.DbType == WeirDbType.String && !c.PrimaryKey)?.Name;
+            }
+        }
+        catch (Exception ex)
+        {
+            _columnsError = ex.Message;
+        }
+
+        _loadingColumns = false;
+    }
+
+    /// <summary>Adds or removes a name from a selection list, keeping the list's order stable.</summary>
+    /// <param name="selection">The list being toggled.</param>
+    /// <param name="name">The name to toggle.</param>
+    /// <param name="on">Force the name on; null toggles it.</param>
+    private static void Toggle(List<string> selection, string name, bool? on = null)
+    {
+        var index = selection.FindIndex(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase));
+        var shouldBeOn = on ?? index < 0;
+
+        if (shouldBeOn && index < 0)
+        {
+            selection.Add(name);
+        }
+        else if (!shouldBeOn && index >= 0)
+        {
+            selection.RemoveAt(index);
+        }
+    }
+
+    /// <summary>Selects or clears every known column in the dictionary projection.</summary>
+    /// <param name="on">True to project every column, false to project none.</param>
+    private void SetAllProjected(bool on)
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.DictColumns.Clear();
+        if (on)
+        {
+            _editing.DictColumns.AddRange(KnownColumns);
+        }
+    }
+
+    /// <summary>Appends an empty filter row to the dictionary policy.</summary>
+    private void AddFilter() => _editing?.DictFilters.Add(new FilterEditModel());
+
+    /// <summary>Appends an empty target column to the import policy.</summary>
+    private void AddImportColumn() => _editing?.ImportColumns.Add(new ImportColumnEditModel());
 
     // The runtime allocates arrays of 85000 bytes and up on the large-object heap. A flush threshold at
     // or above it puts the JSON writer's buffer there on every call, which is the cost the flushing is
@@ -1465,6 +1922,40 @@
         public HashSet<string> Scopes { get; } = new(StringComparer.Ordinal);
         public List<ParamEditModel> Parameters { get; } = [];
 
+        // ---- Dictionary and import ----------------------------------------------------------------
+        public EndpointOperation Operation { get; set; } = EndpointOperation.Invoke;
+
+        /// <summary>Columns of the selected table or view, once they have been read from the database.</summary>
+        public List<DbColumnDescriptor> AvailableColumns { get; } = [];
+
+        public List<string> DictColumns { get; } = [];
+        public string? DictValueColumn { get; set; }
+        public string? DictLabelColumn { get; set; }
+        public List<string> DictSearchColumns { get; } = [];
+        public List<FilterEditModel> DictFilters { get; } = [];
+        public string? DictOrderColumn { get; set; }
+        public bool DictOrderDescending { get; set; }
+
+        /// <summary>
+        /// Sort terms after the first. The editor shows one, which is what a dictionary almost always
+        /// needs; keeping the rest here means an endpoint configured through the API or an import with
+        /// several terms does not lose them the first time someone opens it.
+        /// </summary>
+        public List<DictionarySort> ExtraOrderBy { get; } = [];
+
+        public bool DictAllowPaging { get; set; } = true;
+        public int DictDefaultPageSize { get; set; } = 100;
+        public int DictMaxPageSize { get; set; } = 1000;
+        public bool DictIncludeTotalCount { get; set; }
+
+        public List<ImportColumnEditModel> ImportColumns { get; } = [];
+        public ImportMode ImportMode { get; set; } = ImportMode.Insert;
+        public List<string> ImportKeyColumns { get; } = [];
+        public string? ImportRowsProperty { get; set; }
+        public int ImportBatchSize { get; set; } = 500;
+        public int ImportMaxRows { get; set; }
+        public bool ImportTransactional { get; set; } = true;
+
         public static EndpointEditModel From(EndpointDefinition endpoint)
         {
             var model = new EndpointEditModel
@@ -1492,7 +1983,39 @@
                 DeliveryMode = endpoint.Delivery.Mode?.ToString() ?? "",
                 DeliveryFlushBytes = endpoint.Delivery.FlushBytes,
                 CompressionMode = endpoint.Delivery.Compression?.ToString() ?? "",
+                Operation = endpoint.Operation,
             };
+
+            if (endpoint.Dictionary is { } dictionary)
+            {
+                model.DictColumns.AddRange(dictionary.Columns.Select(column => column.Name));
+                model.DictValueColumn = dictionary.ValueColumn;
+                model.DictLabelColumn = dictionary.LabelColumn;
+                model.DictSearchColumns.AddRange(dictionary.SearchColumns);
+                model.DictFilters.AddRange(dictionary.Filters.Select(FilterEditModel.From));
+                model.DictAllowPaging = dictionary.AllowPaging;
+                model.DictDefaultPageSize = dictionary.DefaultPageSize;
+                model.DictMaxPageSize = dictionary.MaxPageSize;
+                model.DictIncludeTotalCount = dictionary.IncludeTotalCount;
+
+                if (dictionary.OrderBy.Count > 0)
+                {
+                    model.DictOrderColumn = dictionary.OrderBy[0].Column;
+                    model.DictOrderDescending = dictionary.OrderBy[0].Descending;
+                    model.ExtraOrderBy.AddRange(dictionary.OrderBy.Skip(1));
+                }
+            }
+
+            if (endpoint.Import is { } import)
+            {
+                model.ImportColumns.AddRange(import.Columns.Select(ImportColumnEditModel.From));
+                model.ImportMode = import.Mode;
+                model.ImportKeyColumns.AddRange(import.KeyColumns);
+                model.ImportRowsProperty = import.RowsProperty;
+                model.ImportBatchSize = import.BatchSize;
+                model.ImportMaxRows = import.MaxRows;
+                model.ImportTransactional = import.Transactional;
+            }
 
             foreach (var scope in endpoint.RequiredScopes)
             {
@@ -1552,6 +2075,126 @@
             },
             RequiredScopes = Scopes.ToList(),
             Parameters = Parameters.Select(parameter => parameter.ToParameter()).ToList(),
+            Operation = Operation,
+            // Only the policy the operation actually uses is sent. Keeping the other one would persist
+            // settings the endpoint ignores, which then reappear as a surprise if the operation changes.
+            Dictionary = Operation == EndpointOperation.Dictionary ? ToDictionaryPolicy() : null,
+            Import = Operation == EndpointOperation.Import ? ToImportPolicy() : null,
+        };
+
+        /// <summary>Builds the dictionary policy from the editor's fields.</summary>
+        private DictionaryPolicy ToDictionaryPolicy()
+        {
+            var orderBy = new List<DictionarySort>();
+            if (!string.IsNullOrWhiteSpace(DictOrderColumn))
+            {
+                orderBy.Add(new DictionarySort { Column = DictOrderColumn.Trim(), Descending = DictOrderDescending });
+            }
+
+            orderBy.AddRange(ExtraOrderBy);
+
+            return new DictionaryPolicy
+            {
+                Columns = DictColumns.Select(name => new DictionaryColumn { Name = name }).ToList(),
+                ValueColumn = Blank(DictValueColumn),
+                LabelColumn = Blank(DictLabelColumn),
+                SearchColumns = DictSearchColumns.ToList(),
+                Filters = DictFilters
+                    .Where(filter => !string.IsNullOrWhiteSpace(filter.Column))
+                    .Select(filter => filter.ToFilter())
+                    .ToList(),
+                OrderBy = orderBy,
+                AllowPaging = DictAllowPaging,
+                DefaultPageSize = DictDefaultPageSize,
+                MaxPageSize = DictMaxPageSize,
+                IncludeTotalCount = DictIncludeTotalCount,
+            };
+        }
+
+        /// <summary>Builds the import policy from the editor's fields.</summary>
+        private ImportPolicy ToImportPolicy() => new()
+        {
+            Columns = ImportColumns
+                .Where(column => !string.IsNullOrWhiteSpace(column.Name))
+                .Select(column => column.ToColumn())
+                .ToList(),
+            Mode = ImportMode,
+            // A key naming a column the payload no longer carries matches nothing, so the upsert would
+            // quietly behave as an insert. Drop the stale ones rather than save them.
+            KeyColumns = ImportMode == ImportMode.Upsert
+                ? ImportKeyColumns
+                    .Where(key => ImportColumns.Any(column => string.Equals(column.Name, key, StringComparison.OrdinalIgnoreCase)))
+                    .ToList()
+                : [],
+            RowsProperty = Blank(ImportRowsProperty),
+            BatchSize = ImportBatchSize,
+            MaxRows = ImportMaxRows,
+            Transactional = ImportTransactional,
+        };
+
+        /// <summary>Null for a value the user left empty, so it round-trips as "not set".</summary>
+        private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>One editable dictionary filter.</summary>
+    private sealed class FilterEditModel
+    {
+        public string Column { get; set; } = string.Empty;
+        public DictionaryOperator Operator { get; set; } = DictionaryOperator.Equals;
+        public string? ParameterName { get; set; }
+        public WeirDbType DbType { get; set; } = WeirDbType.String;
+        public bool Required { get; set; }
+
+        public static FilterEditModel From(DictionaryFilter filter) => new()
+        {
+            Column = filter.Column,
+            Operator = filter.Operator,
+            ParameterName = filter.ParameterName,
+            DbType = filter.DbType,
+            Required = filter.Required,
+        };
+
+        public DictionaryFilter ToFilter() => new()
+        {
+            Column = Column.Trim(),
+            Operator = Operator,
+            ParameterName = string.IsNullOrWhiteSpace(ParameterName) ? null : ParameterName.Trim(),
+            DbType = DbType,
+            Required = Required,
+        };
+    }
+
+    /// <summary>One editable import target column.</summary>
+    private sealed class ImportColumnEditModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? SourceProperty { get; set; }
+        public WeirDbType DbType { get; set; } = WeirDbType.String;
+        public bool Required { get; set; }
+        public int? Size { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
+
+        public static ImportColumnEditModel From(ImportColumn column) => new()
+        {
+            Name = column.Name,
+            SourceProperty = column.SourceProperty,
+            DbType = column.DbType,
+            Required = column.Required,
+            Size = column.Size,
+            Precision = column.Precision,
+            Scale = column.Scale,
+        };
+
+        public ImportColumn ToColumn() => new()
+        {
+            Name = Name.Trim(),
+            SourceProperty = string.IsNullOrWhiteSpace(SourceProperty) ? null : SourceProperty.Trim(),
+            DbType = DbType,
+            Required = Required,
+            Size = Size,
+            Precision = Precision,
+            Scale = Scale,
         };
     }
 

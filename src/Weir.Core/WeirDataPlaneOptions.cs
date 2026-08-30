@@ -28,6 +28,14 @@ public sealed class WeirDataPlaneOptions
     public int MaxTvpRows { get; set; } = 100_000;
 
     /// <summary>
+    /// Maximum number of rows accepted by a single import request. An endpoint may set a lower limit
+    /// of its own, and the smaller of the two applies, so this is the ceiling nothing may raise. Zero
+    /// means unlimited, which is worth thinking about before setting: the rows are held in memory to be
+    /// coerced before any of them is written.
+    /// </summary>
+    public int MaxImportRows { get; set; } = 50_000;
+
+    /// <summary>
     /// Maximum data-plane request body size in bytes, enforced by the host (Kestrel). A larger body is
     /// rejected with HTTP 413. Zero or less means the server default applies. Applied at startup, so
     /// changing it requires a restart.

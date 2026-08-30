@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -153,6 +153,183 @@
   </data>
   <data name="Common_FlushBytesTinyWarning" xml:space="preserve">
     <value>Below 1024 bytes most rows cost a write of their own, which trades away the batching the threshold is for. The default 32768 sits above a typical row and below the large-object threshold.</value>
+  </data>
+  <data name="Endpoints_ColumnsLoadFailed" xml:space="preserve">
+    <value>Could not read the columns.</value>
+  </data>
+  <data name="Endpoints_ColumnsNoneFound" xml:space="preserve">
+    <value>The object has no columns, or the connection cannot read them.</value>
+  </data>
+  <data name="Endpoints_DictionaryAddFilter" xml:space="preserve">
+    <value>Add filter</value>
+  </data>
+  <data name="Endpoints_DictionaryAllowPaging" xml:space="preserve">
+    <value>Allow paging</value>
+  </data>
+  <data name="Endpoints_DictionaryColumns" xml:space="preserve">
+    <value>Returned columns</value>
+  </data>
+  <data name="Endpoints_DictionaryColumnsHelp" xml:space="preserve">
+    <value>Select nothing to return every column. That is convenient now and widens every response the next time someone adds a column.</value>
+  </data>
+  <data name="Endpoints_DictionaryDefaultPageSize" xml:space="preserve">
+    <value>Default page size</value>
+  </data>
+  <data name="Endpoints_DictionaryDescending" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="Endpoints_DictionaryFilters" xml:space="preserve">
+    <value>Filters</value>
+  </data>
+  <data name="Endpoints_DictionaryHelp" xml:space="preserve">
+    <value>Reserved query keys: search, page, pageSize, sort and sortDir. Everything else is matched against the filters below.</value>
+  </data>
+  <data name="Endpoints_DictionaryLabelColumn" xml:space="preserve">
+    <value>Label column</value>
+  </data>
+  <data name="Endpoints_DictionaryMaxPageSize" xml:space="preserve">
+    <value>Maximum page size</value>
+  </data>
+  <data name="Endpoints_DictionaryNoFilters" xml:space="preserve">
+    <value>No filters. Callers can still search and page.</value>
+  </data>
+  <data name="Endpoints_DictionaryOrderBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="Endpoints_DictionaryOrderHelp" xml:space="preserve">
+    <value>Paging needs a stable order. With nothing chosen here the label or value column is used.</value>
+  </data>
+  <data name="Endpoints_DictionarySearchColumns" xml:space="preserve">
+    <value>Searchable columns</value>
+  </data>
+  <data name="Endpoints_DictionarySearchHelp" xml:space="preserve">
+    <value>The search query matches any of these. With none selected, a request carrying search is refused rather than answered with everything.</value>
+  </data>
+  <data name="Endpoints_DictionarySection" xml:space="preserve">
+    <value>Dictionary</value>
+  </data>
+  <data name="Endpoints_DictionaryTotalCount" xml:space="preserve">
+    <value>Report the total count</value>
+  </data>
+  <data name="Endpoints_DictionaryTotalCountHelp" xml:space="preserve">
+    <value>Costs a second query over the same filters, so turn it on only where the caller shows a total.</value>
+  </data>
+  <data name="Endpoints_DictionaryValueColumn" xml:space="preserve">
+    <value>Value column</value>
+  </data>
+  <data name="Endpoints_FilterColumn" xml:space="preserve">
+    <value>Column</value>
+  </data>
+  <data name="Endpoints_FilterOperator" xml:space="preserve">
+    <value>Operator</value>
+  </data>
+  <data name="Endpoints_FilterParameter" xml:space="preserve">
+    <value>Request key</value>
+  </data>
+  <data name="Endpoints_ImportBatchSize" xml:space="preserve">
+    <value>Rows per statement</value>
+  </data>
+  <data name="Endpoints_ImportColumns" xml:space="preserve">
+    <value>Target columns</value>
+  </data>
+  <data name="Endpoints_ImportGeneratedHint" xml:space="preserve">
+    <value>Columns the database fills itself (identity, computed, defaulted) are left unselected.</value>
+  </data>
+  <data name="Endpoints_ImportHelp" xml:space="preserve">
+    <value>The request body carries the rows. Nothing else about it reaches the database: the table, the columns and the property each column reads are all fixed here.</value>
+  </data>
+  <data name="Endpoints_ImportKeyColumns" xml:space="preserve">
+    <value>Key columns</value>
+  </data>
+  <data name="Endpoints_ImportKeyHelp" xml:space="preserve">
+    <value>The columns an existing row is matched on. Required for insert-or-update, ignored by the other modes.</value>
+  </data>
+  <data name="Endpoints_ImportMaxRows" xml:space="preserve">
+    <value>Rows per request</value>
+  </data>
+  <data name="Endpoints_ImportMaxRowsHelp" xml:space="preserve">
+    <value>Zero uses the system limit. The smaller of the two always applies.</value>
+  </data>
+  <data name="Endpoints_ImportMode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Endpoints_ImportModeInsert" xml:space="preserve">
+    <value>Insert every row</value>
+  </data>
+  <data name="Endpoints_ImportModeReplace" xml:space="preserve">
+    <value>Replace the table contents</value>
+  </data>
+  <data name="Endpoints_ImportModeUpsert" xml:space="preserve">
+    <value>Insert new, update existing</value>
+  </data>
+  <data name="Endpoints_ImportNoColumns" xml:space="preserve">
+    <value>No target columns yet. Load them from the database, then clear the ones the caller should not write.</value>
+  </data>
+  <data name="Endpoints_ImportRowsHelp" xml:space="preserve">
+    <value>The body property holding the array. A body that is itself an array is accepted whatever this says.</value>
+  </data>
+  <data name="Endpoints_ImportRowsProperty" xml:space="preserve">
+    <value>Rows property</value>
+  </data>
+  <data name="Endpoints_ImportSection" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Endpoints_ImportSourceProperty" xml:space="preserve">
+    <value>from property</value>
+  </data>
+  <data name="Endpoints_ImportTransactional" xml:space="preserve">
+    <value>One transaction per request</value>
+  </data>
+  <data name="Endpoints_ImportTransactionalHelp" xml:space="preserve">
+    <value>A failure part-way through leaves the table as it was. Replacing the contents is always transactional.</value>
+  </data>
+  <data name="Endpoints_LoadColumns" xml:space="preserve">
+    <value>Load columns from the database</value>
+  </data>
+  <data name="Endpoints_ObjectTypeTable" xml:space="preserve">
+    <value>Table</value>
+  </data>
+  <data name="Endpoints_ObjectTypeView" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Endpoints_OperationDictionary" xml:space="preserve">
+    <value>Dictionary from a table or view</value>
+  </data>
+  <data name="Endpoints_OperationHelp" xml:space="preserve">
+    <value>A dictionary or an import names a table instead of something to call, and Weir composes the statement from the settings below. Every value a caller sends is bound as a parameter; only the columns named here are ever read or written.</value>
+  </data>
+  <data name="Endpoints_OperationImport" xml:space="preserve">
+    <value>Import into a table</value>
+  </data>
+  <data name="Endpoints_OperationInvoke" xml:space="preserve">
+    <value>Call a procedure or function</value>
+  </data>
+  <data name="Endpoints_OperationLabel" xml:space="preserve">
+    <value>Operation</value>
+  </data>
+  <data name="Endpoints_ParamDirectionLabel" xml:space="preserve">
+    <value>Direction</value>
+  </data>
+  <data name="Endpoints_ParamNameLabel" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Endpoints_ParamRequiredLabel" xml:space="preserve">
+    <value>Required</value>
+  </data>
+  <data name="Endpoints_ParamSizeLabel" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Endpoints_ParamSourceLabel" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="Endpoints_ParamTypeLabel" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Endpoints_SelectAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Endpoints_SelectNone" xml:space="preserve">
+    <value>None</value>
   </data>
   <data name="Nav_Overview" xml:space="preserve">
     <value>overview</value>
@@ -1183,6 +1360,12 @@
   </data>
   <data name="Scopes_DeleteConfirmBody" xml:space="preserve">
     <value>Delete scope "{0}"?{1}</value>
+  </data>
+  <data name="Settings_MaxImportRowsHelp" xml:space="preserve">
+    <value>The most rows one import request may carry. An endpoint can set a lower limit of its own; this is the ceiling nothing may raise.</value>
+  </data>
+  <data name="Settings_MaxImportRowsLabel" xml:space="preserve">
+    <value>Max import rows</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>settings</value>

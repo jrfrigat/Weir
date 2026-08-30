@@ -29,6 +29,7 @@
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxImportRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxImportRows" HelperText="@AdminStrings.Settings_MaxImportRowsHelp" Style="max-width:12rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
             </FlareStack>
@@ -162,6 +163,7 @@
     private int _maxRows;
     private int _requestTimeoutSeconds;
     private int _maxTvpRows;
+    private int _maxImportRows;
     private int _defaultRateLimit;
     private int _apiKeyFailureThreshold;
     private int _auditRetentionDays;
@@ -198,6 +200,7 @@
             _maxRows = view.Settings.MaxRows;
             _requestTimeoutSeconds = view.Settings.RequestTimeoutSeconds;
             _maxTvpRows = view.Settings.MaxTvpRows;
+            _maxImportRows = view.Settings.MaxImportRows;
             _defaultRateLimit = view.Settings.DefaultApiKeyRateLimitPerMinute;
             _apiKeyFailureThreshold = view.Settings.ApiKeyFailureThreshold;
             _auditRetentionDays = view.Settings.AuditRetentionDays;
@@ -257,7 +260,7 @@
     /// <summary>Validates and persists the edited settings, surfacing success or the failure reason.</summary>
     private async Task SaveAsync()
     {
-        if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
+        if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _maxImportRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
             _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
             _apiKeyFailureThreshold < 0 || _slowThresholdPercent < 0 || _requestLogRetentionDays < 0 || _responseCacheMaxBytes < 0)
         {
@@ -275,6 +278,7 @@
                 MaxRows = _maxRows,
                 RequestTimeoutSeconds = _requestTimeoutSeconds,
                 MaxTvpRows = _maxTvpRows,
+                MaxImportRows = _maxImportRows,
                 DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
                 ApiKeyFailureThreshold = _apiKeyFailureThreshold,
                 AuditRetentionDays = _auditRetentionDays,

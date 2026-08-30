@@ -1546,6 +1546,22 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not read the columns..
+        /// </summary>
+        public static string Endpoints_ColumnsLoadFailed {
+            get {
+                return ResourceManager.GetString("Endpoints_ColumnsLoadFailed", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The object has no columns, or the connection cannot read them..
+        /// </summary>
+        public static string Endpoints_ColumnsNoneFound {
+            get {
+                return ResourceManager.GetString("Endpoints_ColumnsNoneFound", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Auto (by result shape).
         /// </summary>
         public static string Endpoints_CompressionModeAuto {
@@ -1708,6 +1724,158 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Add filter.
+        /// </summary>
+        public static string Endpoints_DictionaryAddFilter {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryAddFilter", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Allow paging.
+        /// </summary>
+        public static string Endpoints_DictionaryAllowPaging {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryAllowPaging", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Returned columns.
+        /// </summary>
+        public static string Endpoints_DictionaryColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryColumns", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Select nothing to return every column. That is convenient now and widens every response the next time someone adds a column..
+        /// </summary>
+        public static string Endpoints_DictionaryColumnsHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryColumnsHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Default page size.
+        /// </summary>
+        public static string Endpoints_DictionaryDefaultPageSize {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryDefaultPageSize", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Descending.
+        /// </summary>
+        public static string Endpoints_DictionaryDescending {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryDescending", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Filters.
+        /// </summary>
+        public static string Endpoints_DictionaryFilters {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryFilters", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Reserved query keys: search, page, pageSize, sort and sortDir. Everything else is matched against the filters below..
+        /// </summary>
+        public static string Endpoints_DictionaryHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Label column.
+        /// </summary>
+        public static string Endpoints_DictionaryLabelColumn {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryLabelColumn", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Maximum page size.
+        /// </summary>
+        public static string Endpoints_DictionaryMaxPageSize {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryMaxPageSize", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на No filters. Callers can still search and page..
+        /// </summary>
+        public static string Endpoints_DictionaryNoFilters {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryNoFilters", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Sort by.
+        /// </summary>
+        public static string Endpoints_DictionaryOrderBy {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryOrderBy", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Paging needs a stable order. With nothing chosen here the label or value column is used..
+        /// </summary>
+        public static string Endpoints_DictionaryOrderHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryOrderHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Searchable columns.
+        /// </summary>
+        public static string Endpoints_DictionarySearchColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionarySearchColumns", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The search query matches any of these. With none selected, a request carrying search is refused rather than answered with everything..
+        /// </summary>
+        public static string Endpoints_DictionarySearchHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionarySearchHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Dictionary.
+        /// </summary>
+        public static string Endpoints_DictionarySection {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionarySection", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Report the total count.
+        /// </summary>
+        public static string Endpoints_DictionaryTotalCount {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryTotalCount", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Costs a second query over the same filters, so turn it on only where the caller shows a total..
+        /// </summary>
+        public static string Endpoints_DictionaryTotalCountHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryTotalCountHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Value column.
+        /// </summary>
+        public static string Endpoints_DictionaryValueColumn {
+            get {
+                return ResourceManager.GetString("Endpoints_DictionaryValueColumn", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Set the connection and object name first..
         /// </summary>
         public static string Endpoints_DiscoverNeedsConnection {
@@ -1816,6 +1984,14 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Column.
+        /// </summary>
+        public static string Endpoints_FilterColumn {
+            get {
+                return ResourceManager.GetString("Endpoints_FilterColumn", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Reachable by key.
         /// </summary>
         public static string Endpoints_FilterKeyLabel {
@@ -1824,6 +2000,22 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Operator.
+        /// </summary>
+        public static string Endpoints_FilterOperator {
+            get {
+                return ResourceManager.GetString("Endpoints_FilterOperator", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Request key.
+        /// </summary>
+        public static string Endpoints_FilterParameter {
+            get {
+                return ResourceManager.GetString("Endpoints_FilterParameter", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Required scope.
         /// </summary>
@@ -1852,6 +2044,14 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Rows per statement.
+        /// </summary>
+        public static string Endpoints_ImportBatchSize {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportBatchSize", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Import.
         /// </summary>
         public static string Endpoints_ImportButton {
@@ -1860,6 +2060,150 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Target columns.
+        /// </summary>
+        public static string Endpoints_ImportColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportColumns", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Columns the database fills itself (identity, computed, defaulted) are left unselected..
+        /// </summary>
+        public static string Endpoints_ImportGeneratedHint {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportGeneratedHint", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The request body carries the rows. Nothing else about it reaches the database: the table, the columns and the property each column reads are all fixed here..
+        /// </summary>
+        public static string Endpoints_ImportHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Key columns.
+        /// </summary>
+        public static string Endpoints_ImportKeyColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportKeyColumns", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The columns an existing row is matched on. Required for insert-or-update, ignored by the other modes..
+        /// </summary>
+        public static string Endpoints_ImportKeyHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportKeyHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Rows per request.
+        /// </summary>
+        public static string Endpoints_ImportMaxRows {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportMaxRows", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Zero uses the system limit. The smaller of the two always applies..
+        /// </summary>
+        public static string Endpoints_ImportMaxRowsHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportMaxRowsHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Mode.
+        /// </summary>
+        public static string Endpoints_ImportMode {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportMode", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Insert every row.
+        /// </summary>
+        public static string Endpoints_ImportModeInsert {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportModeInsert", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Replace the table contents.
+        /// </summary>
+        public static string Endpoints_ImportModeReplace {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportModeReplace", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Insert new, update existing.
+        /// </summary>
+        public static string Endpoints_ImportModeUpsert {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportModeUpsert", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на No target columns yet. Load them from the database, then clear the ones the caller should not write..
+        /// </summary>
+        public static string Endpoints_ImportNoColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportNoColumns", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The body property holding the array. A body that is itself an array is accepted whatever this says..
+        /// </summary>
+        public static string Endpoints_ImportRowsHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportRowsHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Rows property.
+        /// </summary>
+        public static string Endpoints_ImportRowsProperty {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportRowsProperty", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Import.
+        /// </summary>
+        public static string Endpoints_ImportSection {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportSection", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на from property.
+        /// </summary>
+        public static string Endpoints_ImportSourceProperty {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportSourceProperty", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на One transaction per request.
+        /// </summary>
+        public static string Endpoints_ImportTransactional {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportTransactional", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на A failure part-way through leaves the table as it was. Replacing the contents is always transactional..
+        /// </summary>
+        public static string Endpoints_ImportTransactionalHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_ImportTransactionalHelp", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Imported {0} endpoint(s)..
         /// </summary>
@@ -1887,6 +2231,14 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Load columns from the database.
+        /// </summary>
+        public static string Endpoints_LoadColumns {
+            get {
+                return ResourceManager.GetString("Endpoints_LoadColumns", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Parameter and result capture can hold PII; enable only where needed. A call is flagged slow when it exceeds this endpoint&apos;s rolling average by the threshold (blank uses the global setting)..
         /// </summary>
@@ -2023,6 +2375,22 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Table.
+        /// </summary>
+        public static string Endpoints_ObjectTypeTable {
+            get {
+                return ResourceManager.GetString("Endpoints_ObjectTypeTable", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на View.
+        /// </summary>
+        public static string Endpoints_ObjectTypeView {
+            get {
+                return ResourceManager.GetString("Endpoints_ObjectTypeView", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Objects not browsable on this connection ({0})..
         /// </summary>
         public static string Endpoints_ObjectsNotBrowsable {
@@ -2077,6 +2445,46 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Dictionary from a table or view.
+        /// </summary>
+        public static string Endpoints_OperationDictionary {
+            get {
+                return ResourceManager.GetString("Endpoints_OperationDictionary", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на A dictionary or an import names a table instead of something to call, and Weir composes the statement from the settings below. Every value a caller sends is bound as a parameter; only the columns named here are ever read or written..
+        /// </summary>
+        public static string Endpoints_OperationHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_OperationHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Import into a table.
+        /// </summary>
+        public static string Endpoints_OperationImport {
+            get {
+                return ResourceManager.GetString("Endpoints_OperationImport", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Call a procedure or function.
+        /// </summary>
+        public static string Endpoints_OperationInvoke {
+            get {
+                return ResourceManager.GetString("Endpoints_OperationInvoke", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Operation.
+        /// </summary>
+        public static string Endpoints_OperationLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_OperationLabel", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Ищет локализованную строку, похожую на HTTP routes mapped to stored procedures and functions.
         /// </summary>
         public static string Endpoints_PageDescription {
@@ -2094,6 +2502,54 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Direction.
+        /// </summary>
+        public static string Endpoints_ParamDirectionLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamDirectionLabel", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Name.
+        /// </summary>
+        public static string Endpoints_ParamNameLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamNameLabel", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required.
+        /// </summary>
+        public static string Endpoints_ParamRequiredLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamRequiredLabel", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Size.
+        /// </summary>
+        public static string Endpoints_ParamSizeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamSizeLabel", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Source.
+        /// </summary>
+        public static string Endpoints_ParamSourceLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamSourceLabel", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Type.
+        /// </summary>
+        public static string Endpoints_ParamTypeLabel {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamTypeLabel", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Parameters.
         /// </summary>
@@ -2274,6 +2730,22 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на All.
+        /// </summary>
+        public static string Endpoints_SelectAll {
+            get {
+                return ResourceManager.GetString("Endpoints_SelectAll", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на None.
+        /// </summary>
+        public static string Endpoints_SelectNone {
+            get {
+                return ResourceManager.GetString("Endpoints_SelectNone", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Select an object to inspect its parameters, then create an endpoint pre-filled from it..
         /// </summary>
@@ -3715,6 +4187,22 @@ namespace Weir.Admin.Resources {
             }
         }
         
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The most rows one import request may carry. An endpoint can set a lower limit of its own; this is the ceiling nothing may raise..
+        /// </summary>
+        public static string Settings_MaxImportRowsHelp {
+            get {
+                return ResourceManager.GetString("Settings_MaxImportRowsHelp", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Max import rows.
+        /// </summary>
+        public static string Settings_MaxImportRowsLabel {
+            get {
+                return ResourceManager.GetString("Settings_MaxImportRowsLabel", resourceCulture);
+            }
+        }
         /// <summary>
         ///   Ищет локализованную строку, похожую на Max request body (bytes).
         /// </summary>
