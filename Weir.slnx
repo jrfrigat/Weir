@@ -3,6 +3,7 @@
     <Project Path="src/Weir.Abstractions/Weir.Abstractions.csproj" />
     <Project Path="src/Weir.Admin/Weir.Admin.csproj" />
     <Project Path="src/Weir.Contracts/Weir.Contracts.csproj" />
+    <Project Path="src/client/Weir.Client/Weir.Client.csproj" />
     <Project Path="src/Weir.ControlPlane.PostgreSql/Weir.ControlPlane.PostgreSql.csproj" />
     <Project Path="src/Weir.ControlPlane.SqlServer/Weir.ControlPlane.SqlServer.csproj" />
     <Project Path="src/Weir.ControlPlane.Sqlite/Weir.ControlPlane.Sqlite.csproj" />

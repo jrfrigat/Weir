@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>FrigaT.Weir.Client</PackageId>
+    <Description>Typed .NET client for a Weir gateway - calls data-plane endpoints, reads the response envelope, and turns problem+json into exceptions carrying the SQL error text. Includes helpers for dictionary and import endpoints and an AddWeirClient() registration.</Description>
+    <PackageTags>weir;http-client;api-client;stored-procedure;sql-server;postgresql;json;dotnet</PackageTags>
+  </PropertyGroup>
+
+  <!-- Runs anywhere an HttpClient does, Blazor WebAssembly included. -->
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+
+</Project>
