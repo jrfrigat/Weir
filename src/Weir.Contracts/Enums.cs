@@ -49,6 +49,19 @@ public enum DbObjectType
 
     /// <summary>A scalar function (produces a single value).</summary>
     ScalarFunction,
+
+    /// <summary>
+    /// A base table. Not callable: an endpoint naming one composes its own statement, so this is only
+    /// valid together with <see cref="EndpointOperation.Dictionary"/> or
+    /// <see cref="EndpointOperation.Import"/>.
+    /// </summary>
+    Table,
+
+    /// <summary>
+    /// A view. Readable but not writable through Weir, so this pairs with
+    /// <see cref="EndpointOperation.Dictionary"/> only.
+    /// </summary>
+    View,
 }
 
 /// <summary>The shape of the primary result produced by the database object.</summary>

@@ -506,6 +506,11 @@ public static class AdminApi
 
         group.MapPost("/endpoints", async (EndpointDefinition endpoint, IControlPlaneStore store, IEndpointCatalog catalog, IResponseCache cache, ClaimsPrincipal user, TimeProvider clock) =>
         {
+            if (EndpointValidation.Validate(endpoint) is { Count: > 0 } problems)
+            {
+                return Results.ValidationProblem(problems, title: "The endpoint definition is not usable.");
+            }
+
             EndpointDefinition saved;
             try
             {
@@ -524,6 +529,11 @@ public static class AdminApi
 
         group.MapPut("/endpoints/{id:guid}", async (Guid id, EndpointDefinition endpoint, IControlPlaneStore store, IEndpointCatalog catalog, IResponseCache cache, ClaimsPrincipal user, TimeProvider clock) =>
         {
+            if (EndpointValidation.Validate(endpoint) is { Count: > 0 } problems)
+            {
+                return Results.ValidationProblem(problems, title: "The endpoint definition is not usable.");
+            }
+
             EndpointDefinition saved;
             try
             {
@@ -980,6 +990,49 @@ public static class AdminApi
             try
             {
                 return Results.Ok(await connector.DescribeParametersAsync(connection, schema, obj));
+            }
+            catch (Exception ex)
+            {
+                Log.IntrospectParametersFailed(loggerFactory.CreateLogger("Weir.Admin"), ex, schema, obj, connection);
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: "Introspection failed");
+            }
+        }).RequireAuthorization("AdminOnly");
+
+        // Tables and views, for building a dictionary or import endpoint. A separate listing from
+        // /objects because a connector may support one and not the other, and because the endpoint
+        // editor asks for whichever kind the operation being configured can actually use.
+        group.MapGet("/introspect/{connection}/tables", async (
+            string connection, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors,
+            ILoggerFactory loggerFactory) =>
+        {
+            if (!TryResolveConnector(registry, connectors, connection, out var connector))
+            {
+                return Results.NotFound();
+            }
+
+            try
+            {
+                return Results.Ok(await connector.ListTablesAsync(connection));
+            }
+            catch (Exception ex)
+            {
+                Log.IntrospectObjectsFailed(loggerFactory.CreateLogger("Weir.Admin"), ex, connection);
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Introspection failed", detail: "Introspection failed");
+            }
+        }).RequireAuthorization("AdminOnly");
+
+        group.MapGet("/introspect/{connection}/columns", async (
+            string connection, string schema, string obj, IDataConnectionRegistry registry,
+            IEnumerable<IDbConnector> connectors, ILoggerFactory loggerFactory) =>
+        {
+            if (!TryResolveConnector(registry, connectors, connection, out var connector))
+            {
+                return Results.NotFound();
+            }
+
+            try
+            {
+                return Results.Ok(await connector.DescribeColumnsAsync(connection, schema, obj));
             }
             catch (Exception ex)
             {

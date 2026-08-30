@@ -221,5 +221,17 @@ internal static class SqlServerSchema
             PurgedAt nvarchar(33)  NOT NULL
         );
         """,
+
+        // v14 - dictionary and import endpoints. Operation 0 is Invoke, so every endpoint that
+        // predates this column keeps calling its procedure exactly as before; the two policy columns
+        // are null for it, because there is no table read or write to describe.
+        """
+        IF COL_LENGTH(N'Endpoints', N'Operation') IS NULL
+            ALTER TABLE Endpoints ADD Operation int NOT NULL CONSTRAINT DF_Endpoints_Operation DEFAULT 0;
+        IF COL_LENGTH(N'Endpoints', N'DictionaryJson') IS NULL
+            ALTER TABLE Endpoints ADD DictionaryJson nvarchar(max) NULL;
+        IF COL_LENGTH(N'Endpoints', N'ImportJson') IS NULL
+            ALTER TABLE Endpoints ADD ImportJson nvarchar(max) NULL;
+        """,
     ];
 }

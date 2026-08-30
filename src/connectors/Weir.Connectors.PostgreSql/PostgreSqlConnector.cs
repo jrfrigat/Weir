@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Data;
+using System.Data.Common;
+using System.Globalization;
 using Npgsql;
 using Weir.Abstractions;
 using Weir.Contracts;
@@ -88,6 +90,13 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(request);
         var descriptor = _registry.Resolve(request.ConnectionName);
 
+        // An import finishes its work before it returns: there is no live reader to hand back, so it
+        // owns its connection for the duration and returns it to the pool here.
+        if (request.Operation == EndpointOperation.Import)
+        {
+            return await ExecuteImportAsync(request, descriptor, cancellationToken);
+        }
+
         var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
         var messages = new List<SqlMessage>();
         NoticeEventHandler handler = (_, e) =>
@@ -104,10 +113,16 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         try
         {
             await OpenWithRetryAsync(connection, cancellationToken);
+
+            // The unpaged count is a second statement over the same filters, so it runs before the
+            // reader takes the connection. Opt-in per endpoint, which is why the round trip is not
+            // folded into the read: a picker showing one page does not pay for a count it never shows.
+            var extraOutputs = await CountIfRequestedAsync(connection, request, descriptor, cancellationToken);
+
             command = connection.CreateCommand();
             ConfigureCommand(command, request, descriptor);
             var reader = await command.ExecuteReaderAsync(cancellationToken);
-            return new PostgreSqlExecution(connection, command, reader, messages, handler);
+            return new PostgreSqlExecution(connection, command, reader, messages, handler, extraOutputs);
         }
         catch
         {
@@ -241,8 +256,21 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             command.CommandTimeout = t;
         }
 
-        var qualified = $"{Quote(request.Schema)}.{Quote(request.ObjectName)}";
         command.CommandType = CommandType.Text;
+
+        // A dictionary endpoint names a table or a view, which cannot be called: the statement is
+        // composed from the endpoint's metadata and the caller's filters instead.
+        if (request.Operation == EndpointOperation.Dictionary)
+        {
+            var query = request.Query
+                ?? throw new InvalidOperationException("A dictionary request must carry a resolved query.");
+            var statement = TableSql.Select(PostgreSqlDialect.Instance, request.Schema, request.ObjectName, query);
+            command.CommandText = statement.Text;
+            BindComposed(command, statement.Parameters);
+            return;
+        }
+
+        var qualified = $"{Quote(request.Schema)}.{Quote(request.ObjectName)}";
 
         switch (request.ObjectType)
         {
@@ -276,7 +304,199 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             .Where(p => !inputOnly || p.Direction is WeirDirection.Input or WeirDirection.InputOutput)
             .Select(p => "@" + Strip(p.Name)));
 
-    /// <summary>Adds the bound parameters to the command, coercing values Npgsql cannot bind directly.</summary>
+    /// <summary>
+    /// Runs an import to completion on its own pooled connection and returns the finished execution.
+    /// Nothing is streamed, so the connection goes back to the pool here rather than being handed on.
+    /// </summary>
+    /// <param name="request">The execution request, carrying the coerced rows.</param>
+    /// <param name="descriptor">The resolved connection descriptor.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The execution carrying the row count and the summary.</returns>
+    private async Task<IDbExecution> ExecuteImportAsync(
+        DbExecutionRequest request, DataConnectionDescriptor descriptor, CancellationToken cancellationToken)
+    {
+        var payload = request.Rows
+            ?? throw new InvalidOperationException("An import request must carry its rows.");
+
+        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await OpenWithRetryAsync(connection, cancellationToken);
+
+        return await TableImport.RunAsync(
+            connection,
+            PostgreSqlDialect.Instance,
+            request.Schema,
+            request.ObjectName,
+            payload,
+            request.CommandTimeoutSeconds ?? descriptor.DefaultCommandTimeoutSeconds,
+            static (command, parameters) => BindComposed(command, parameters),
+            messages: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs the unpaged COUNT for a dictionary read that asked for one, and returns it as an output
+    /// value. Returns null when the request is not a dictionary read or did not ask.
+    /// </summary>
+    /// <param name="connection">The open connection.</param>
+    /// <param name="request">The execution request.</param>
+    /// <param name="descriptor">The resolved connection descriptor (for the default timeout).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The outputs to merge, or null.</returns>
+    private static async Task<IReadOnlyDictionary<string, object?>?> CountIfRequestedAsync(
+        NpgsqlConnection connection,
+        DbExecutionRequest request,
+        DataConnectionDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        if (request.Operation != EndpointOperation.Dictionary || request.Query is not { IncludeTotalCount: true } query)
+        {
+            return null;
+        }
+
+        var statement = TableSql.Count(PostgreSqlDialect.Instance, request.Schema, request.ObjectName, query);
+        await using var command = connection.CreateCommand();
+        command.CommandType = CommandType.Text;
+        command.CommandText = statement.Text;
+        if ((request.CommandTimeoutSeconds ?? descriptor.DefaultCommandTimeoutSeconds) is { } timeout)
+        {
+            command.CommandTimeout = timeout;
+        }
+
+        BindComposed(command, statement.Parameters);
+        var total = await command.ExecuteScalarAsync(cancellationToken);
+        return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["totalCount"] = total is DBNull or null ? 0 : Convert.ToInt32(total, CultureInfo.InvariantCulture),
+        };
+    }
+
+    /// <summary>
+    /// Binds the parameters of a statement Weir composed. Simpler than <see cref="AddParameters"/>:
+    /// composed statements have no output or INOUT parameters, only input values.
+    /// </summary>
+    /// <param name="command">The command to populate.</param>
+    /// <param name="parameters">The parameters to bind.</param>
+    private static void BindComposed(DbCommand command, IReadOnlyList<WeirParameter> parameters)
+    {
+        foreach (var wp in parameters)
+        {
+            // Same widening as AddParameters: Npgsql cannot write a boxed Byte to a smallint.
+            var value = wp.Value is byte b ? (short)b : wp.Value;
+
+            var parameter = new NpgsqlParameter
+            {
+                ParameterName = Strip(wp.Name),
+                NpgsqlDbType = PgTypeMapper.Map(wp.DbType),
+                Value = value ?? DBNull.Value,
+            };
+
+            if (wp.Size is { } size)
+            {
+                parameter.Size = size;
+            }
+
+            if (wp.Precision is { } precision)
+            {
+                parameter.Precision = precision;
+            }
+
+            if (wp.Scale is { } scale)
+            {
+                parameter.Scale = scale;
+            }
+
+            command.Parameters.Add(parameter);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DbObjectDescriptor>> ListTablesAsync(
+        string connectionName, CancellationToken cancellationToken = default)
+    {
+        var descriptor = _registry.Resolve(connectionName);
+        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT table_schema, table_name, table_type FROM information_schema.tables " +
+            "WHERE table_schema NOT IN ('pg_catalog', 'information_schema') " +
+            "ORDER BY table_schema, table_name";
+
+        var objects = new List<DbObjectDescriptor>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            objects.Add(new DbObjectDescriptor
+            {
+                Schema = reader.GetString(0),
+                Name = reader.GetString(1),
+                ObjectType = reader.GetString(2) == "VIEW" ? DbObjectType.View : DbObjectType.Table,
+            });
+        }
+
+        return objects;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DbColumnDescriptor>> DescribeColumnsAsync(
+        string connectionName, string schema, string objectName, CancellationToken cancellationToken = default)
+    {
+        var descriptor = _registry.Resolve(connectionName);
+        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+
+        // is_identity / is_generated / column_default together answer "does the database produce this
+        // value itself" - the question that decides whether an import may write the column at all. The
+        // primary-key flag joins through the key-column usage view, which a view simply has no rows in.
+        command.CommandText = """
+            SELECT c.column_name,
+                   c.data_type,
+                   c.character_maximum_length,
+                   c.numeric_precision,
+                   c.numeric_scale,
+                   c.is_nullable = 'YES',
+                   c.is_identity = 'YES' OR c.is_generated = 'ALWAYS' OR c.column_default IS NOT NULL,
+                   k.column_name IS NOT NULL,
+                   c.ordinal_position
+            FROM information_schema.columns c
+            LEFT JOIN information_schema.table_constraints tc
+                   ON tc.table_schema = c.table_schema
+                  AND tc.table_name = c.table_name
+                  AND tc.constraint_type = 'PRIMARY KEY'
+            LEFT JOIN information_schema.key_column_usage k
+                   ON k.constraint_name = tc.constraint_name
+                  AND k.table_schema = tc.table_schema
+                  AND k.column_name = c.column_name
+            WHERE c.table_schema = @schema AND c.table_name = @name
+            ORDER BY c.ordinal_position
+            """;
+        command.Parameters.Add(new NpgsqlParameter("schema", schema));
+        command.Parameters.Add(new NpgsqlParameter("name", objectName));
+
+        var columns = new List<DbColumnDescriptor>();
+        var ordinal = 0;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            columns.Add(new DbColumnDescriptor
+            {
+                Name = reader.GetString(0),
+                DbType = PgTypeMapper.FromPgTypeName(reader.GetString(1)),
+                Size = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                Precision = reader.IsDBNull(3) ? null : (byte)Math.Min(reader.GetInt32(3), byte.MaxValue),
+                Scale = reader.IsDBNull(4) ? null : (byte)Math.Min(reader.GetInt32(4), byte.MaxValue),
+                Nullable = reader.GetBoolean(5),
+                Generated = reader.GetBoolean(6),
+                PrimaryKey = reader.GetBoolean(7),
+                Ordinal = ordinal++,
+            });
+        }
+
+        return columns;
+    }
+
+    /// <summary>Adds the bound parameters to a command for an invoked object.</summary>
     /// <param name="command">The command to populate.</param>
     /// <param name="parameters">The bound parameters.</param>
     private static void AddParameters(NpgsqlCommand command, IReadOnlyList<WeirParameter> parameters)

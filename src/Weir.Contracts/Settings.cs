@@ -24,6 +24,14 @@ public sealed record WeirSystemSettings
     public int MaxTvpRows { get; init; } = 100_000;
 
     /// <summary>
+    /// Maximum rows one import request may carry. An endpoint can set a lower limit of its own and the
+    /// smaller of the two applies, so this is the ceiling nothing may raise. Zero means unlimited,
+    /// which is worth thinking about before setting: the rows are held in memory to be coerced before
+    /// any of them is written.
+    /// </summary>
+    public int MaxImportRows { get; init; } = 50_000;
+
+    /// <summary>
     /// Default per-minute request limit for an API key that sets no limit of its own. Zero or less
     /// leaves such keys unthrottled.
     /// </summary>

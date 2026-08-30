@@ -193,5 +193,14 @@ internal static class PostgresSchema
             PurgedAt text NOT NULL
         );
         """,
+
+        // v14 - dictionary and import endpoints. Operation 0 is Invoke, so every endpoint that
+        // predates this column keeps calling its procedure exactly as before; the two policy columns
+        // are null for it, because there is no table read or write to describe.
+        """
+        ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS Operation integer NOT NULL DEFAULT 0;
+        ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS DictionaryJson text NULL;
+        ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS ImportJson text NULL;
+        """,
     ];
 }

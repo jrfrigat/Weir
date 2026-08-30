@@ -41,15 +41,22 @@ internal sealed class PostgreSqlExecution : IDbExecution
         NpgsqlCommand command,
         NpgsqlDataReader reader,
         List<SqlMessage> messages,
-        NoticeEventHandler handler)
+        NoticeEventHandler handler,
+        IReadOnlyDictionary<string, object?>? extraOutputs = null)
     {
         _connection = connection;
         _command = command;
         _reader = reader;
         _messages = messages;
         _handler = handler;
-        Outputs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        _extraOutputs = extraOutputs;
+        Outputs = extraOutputs is null
+            ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, object?>(extraOutputs, StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>Connector-supplied outputs merged in ahead of the command's own parameters.</summary>
+    private readonly IReadOnlyDictionary<string, object?>? _extraOutputs;
 
     /// <inheritdoc />
     public DbDataReader Reader => _reader;
@@ -97,7 +104,9 @@ internal sealed class PostgreSqlExecution : IDbExecution
 
         RecordsAffected = _reader.RecordsAffected;
 
-        var outputs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var outputs = _extraOutputs is null
+            ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, object?>(_extraOutputs, StringComparer.OrdinalIgnoreCase);
         foreach (NpgsqlParameter parameter in _command.Parameters)
         {
             if (parameter.Direction is ParameterDirection.Output or ParameterDirection.InputOutput)

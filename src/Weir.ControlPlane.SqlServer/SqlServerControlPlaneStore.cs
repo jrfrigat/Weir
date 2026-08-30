@@ -219,7 +219,8 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     /// <summary>The endpoint columns selected for read queries, in a fixed order.</summary>
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
-        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
+        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, " +
+        "Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -254,9 +255,11 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         const string sql = """
             BEGIN TRY
                 INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
-                                       CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
+                                       CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson,
+                                       Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt)
                 VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
-                        @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt);
+                        @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson,
+                        @Operation, @DictionaryJson, @ImportJson, @Description, @CreatedAt, @UpdatedAt);
             END TRY
             BEGIN CATCH
                 IF ERROR_NUMBER() IN (2627, 2601)
@@ -267,7 +270,8 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
                             ObjectType = @ObjectType, SchemaName = @SchemaName, ObjectName = @ObjectName,
                             ResultMode = @ResultMode, CommandTimeoutSeconds = @CommandTimeoutSeconds, Enabled = @Enabled,
                             SuppressMessages = @SuppressMessages, CacheJson = @CacheJson, LoggingJson = @LoggingJson, DeliveryJson = @DeliveryJson, ParametersJson = @ParametersJson,
-                            RequiredScopesJson = @RequiredScopesJson, Description = @Description, UpdatedAt = @UpdatedAt
+                            RequiredScopesJson = @RequiredScopesJson, Operation = @Operation, DictionaryJson = @DictionaryJson,
+                            ImportJson = @ImportJson, Description = @Description, UpdatedAt = @UpdatedAt
                         WHERE Id = @Id;
                     ELSE
                         THROW;
@@ -298,6 +302,9 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
                 DeliveryJson = JsonSerializer.Serialize(endpoint.Delivery, Json),
                 ParametersJson = JsonSerializer.Serialize(endpoint.Parameters, Json),
                 RequiredScopesJson = JsonSerializer.Serialize(endpoint.RequiredScopes, Json),
+                Operation = (int)endpoint.Operation,
+                DictionaryJson = endpoint.Dictionary is null ? null : JsonSerializer.Serialize(endpoint.Dictionary, Json),
+                ImportJson = endpoint.Import is null ? null : JsonSerializer.Serialize(endpoint.Import, Json),
                 endpoint.Description,
                 CreatedAt = Iso(createdAt),
                 UpdatedAt = Iso(now),
@@ -358,6 +365,9 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         Delivery = JsonSerializer.Deserialize<DeliveryPolicy>(r.DeliveryJson ?? "{}", Json) ?? new DeliveryPolicy(),
         Parameters = JsonSerializer.Deserialize<List<EndpointParameter>>(r.ParametersJson, Json) ?? [],
         RequiredScopes = JsonSerializer.Deserialize<List<string>>(r.RequiredScopesJson, Json) ?? [],
+        Operation = (EndpointOperation)r.Operation,
+        Dictionary = string.IsNullOrWhiteSpace(r.DictionaryJson) ? null : JsonSerializer.Deserialize<DictionaryPolicy>(r.DictionaryJson, Json),
+        Import = string.IsNullOrWhiteSpace(r.ImportJson) ? null : JsonSerializer.Deserialize<ImportPolicy>(r.ImportJson, Json),
         Description = r.Description,
         CreatedAt = ParseDto(r.CreatedAt),
         UpdatedAt = ParseDto(r.UpdatedAt),
@@ -1196,6 +1206,12 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         public string ParametersJson { get; set; } = "";
         /// <summary>Serialized required-scope list.</summary>
         public string RequiredScopesJson { get; set; } = "";
+        /// <summary>What the endpoint does with its object (enum ordinal).</summary>
+        public int Operation { get; set; }
+        /// <summary>Serialized dictionary policy, null for a non-dictionary endpoint.</summary>
+        public string? DictionaryJson { get; set; }
+        /// <summary>Serialized import policy, null for a non-import endpoint.</summary>
+        public string? ImportJson { get; set; }
         /// <summary>Optional description.</summary>
         public string? Description { get; set; }
         /// <summary>Created timestamp (ISO-8601 text).</summary>

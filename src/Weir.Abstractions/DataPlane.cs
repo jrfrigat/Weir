@@ -43,6 +43,36 @@ public interface IDbConnector
         string connectionName, string schema, string objectName, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists the tables and views available on a named connection, for building dictionary and import
+    /// endpoints. Separate from <see cref="ListObjectsAsync"/> because the two answer different
+    /// questions and a connector may be able to serve one and not the other.
+    /// <para>
+    /// The default implementation returns nothing, so a connector written before dictionary and import
+    /// endpoints existed keeps compiling and simply offers no tables to browse.
+    /// </para>
+    /// </summary>
+    /// <param name="connectionName">The named connection.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The discovered tables and views.</returns>
+    Task<IReadOnlyList<DbObjectDescriptor>> ListTablesAsync(
+        string connectionName, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<DbObjectDescriptor>>([]);
+
+    /// <summary>
+    /// Describes the columns of a table or view, so an endpoint can be built from them without the
+    /// admin retyping the schema. Returns nothing by default, for the same reason as
+    /// <see cref="ListTablesAsync"/>.
+    /// </summary>
+    /// <param name="connectionName">The named connection.</param>
+    /// <param name="schema">Object schema.</param>
+    /// <param name="objectName">Table or view name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The discovered columns, in ordinal order.</returns>
+    Task<IReadOnlyList<DbColumnDescriptor>> DescribeColumnsAsync(
+        string connectionName, string schema, string objectName, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<DbColumnDescriptor>>([]);
+
+    /// <summary>
     /// Classifies a failure raised during execution into a provider-agnostic category (timeout, deadlock,
     /// constraint, connection) for telemetry. Non-driver failures and anything unrecognized map to
     /// <see cref="DbErrorCategory.Other"/>. The default implementation classifies all failures as
@@ -95,11 +125,100 @@ public sealed class DbExecutionRequest
     /// <summary>Kind of object being invoked.</summary>
     public DbObjectType ObjectType { get; init; }
 
+    /// <summary>
+    /// What to do with the object. <see cref="EndpointOperation.Invoke"/> calls it and uses
+    /// <see cref="Parameters"/>; the other two ignore those and read <see cref="Query"/> or
+    /// <see cref="Rows"/> instead.
+    /// </summary>
+    public EndpointOperation Operation { get; init; } = EndpointOperation.Invoke;
+
     /// <summary>Optional per-command timeout override, in seconds.</summary>
     public int? CommandTimeoutSeconds { get; init; }
 
     /// <summary>Bound parameters, including any table-valued parameters.</summary>
     public IReadOnlyList<WeirParameter> Parameters { get; init; } = [];
+
+    /// <summary>
+    /// The resolved read for an <see cref="EndpointOperation.Dictionary"/> request: which of the
+    /// endpoint's filters the caller actually supplied, the search text, the ordering and the page.
+    /// Null for every other operation.
+    /// </summary>
+    public DictionaryQuery? Query { get; init; }
+
+    /// <summary>
+    /// The rows to write for an <see cref="EndpointOperation.Import"/> request, already coerced to
+    /// their column types. Null for every other operation.
+    /// </summary>
+    public ImportPayload? Rows { get; init; }
+}
+
+/// <summary>
+/// One dictionary read, resolved from the endpoint's policy and the caller's request. Everything here
+/// has already been checked against the policy: a filter is present only if the endpoint declares it
+/// and the request supplied it, and a sort column is one the endpoint allows. The connector composes
+/// the statement from this and binds every value as a parameter.
+/// </summary>
+public sealed class DictionaryQuery
+{
+    /// <summary>The policy the read was resolved against; carries the projection and search columns.</summary>
+    public required DictionaryPolicy Policy { get; init; }
+
+    /// <summary>Filters the caller supplied values for, in policy order.</summary>
+    public IReadOnlyList<DictionaryFilterValue> Filters { get; init; } = [];
+
+    /// <summary>Free-text search across the policy's search columns, or null when none was asked for.</summary>
+    public string? Search { get; init; }
+
+    /// <summary>The ordering to apply, already resolved to real columns of the object.</summary>
+    public IReadOnlyList<DictionarySort> OrderBy { get; init; } = [];
+
+    /// <summary>Rows to skip, or null when the read is unpaged.</summary>
+    public int? Skip { get; init; }
+
+    /// <summary>Rows to take, or null when the read is unpaged.</summary>
+    public int? Take { get; init; }
+
+    /// <summary>Whether the connector also reports the unpaged row count.</summary>
+    public bool IncludeTotalCount { get; init; }
+}
+
+/// <summary>One filter of a dictionary read, with the value the caller supplied for it.</summary>
+public sealed class DictionaryFilterValue
+{
+    /// <summary>The filter as the endpoint declares it: column, operator and type.</summary>
+    public required DictionaryFilter Filter { get; init; }
+
+    /// <summary>
+    /// The coerced value, for every operator except <see cref="DictionaryOperator.In"/>. Null is a
+    /// SQL NULL, which <see cref="DictionaryOperator.Equals"/> and
+    /// <see cref="DictionaryOperator.NotEquals"/> render as <c>IS NULL</c> / <c>IS NOT NULL</c>.
+    /// </summary>
+    public object? Value { get; init; }
+
+    /// <summary>The coerced values for <see cref="DictionaryOperator.In"/>; null for every other operator.</summary>
+    public IReadOnlyList<object?>? Values { get; init; }
+}
+
+/// <summary>The rows one import request writes, already coerced to their target column types.</summary>
+public sealed class ImportPayload
+{
+    /// <summary>The target columns, in the order each row's cells are given.</summary>
+    public required IReadOnlyList<ImportColumn> Columns { get; init; }
+
+    /// <summary>The rows, each a list of cell values in <see cref="Columns"/> order.</summary>
+    public required IReadOnlyList<IReadOnlyList<object?>> Rows { get; init; }
+
+    /// <summary>What to do with a row whose key already exists.</summary>
+    public ImportMode Mode { get; init; } = ImportMode.Insert;
+
+    /// <summary>Columns identifying an existing row, for <see cref="ImportMode.Upsert"/>.</summary>
+    public IReadOnlyList<string> KeyColumns { get; init; } = [];
+
+    /// <summary>Rows per statement. Zero lets the connector choose.</summary>
+    public int BatchSize { get; init; }
+
+    /// <summary>Whether the whole request runs in one transaction.</summary>
+    public bool Transactional { get; init; } = true;
 }
 
 /// <summary>A bound parameter value ready for the driver. Provider-agnostic.</summary>

@@ -182,7 +182,32 @@ public sealed class WeirEngine : IDisposable
 
             // W-5: measure binding duration separately from DB execution.
             var bindingStart = Stopwatch.GetTimestamp();
-            var binding = _binder.Bind(invocation);
+
+            // A dictionary or import endpoint declares no parameters to bind: what the caller sent is
+            // resolved against the endpoint's own policy instead, which yields the query or the rows the
+            // connector executes. The values it reports back play the same part in the cache key that a
+            // procedure's bound parameters do.
+            BindingResult binding;
+            DictionaryQuery? query = null;
+            ImportPayload? rows = null;
+            switch (endpoint.Operation)
+            {
+                case EndpointOperation.Dictionary:
+                    var resolved = TableRequestBinder.BindDictionary(invocation);
+                    query = resolved.Query;
+                    binding = new BindingResult([], resolved.Values);
+                    break;
+
+                case EndpointOperation.Import:
+                    rows = TableRequestBinder.BindImport(invocation, _settings.Current.MaxImportRows);
+                    binding = new BindingResult([], new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    break;
+
+                default:
+                    binding = _binder.Bind(invocation);
+                    break;
+            }
+
             context.BindingDurationMs = Stopwatch.GetElapsedTime(bindingStart).TotalMilliseconds;
 
             var cacheKey = endpoint.Cache.Enabled ? CacheKey.Build(endpoint, binding.Values, invocation.ApiKeyPrefix) : null;
@@ -208,8 +233,11 @@ public sealed class WeirEngine : IDisposable
                 Schema = endpoint.Schema,
                 ObjectName = endpoint.ObjectName,
                 ObjectType = endpoint.ObjectType,
+                Operation = endpoint.Operation,
                 CommandTimeoutSeconds = endpoint.CommandTimeoutSeconds ?? descriptor.DefaultCommandTimeoutSeconds,
                 Parameters = binding.Parameters,
+                Query = query,
+                Rows = rows,
             };
 
             WeirResponseMetadata metadata;

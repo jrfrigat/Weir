@@ -13,6 +13,44 @@ public sealed record DbObjectDescriptor
     public DbObjectType ObjectType { get; init; }
 }
 
+/// <summary>
+/// A column discovered on a table or view, used to build a dictionary or import endpoint without
+/// retyping the schema by hand.
+/// </summary>
+public sealed record DbColumnDescriptor
+{
+    /// <summary>Column name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Provider-agnostic type inferred from the database type.</summary>
+    public WeirDbType DbType { get; init; }
+
+    /// <summary>Whether the column accepts NULL.</summary>
+    public bool Nullable { get; init; }
+
+    /// <summary>
+    /// Whether the database produces the value itself (identity / serial / computed / default). An
+    /// import leaves these out of its column list by default: writing to one either fails outright or
+    /// overrides the mechanism that was the point of declaring it.
+    /// </summary>
+    public bool Generated { get; init; }
+
+    /// <summary>Whether the column takes part in the object's primary key.</summary>
+    public bool PrimaryKey { get; init; }
+
+    /// <summary>Size / max length, when applicable.</summary>
+    public int? Size { get; init; }
+
+    /// <summary>Numeric precision, when applicable.</summary>
+    public byte? Precision { get; init; }
+
+    /// <summary>Numeric scale, when applicable.</summary>
+    public byte? Scale { get; init; }
+
+    /// <summary>Zero-based column position.</summary>
+    public int Ordinal { get; init; }
+}
+
 /// <summary>A parameter discovered on a stored procedure or function.</summary>
 public sealed record DbParameterDescriptor
 {

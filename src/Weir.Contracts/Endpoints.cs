@@ -39,6 +39,25 @@ public sealed record EndpointDefinition
     /// <summary>The kind of database object being invoked.</summary>
     public DbObjectType ObjectType { get; init; } = DbObjectType.StoredProcedure;
 
+    /// <summary>
+    /// What the endpoint does with that object. <see cref="EndpointOperation.Invoke"/> calls it, and
+    /// is what every endpoint written before this existed still does. The other two compose a
+    /// statement against a table or view from <see cref="Dictionary"/> or <see cref="Import"/>.
+    /// </summary>
+    public EndpointOperation Operation { get; init; } = EndpointOperation.Invoke;
+
+    /// <summary>
+    /// Read shape for an <see cref="EndpointOperation.Dictionary"/> endpoint. Null for every other
+    /// operation, and required for that one.
+    /// </summary>
+    public DictionaryPolicy? Dictionary { get; init; }
+
+    /// <summary>
+    /// Write shape for an <see cref="EndpointOperation.Import"/> endpoint. Null for every other
+    /// operation, and required for that one.
+    /// </summary>
+    public ImportPolicy? Import { get; init; }
+
     /// <summary>Schema of the object. Defaults to <c>dbo</c>.</summary>
     public string Schema { get; init; } = "dbo";
 

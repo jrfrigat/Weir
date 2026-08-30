@@ -41,20 +41,32 @@ internal sealed class SqlServerExecution : IDbExecution
     /// <param name="reader">The live reader.</param>
     /// <param name="messages">Shared message list populated by the info-message handler.</param>
     /// <param name="handler">The info-message handler to detach on dispose.</param>
+    /// <param name="extraOutputs">
+    /// Values the connector produced outside the command's own parameters, merged into
+    /// <see cref="Outputs"/>. A dictionary read's total row count arrives this way: it comes from a
+    /// separate COUNT run before the reader, so there is no output parameter carrying it.
+    /// </param>
     public SqlServerExecution(
         SqlConnection connection,
         SqlCommand command,
         SqlDataReader reader,
         List<SqlMessage> messages,
-        SqlInfoMessageEventHandler handler)
+        SqlInfoMessageEventHandler handler,
+        IReadOnlyDictionary<string, object?>? extraOutputs = null)
     {
         _connection = connection;
         _command = command;
         _reader = reader;
         _messages = messages;
         _handler = handler;
-        Outputs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        _extraOutputs = extraOutputs;
+        Outputs = extraOutputs is null
+            ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, object?>(extraOutputs, StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>Connector-supplied outputs merged in ahead of the command's own parameters.</summary>
+    private readonly IReadOnlyDictionary<string, object?>? _extraOutputs;
 
     /// <inheritdoc />
     public DbDataReader Reader => _reader;
@@ -102,7 +114,9 @@ internal sealed class SqlServerExecution : IDbExecution
 
         RecordsAffected = _reader.RecordsAffected;
 
-        var outputs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var outputs = _extraOutputs is null
+            ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, object?>(_extraOutputs, StringComparer.OrdinalIgnoreCase);
         foreach (SqlParameter parameter in _command.Parameters)
         {
             switch (parameter.Direction)

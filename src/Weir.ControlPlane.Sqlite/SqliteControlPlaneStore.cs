@@ -170,7 +170,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
-        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt";
+        "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, " +
+        "Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -201,15 +202,18 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
         const string sql = """
             INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
-                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, Description, CreatedAt, UpdatedAt)
+                                   CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson,
+                                   Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt)
             VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
-                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson, @Description, @CreatedAt, @UpdatedAt)
+                    @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson,
+                    @Operation, @DictionaryJson, @ImportJson, @Description, @CreatedAt, @UpdatedAt)
             ON CONFLICT(Id) DO UPDATE SET
                 Route=excluded.Route, HttpMethod=excluded.HttpMethod, ConnectionName=excluded.ConnectionName,
                 ObjectType=excluded.ObjectType, SchemaName=excluded.SchemaName, ObjectName=excluded.ObjectName,
                 ResultMode=excluded.ResultMode, CommandTimeoutSeconds=excluded.CommandTimeoutSeconds, Enabled=excluded.Enabled,
                 SuppressMessages=excluded.SuppressMessages, CacheJson=excluded.CacheJson, LoggingJson=excluded.LoggingJson, DeliveryJson=excluded.DeliveryJson, ParametersJson=excluded.ParametersJson,
-                RequiredScopesJson=excluded.RequiredScopesJson, Description=excluded.Description, UpdatedAt=excluded.UpdatedAt;
+                RequiredScopesJson=excluded.RequiredScopesJson, Operation=excluded.Operation, DictionaryJson=excluded.DictionaryJson,
+                ImportJson=excluded.ImportJson, Description=excluded.Description, UpdatedAt=excluded.UpdatedAt;
             """;
 
         await using var conn = await OpenAsync(cancellationToken);
@@ -233,6 +237,9 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
                 DeliveryJson = JsonSerializer.Serialize(endpoint.Delivery, Json),
                 ParametersJson = JsonSerializer.Serialize(endpoint.Parameters, Json),
                 RequiredScopesJson = JsonSerializer.Serialize(endpoint.RequiredScopes, Json),
+                Operation = (int)endpoint.Operation,
+                DictionaryJson = endpoint.Dictionary is null ? null : JsonSerializer.Serialize(endpoint.Dictionary, Json),
+                ImportJson = endpoint.Import is null ? null : JsonSerializer.Serialize(endpoint.Import, Json),
                 endpoint.Description,
                 CreatedAt = Iso(createdAt),
                 UpdatedAt = Iso(now),
@@ -277,6 +284,9 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         Delivery = JsonSerializer.Deserialize<DeliveryPolicy>(r.DeliveryJson ?? "{}", Json) ?? new DeliveryPolicy(),
         Parameters = JsonSerializer.Deserialize<List<EndpointParameter>>(r.ParametersJson, Json) ?? [],
         RequiredScopes = JsonSerializer.Deserialize<List<string>>(r.RequiredScopesJson, Json) ?? [],
+        Operation = (EndpointOperation)r.Operation,
+        Dictionary = string.IsNullOrWhiteSpace(r.DictionaryJson) ? null : JsonSerializer.Deserialize<DictionaryPolicy>(r.DictionaryJson, Json),
+        Import = string.IsNullOrWhiteSpace(r.ImportJson) ? null : JsonSerializer.Deserialize<ImportPolicy>(r.ImportJson, Json),
         Description = r.Description,
         CreatedAt = ParseDto(r.CreatedAt),
         UpdatedAt = ParseDto(r.UpdatedAt),
@@ -1093,6 +1103,12 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         public string ParametersJson { get; set; } = "";
         /// <summary>Serialized required-scope list.</summary>
         public string RequiredScopesJson { get; set; } = "";
+        /// <summary>What the endpoint does with its object (enum ordinal).</summary>
+        public int Operation { get; set; }
+        /// <summary>Serialized dictionary policy, null for a non-dictionary endpoint.</summary>
+        public string? DictionaryJson { get; set; }
+        /// <summary>Serialized import policy, null for a non-import endpoint.</summary>
+        public string? ImportJson { get; set; }
         /// <summary>Optional description.</summary>
         public string? Description { get; set; }
         /// <summary>Created timestamp (ISO-8601 text).</summary>
