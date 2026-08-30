@@ -39,7 +39,7 @@
     else if (_keys.Count == 0)
     {
         <FlareEmptyState Title="@AdminStrings.Keys_EmptyTitle" Description="@AdminStrings.Keys_EmptyDescription">
-            <Icon><FlareIconView Value="@MaterialDesign3Icons.Regular.Key" /></Icon>
+            <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Key" /></IconContent>
         </FlareEmptyState>
     }
     else
@@ -118,10 +118,10 @@
             </div>
         </FlareStack>
     </ChildContent>
-    <Actions>
+    <ActionsContent>
         <FlareButton Variant="ButtonVariant.Text" OnClick="() => _showCreate = false">@AdminStrings.Common_Cancel</FlareButton>
         <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync" Loading="_busy">@AdminStrings.Keys_CreateKey</FlareButton>
-    </Actions>
+    </ActionsContent>
 </FlareDialog>
 
 @code {

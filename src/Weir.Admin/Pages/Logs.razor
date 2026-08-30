@@ -35,7 +35,7 @@
     else if (_entries.Count == 0)
     {
         <FlareEmptyState Title="@AdminStrings.Logs_EmptyTitle" Description="@AdminStrings.Logs_EmptyDescription">
-            <Icon><FlareIconView Value="@MaterialDesign3Icons.Regular.ReceiptLong" /></Icon>
+            <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.ReceiptLong" /></IconContent>
         </FlareEmptyState>
     }
     else
@@ -87,7 +87,7 @@
 
 @* ===== Detail drawer ===== *@
 <FlareDrawer Open="@(_selected is not null)" OpenChanged="@(open => { if (!open) _selected = null; })" Anchor="DrawerAnchor.Right" Width="42rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
-    <Header>
+    <HeaderContent>
         @if (_selected is not null)
         {
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
@@ -95,7 +95,7 @@
                 <FlareText Typo="TypographyScale.TitleMedium" Mono="true">/@_selected.Route</FlareText>
             </FlareStack>
         }
-    </Header>
+    </HeaderContent>
     <ChildContent>
         @if (_selected is not null)
         {
@@ -198,10 +198,10 @@
             <FlareCodeBlock Value="@_jsonBody" Language="json" ReadOnly="true" Wrap="true" />
         </div>
     </ChildContent>
-    <Actions>
+    <ActionsContent>
         <FlareClipboard Text="@_jsonBody" Variant="ButtonVariant.Text" />
         <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => _showJson = false)">@AdminStrings.Common_Close</FlareButton>
-    </Actions>
+    </ActionsContent>
 </FlareDialog>
 
 @code {

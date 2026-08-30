@@ -54,3 +54,18 @@ html, body {
     z-index: 1100;
 }
 
+
+/* Workaround for a Flare bug, not a style choice: remove when Flare ships the fix and this file goes
+   back to holding only non-Flare chrome. Flare styles an open drawer as transform: translate(0, 0),
+   which paints the same as no transform but still makes the drawer a containing block for its
+   position: fixed descendants. Every anchored overlay inside the endpoint editor - each parameter's
+   source/direction/type select, the method and result-mode selects, menus, tooltips - is then placed
+   at viewport coordinates the browser measures from the drawer's own left edge, so it lands one
+   drawer-width off the right of the screen and reads as a dropdown that opens empty. none paints
+   identically, still animates the slide (a transform interpolates against none as the identity
+   matrix), and creates no containing block. It has to be in force before the drawer opens: applied to
+   an already-open drawer it only retargets the running transition, which then never settles.
+   See C:\Job\Projects\FrigaT\Flare\docs\issues\drawer-fixed-containing-block.md */
+.flare-drawer--open {
+    transform: none !important;
+}

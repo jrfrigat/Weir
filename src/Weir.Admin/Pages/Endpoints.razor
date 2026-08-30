@@ -41,7 +41,7 @@
             else if (_endpoints.Count == 0)
             {
                 <FlareEmptyState Title="@AdminStrings.Endpoints_EmptyTitle" Description="@AdminStrings.Endpoints_EmptyDescription">
-                    <Icon><FlareIconView Value="@MaterialDesign3Icons.Regular.Api" /></Icon>
+                    <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Api" /></IconContent>
                 </FlareEmptyState>
             }
             else
@@ -196,7 +196,7 @@
 
 @* ===== Editor drawer ===== *@
 <FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="44rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
-    <Header><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></Header>
+    <HeaderContent><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></HeaderContent>
     <ChildContent>
         @if (_editing is not null)
         {
@@ -361,7 +361,7 @@
 
 @* ===== Test drawer ===== *@
 <FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="44rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
-    <Header>
+    <HeaderContent>
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
             <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Endpoints_Test</FlareText>
             @if (_testing is not null)
@@ -370,7 +370,7 @@
                 <FlareText Element="span" Mono="true" Color="FlareColor.OnSurfaceVariant">/api/@_testing.Route</FlareText>
             }
         </FlareStack>
-    </Header>
+    </HeaderContent>
     <ChildContent>
         @if (_testing is not null)
         {
