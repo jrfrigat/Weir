@@ -8,6 +8,88 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-31
+
+### Added
+
+- **Dictionary endpoints: a lookup list straight from a table or a view.** The commonest reason to
+  write a stored procedure at all is "give me this lookup", and that procedure carries no logic -
+  every table that needs one needs its own, and each one has to be edited again when the table gains
+  a column. An endpoint can now name a table or a view and describe the read instead: which columns
+  come back, which filters the caller may apply, what the free-text search covers, how rows are
+  ordered and how they are paged. Weir composes the `SELECT` from that metadata.
+  <br>Nothing a caller sends becomes SQL. Table and column names come from the endpoint, which only
+  an admin can write; every value from the request is bound as a parameter. The caller chooses among
+  what is configured - which filter, which sort column - and can never name a column the endpoint has
+  not declared. `sort` is checked against that allow-list and refused with a 400 that lists what is
+  sortable, rather than being concatenated into the statement and hoped about.
+  <br>Reserved query keys are `search`, `page`, `pageSize`, `sort` and `sortDir`; everything else is
+  matched to the endpoint's own filters. Nine operators are available (`Equals` through `In`), a null
+  filter value becomes `IS NULL` rather than the never-true `= NULL`, an empty `In` matches nothing
+  rather than everything, and `Contains` / `StartsWith` escape the pattern metacharacters in the
+  caller's term so a search for `100%` is a search and not a wildcard. Paging without an ordering is
+  refused when the endpoint is saved: the database is free to return a different subset for two
+  identical calls, so page 2 would repeat or skip rows from page 1.
+- **Import endpoints: a batch of rows written into a table.** `POST` an array and the rows land in
+  the configured table, in batches, inside one transaction. `Insert`, `Upsert` (a `MERGE` on SQL
+  Server, `ON CONFLICT DO UPDATE` on PostgreSQL) and `Replace`, which empties the table first and is
+  always transactional whatever the flag says - outside one there would be a window with no data in
+  it. The rows are the only part of the request that carries data: which table they land in, which
+  columns exist and which JSON property feeds each column are all fixed by the endpoint, so a caller
+  can neither reach a column the endpoint does not declare nor write to a different table by naming
+  one. A row that fails validation fails the request and the problem body names the row
+  (`rows[1]`), so a caller sending thousands can find the one that broke.
+- **`FrigaT.Weir.Client`, a typed .NET client.** Callers were each writing the same envelope reader,
+  and the interesting half of it - unwrapping `problem+json` so a database failure shows the SQL error
+  text instead of "400 Bad Request" - is the half most likely to be skipped. The package covers the
+  data plane: typed rows, scalars and multi-set results; `GetPageAsync` / `GetAllAsync` for dictionary
+  endpoints; `ImportAsync` / `ImportChunkedAsync` for import endpoints; `WeirApiException` with an
+  `IsTransient` that separates "try again" from "the request is the problem", and a
+  `WeirValidationException` carrying the per-field messages. `AddWeirClient` registers it over a
+  pooled `HttpClient` and validates its options at startup, so a missing address fails the host rather
+  than the first call that needs it. Runs anywhere an `HttpClient` does, Blazor WebAssembly included.
+- **Table and column introspection.** `IDbConnector` gains `ListTablesAsync` and
+  `DescribeColumnsAsync`, both with default implementations that return nothing, so a connector
+  written before this keeps compiling and simply offers no tables to browse. The columns report
+  whether the database fills the value itself - identity, computed, defaulted - which is what lets an
+  import leave those out: writing to one either fails outright or defeats the mechanism that was the
+  point of declaring it.
+- **The admin panel builds both.** The Database tab lists tables and views beside procedures;
+  "Create endpoint from this object" opens a table as a dictionary read with its columns already
+  loaded and the value and label columns guessed from the primary key and the first text column.
+  The editor gained the operation picker, a dictionary section (projection, search columns, filters,
+  ordering, paging) and an import section (target columns, mode, key columns, batching, limits), and
+  offers only the object types the chosen operation can actually use.
+- **`MaxImportRows`**, a system setting with the usual runtime editing and admin-panel surface. An
+  endpoint may set a lower limit of its own; the smaller of the two always applies, so this is the
+  ceiling nothing may raise.
+- **Endpoint definitions are checked before they are stored.** An operation whose policy is missing,
+  an upsert with nothing to match on, a key column the payload never carries, a page over rows in no
+  particular order: each would otherwise surface as a failed call at run time, on a request that did
+  nothing wrong. They are now a message in the editor.
+
+### Fixed
+
+- **The parameter editor could not set a direction, and had no way to mark a parameter required.**
+  The direction dropdown opened empty. It was not empty: it was rendered one drawer-width off the
+  right of the screen, because Flare styles an open drawer as `transform: translate(0, 0)`, which
+  paints the same as no transform but still makes the drawer a containing block for its
+  `position: fixed` descendants - so every anchored overlay inside the endpoint editor was placed at
+  viewport coordinates the browser measured from the drawer's own left edge. Six selects in the same
+  drawer were each off by exactly the same 896px. Worked around here until Flare ships the one-line
+  fix (filed as `drawer-fixed-containing-block`); the parameter row also gained labels on every
+  control and the missing **Required** switch.
+
+### Changed
+
+- **Flare 0.26.0** (from 0.17.0). Twenty-one content slots were renamed to `XxxContent` in 0.25.0 -
+  `Icon`, `Header` and `Actions` here - and 0.23.0 turned `flare-components.js` into an ES module the
+  services import themselves, so the script tag the host page had been carrying since the beginning is
+  now a syntax error in the browser and is gone.
+- `IDbConnector`'s two new members and `DbExecutionRequest`'s new fields are additive: an existing
+  connector compiles and behaves exactly as before, and an endpoint stored before this release keeps
+  calling its procedure, since `Operation` defaults to `Invoke`.
+
 ## [1.5.1] - 2026-08-16
 
 ### Fixed

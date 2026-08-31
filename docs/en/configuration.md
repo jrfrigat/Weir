@@ -76,6 +76,7 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 | MaxRows | `100000` | Maximum rows (across all result sets) streamed in one response. When exceeded, the response is closed early, marked `"truncated": true`, and is not cached. Zero means unlimited. |
 | RequestTimeoutSeconds | `30` | Overall request timeout; on expiry the client receives HTTP 504. Zero means no gateway timeout (the database command timeout still applies). |
 | MaxTvpRows | `100000` | Maximum rows accepted for one table-valued parameter; a larger array is rejected with HTTP 400. Zero means unlimited. |
+| MaxImportRows | `50000` | Maximum rows one import request may carry. An endpoint can set a lower limit of its own and the smaller of the two applies, so this is the ceiling nothing may raise. Zero means unlimited, which is worth thinking about: the rows are held in memory to be coerced before any of them is written. |
 | MaxRequestBodyBytes | `10485760` | Maximum request body size, enforced by the web server (HTTP 413 beyond it). Applied at startup, so a change requires a restart. Zero or less uses the server default. |
 | DefaultApiKeyRateLimitPerMinute | `0` | Default per-minute limit for an API key that sets none of its own. Zero or less leaves such keys unthrottled. |
 | MaxConcurrentRequestsPerConnection | `0` | Bulkhead: maximum executions allowed to run at once against one data connection. A request over the limit is rejected fast with HTTP 503. Zero means unlimited. |
@@ -86,7 +87,7 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 
 #### Runtime settings
 
-`MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `DefaultApiKeyRateLimitPerMinute`,
+`MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `MaxImportRows`, `DefaultApiKeyRateLimitPerMinute`,
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
 `ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` and
 `ResponseCacheMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /

@@ -12,7 +12,8 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 | Route | Path under `/api`, e.g. `orders/create`. May contain captures, e.g. `orders/{id}` - see below. Unique per HTTP method. |
 | HttpMethod | GET / POST / PUT / PATCH / DELETE. |
 | ConnectionName | The named data connection to run against. |
-| ObjectType | StoredProcedure, TableValuedFunction, or ScalarFunction. |
+| Operation | What the endpoint does with the object: `Invoke` calls a procedure or function (the default, and what every endpoint written before 1.6 does), `Dictionary` reads a table or view as a lookup list, `Import` writes rows into a table. See below. |
+| ObjectType | StoredProcedure, TableValuedFunction, ScalarFunction, Table or View. A table or view is not callable, so it pairs with `Dictionary` or `Import`. |
 | Schema / ObjectName | e.g. `dbo` / `usp_CreateOrder`. |
 | ResultMode | MultiRow, SingleRow, Scalar, NonQuery, or MultiResultSet (informational). |
 | CommandTimeoutSeconds | Optional per-command timeout. |
@@ -113,6 +114,127 @@ of arrays); `messages` carries SQL `PRINT` / informational messages.
 - `messages` can be suppressed per endpoint. Turn on **Suppress SQL messages** in the endpoint editor
   (the `SuppressMessages` flag) and the array is always empty, so chatty diagnostics from a procedure
   never reach callers. The property stays present so the envelope shape does not change.
+
+## Dictionary endpoints
+
+A dictionary endpoint reads a table or a view directly - no procedure to write, and none to maintain
+when a lookup gains a column. Set **Operation** to `Dictionary`, point the endpoint at a table or
+view, and describe the read: which columns come back, which filters the caller may apply, what the
+search covers, how rows are ordered and how they are paged. Weir composes the `SELECT` from that.
+
+Nothing a caller sends becomes SQL. Table and column names come from the endpoint metadata, which
+only an admin can write, and every value from the request is bound as a parameter. A caller chooses
+among what is configured - which filter, which sort column - and can never name a column the
+endpoint has not already declared.
+
+| Field | Meaning |
+| :-- | :-- |
+| Columns | Projected columns, in output order. Empty returns every column of the object, which is convenient while building an endpoint and widens every response the next time someone adds a column. |
+| ValueColumn / LabelColumn | The identity and display columns, for a client binding the result to a picker. Advisory, with one exception: the label column is the fallback sort when no ordering is set. |
+| SearchColumns | Columns the free-text `search` key matches, combined with OR. |
+| Filters | Filters the caller may apply, each bound to its own request key. |
+| OrderBy | Default ordering. |
+| AllowPaging | Whether the caller may page with `page` / `pageSize`. |
+| DefaultPageSize / MaxPageSize | The page applied when none is asked for, and the ceiling. A larger `pageSize` is clamped, not refused. |
+| IncludeTotalCount | Whether the response carries the unpaged row count as `output.totalCount`. |
+
+### Reserved request keys
+
+`search`, `page`, `pageSize`, `sort` and `sortDir` are read by the gateway itself. Everything else is
+matched against the endpoint's filters.
+
+```
+GET /api/products?search=widget&page=2&pageSize=25&sort=Name&sortDir=desc&category=7
+```
+
+`sort` must name a column the endpoint already mentions - one it projects, filters, searches, or uses
+as its value, label or default sort. Anything else is refused with a 400 that lists what is sortable.
+That allow-list is what keeps a sort column, which arrives as text and ends up in the statement, from
+being anything but a column the endpoint declared.
+
+A `search` sent to an endpoint that declares no search columns is refused rather than ignored: a
+client that believes it filtered and receives the whole table has been told something false.
+
+### Filters
+
+| Field | Meaning |
+| :-- | :-- |
+| Column | The column being filtered. |
+| Operator | `Equals`, `NotEquals`, `GreaterThan`, `GreaterOrEqual`, `LessThan`, `LessOrEqual`, `Contains`, `StartsWith` or `In`. |
+| ParameterName | The request key carrying the value. Defaults to the column name. |
+| DbType | The type the value is coerced to before binding. |
+| Required | Whether the request must supply it. |
+
+A filter whose key the request omits is not applied. A null value with `Equals` or `NotEquals`
+becomes `IS NULL` / `IS NOT NULL`, because `= NULL` is never true and would silently return nothing.
+An `In` with no values matches nothing rather than everything. On a GET, an `In` filter reads a
+comma-separated list.
+
+`Contains` and `StartsWith` escape the pattern metacharacters in the caller's value, so a search for
+`100%` looks for that text rather than matching everything beginning with `100`.
+
+### Paging
+
+Paging needs a stable order: without one the database is free to return a different subset for two
+identical calls, so page 2 may repeat or skip rows from page 1. An endpoint that allows paging and
+sets no order-by, label or value column is refused when it is saved.
+
+`IncludeTotalCount` costs a second query over the same filters, which is why it is opt-in - a picker
+that only shows the first page does not need it. It is only reported for a paged read.
+
+## Import endpoints
+
+An import endpoint writes a batch of rows into a table. Set **Operation** to `Import`, point the
+endpoint at the table, and list the target columns and where each one's value comes from in an
+incoming row.
+
+The rows are the only part of the request that carries data. Which table they land in, which columns
+exist and which JSON property feeds each column are all fixed by the endpoint, so a caller can
+neither reach a column the endpoint does not declare nor write to a different table by naming one.
+
+```
+POST /api/import/products
+{ "rows": [ { "Name": "Widget", "Price": 9.99 }, { "Name": "Gadget", "Price": 19.50 } ] }
+```
+
+A body that is itself an array is accepted whatever the endpoint names its rows property, since
+there is then nothing to name.
+
+| Field | Meaning |
+| :-- | :-- |
+| Columns | Target columns: name, source property, type, size, required, default. |
+| Mode | `Insert`, `Upsert` or `Replace`. |
+| KeyColumns | The columns an existing row is matched on, for `Upsert`. |
+| RowsProperty | The body property holding the array. Defaults to `rows`. |
+| BatchSize | Rows per statement. The connector lowers it when the column count would exceed the driver's parameter cap. |
+| MaxRows | The most rows one request may carry. Zero uses the system `MaxImportRows` setting; the smaller of the two always applies. |
+| Transactional | Whether the whole request runs in one transaction. |
+
+`Upsert` becomes a `MERGE` on SQL Server and an `INSERT ... ON CONFLICT DO UPDATE` on PostgreSQL.
+`Replace` empties the table first and is always transactional, whatever the flag says: outside a
+transaction there would be a window with no data in it.
+
+The response is the standard envelope with one empty result set. `rowsAffected` is what was written,
+and `output` carries the summary:
+
+```json
+{ "data": [[]], "output": { "rows": 2, "written": 2, "batches": 1, "mode": "Insert" }, "rowsAffected": 2 }
+```
+
+A row that fails validation fails the request, and the problem body names the row:
+
+```json
+{ "detail": "One or more rows are invalid.", "errors": { "rows[1]": ["Column 'Name' is required."] } }
+```
+
+### Building one from the admin panel
+
+The **Database** tab lists tables and views alongside procedures. Select one and "Create endpoint
+from this object" opens the editor as a dictionary read, with the columns already loaded and the
+value and label columns guessed from the primary key and the first text column. Switch the operation
+to `Import` and "Load columns from the database" fills in the target columns, leaving out the ones
+the database fills itself - identity, computed and defaulted columns, where writing either fails
+outright or defeats the mechanism that was the point of declaring them.
 
 ## Table-valued parameters (TVP)
 

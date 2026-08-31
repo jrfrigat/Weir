@@ -78,6 +78,7 @@ control plane, чтобы несколько инстансов не работ�
 | MaxRows | `100000` | Максимум строк (по всем result set) в одном ответе. При превышении ответ закрывается досрочно, помечается `"truncated": true` и не кэшируется. Ноль - без ограничения. |
 | RequestTimeoutSeconds | `30` | Общий таймаут запроса; по истечении клиент получает HTTP 504. Ноль - без gateway-таймаута (таймаут команды БД всё равно действует). |
 | MaxTvpRows | `100000` | Максимум строк для одного table-valued параметра; больший массив отклоняется с HTTP 400. Ноль - без ограничения. |
+| MaxImportRows | `50000` | Максимум строк в одном запросе импорта. Эндпоинт может задать свой меньший лимит, и действует меньшее из двух, поэтому поднять этот потолок нельзя. Ноль - без ограничения, и об этом стоит подумать: строки держатся в памяти для приведения типов до того, как хоть одна будет записана. |
 | MaxRequestBodyBytes | `10485760` | Максимальный размер тела запроса, проверяется веб-сервером (HTTP 413 при превышении). Применяется на старте, поэтому изменение требует перезапуска. Ноль или меньше - дефолт сервера. |
 | DefaultApiKeyRateLimitPerMinute | `0` | Дефолтный лимит в минуту для ключа, у которого свой не задан. Ноль или меньше - ключ не троттлится. |
 | MaxConcurrentRequestsPerConnection | `0` | Bulkhead: максимум одновременных выполнений на одно data-соединение. Запрос сверх лимита быстро отклоняется с HTTP 503. Ноль - без ограничения. |
@@ -88,7 +89,7 @@ control plane, чтобы несколько инстансов не работ�
 
 #### Настройки в рантайме
 
-`MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `DefaultApiKeyRateLimitPerMinute`,
+`MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `MaxImportRows`, `DefaultApiKeyRateLimitPerMinute`,
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
 `ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` и
 `ResponseCacheMaxBytes` редактируются в рантайме на экране **Settings** в админке (или `GET` /

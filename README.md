@@ -100,7 +100,8 @@ Full docs live in **[docs/](docs/README.md)** (English and Russian):
 | :-- | :-- |
 | [Getting Started](docs/en/getting-started.md) | Run Weir, configure a connection, first endpoint |
 | [Architecture](docs/en/architecture.md) | Two planes, module map, request lifecycle |
-| [Endpoints and API contract](docs/en/endpoints.md) | Parameters, TVP, request/response envelope |
+| [Endpoints and API contract](docs/en/endpoints.md) | Parameters, TVP, dictionary and import endpoints, request/response envelope |
+| [.NET client](docs/en/client.md) | The FrigaT.Weir.Client package: typed calls, paging, imports, errors |
 | [Security](docs/en/security.md) | API keys and scopes, admin accounts and JWT |
 | [Configuration](docs/en/configuration.md) | Every setting and environment variable |
 | [Deployment](docs/en/deployment.md) | Docker image and docker-compose |

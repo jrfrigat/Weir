@@ -102,7 +102,8 @@ Content-Type: application/json
 | :-- | :-- |
 | [Начало работы](docs/ru/getting-started.md) | Запуск Weir, настройка подключения, первый эндпоинт |
 | [Архитектура](docs/ru/architecture.md) | Две плоскости, карта модулей, жизненный цикл запроса |
-| [Эндпоинты и контракт API](docs/ru/endpoints.md) | Параметры, TVP, конверт запроса/ответа |
+| [Эндпоинты и контракт API](docs/ru/endpoints.md) | Параметры, TVP, справочники и импорт, конверт запроса/ответа |
+| [Клиент для .NET](docs/ru/client.md) | Пакет FrigaT.Weir.Client: типизированные вызовы, страницы, импорт, ошибки |
 | [Безопасность](docs/ru/security.md) | API-ключи и скоупы, аккаунты админов и JWT |
 | [Конфигурация](docs/ru/configuration.md) | Все настройки и переменные окружения |
 | [Деплой](docs/ru/deployment.md) | Docker-образ и docker-compose |
