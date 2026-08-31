@@ -8,6 +8,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-08-31
+
+### Changed
+
+- **Flare 0.26.1, and Weir's drawer workaround is gone.** 0.26.1 fixes the containing-block defect
+  1.6.0 had to work around: an open `FlareDrawer` no longer carries an identity `transform`, so it
+  stops being the containing block for the `position: fixed` overlays inside it and Flare's viewport
+  coordinates are measured against the viewport again. The one-line override in
+  `wwwroot/css/app.css` is removed, and the admin is back to overriding nothing of Flare's.
+  <br>Verified rather than assumed: with no override loaded, a probe fixed at the origin inside the
+  settled drawer reads `x: 0`, and the parameter row's direction dropdown opens flush with its control
+  (delta 0) instead of 896px past the right edge of the window.
+  <br>The upstream fix also reached four places the report had not: the RTL drawer states, the
+  application navigation drawer (`FlareLayoutDrawer`) in its floating and temporary variants, a FAB
+  menu action at rest, and the scroll-to-top button. None of those are used here, but the drawer
+  variants are one editor away.
+
 ## [1.6.0] - 2026-08-31
 
 ### Added
