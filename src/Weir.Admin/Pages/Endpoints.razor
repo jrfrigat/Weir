@@ -606,6 +606,20 @@
                     }
                 }
 
+                @if (_testOutputParameters.Count > 0)
+                {
+                    @* Read-only on purpose: an output parameter is the procedure's to write, so the form
+                       names it and its type instead of offering a field nobody should fill in. *@
+                    <FlareDivider Text="@AdminStrings.Endpoints_OutputParametersSection" TextAlign="DividerTextAlign.Left" />
+                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_OutputParametersHint</FlareText>
+                    <FlareStack Row Gap="FlareSpacing.XSmall" Wrap="true">
+                        @foreach (var parameter in _testOutputParameters)
+                        {
+                            <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Label="@($"{parameter.Name}: {parameter.DbType}")" />
+                        }
+                    </FlareStack>
+                }
+
                 @if (_testResponse is not null)
                 {
                     <FlareDivider Text="@AdminStrings.Endpoints_ResponseSection" TextAlign="DividerTextAlign.Left" />
@@ -661,6 +675,7 @@
     private readonly Dictionary<string, string?> _testValues = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<Dictionary<string, string?>>> _testRows = new(StringComparer.OrdinalIgnoreCase);
     private List<EndpointParameter> _testInputParameters = [];
+    private List<EndpointParameter> _testOutputParameters = [];
     private bool _testRaw;
     private string _testRawBody = "{}";
 
@@ -1161,6 +1176,12 @@
         _testInputParameters = endpoint.Parameters
             .Where(p => p.Direction is Weir.Contracts.ParameterDirection.Input or Weir.Contracts.ParameterDirection.InputOutput && p.Source != ParameterSource.Const)
             .ToList();
+
+        // Everything the procedure writes back, including the input-output ones that also appear above:
+        // the point of the list is "here is what comes back", not "here is what you cannot fill in".
+        _testOutputParameters = endpoint.Parameters
+            .Where(p => p.Direction is Weir.Contracts.ParameterDirection.Output or Weir.Contracts.ParameterDirection.InputOutput)
+            .ToList();
         foreach (var parameter in _testInputParameters)
         {
             _testValues[parameter.Name] = parameter.DefaultValue?.ToString();
@@ -1412,8 +1433,16 @@
     }
 
     /// <summary>The type/source hint shown under a test-console input.</summary>
-    private static string TestParamHint(EndpointParameter parameter) =>
-        parameter.DbType + (parameter.Source != ParameterSource.Body ? " - " + parameter.Source : "");
+    private static string TestParamHint(EndpointParameter parameter)
+    {
+        var hint = parameter.DbType + (parameter.Source != ParameterSource.Body ? " - " + parameter.Source : "");
+
+        // An input-output parameter is offered as a field like any other, and nothing else on the form
+        // says the procedure overwrites it - so a value here is a starting point, not the answer.
+        return parameter.Direction == Weir.Contracts.ParameterDirection.InputOutput
+            ? hint + " - " + AdminStrings.Endpoints_ParamReturnedInOutput
+            : hint;
+    }
 
     private string GetTestValue(string name) => _testValues.TryGetValue(name, out var value) ? value ?? string.Empty : string.Empty;
 
