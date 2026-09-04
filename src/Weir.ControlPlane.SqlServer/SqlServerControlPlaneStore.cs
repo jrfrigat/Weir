@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -31,11 +30,11 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     /// <summary>Clock used for timestamps and touch throttling.</summary>
     private readonly TimeProvider _clock;
 
-    /// <summary>Last time each API key's last-used timestamp was actually written, for throttling.</summary>
-    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _lastTouch = new();
+    /// <summary>Throttles how often an API key's last-used timestamp is actually written.</summary>
+    private readonly TouchThrottleCache _lastTouch = new(TouchThrottle);
 
-    /// <summary>Last time each admin token's last-used timestamp was actually written, for throttling.</summary>
-    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _lastTokenTouch = new();
+    /// <summary>Throttles how often an admin token's last-used timestamp is actually written.</summary>
+    private readonly TouchThrottleCache _lastTokenTouch = new(TouchThrottle);
 
     /// <summary>Creates the store from bound options and a clock.</summary>
     /// <param name="options">The control-plane options.</param>
@@ -462,12 +461,10 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     {
         // Throttle: persist the last-used timestamp at most once per TouchThrottle window per key so
         // the hot authentication path does not issue a control-database write on every request.
-        if (_lastTouch.TryGetValue(id, out var last) && usedAt - last < TouchThrottle)
+        if (!_lastTouch.ShouldPersist(id, usedAt))
         {
             return;
         }
-
-        _lastTouch[id] = usedAt;
         await using var conn = await OpenAsync(cancellationToken);
         await conn.ExecuteAsync(new CommandDefinition("UPDATE ApiKeys SET LastUsedAt = @UsedAt WHERE Id = @Id",
             new { Id = id.ToString(), UsedAt = Iso(usedAt) }, cancellationToken: cancellationToken));
@@ -717,7 +714,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         await using var conn = await OpenAsync(cancellationToken);
         await conn.ExecuteAsync(new CommandDefinition("DELETE FROM AdminTokens WHERE Id = @Id AND AdminId = @AdminId",
             new { Id = id.ToString(), AdminId = adminId.ToString() }, cancellationToken: cancellationToken));
-        _lastTokenTouch.TryRemove(id, out _);
+        _lastTokenTouch.Forget(id);
     }
 
     /// <inheritdoc />
@@ -725,12 +722,10 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     {
         // Throttle: the admin-API auth path can run this on every scripted request. Persist at most once
         // per TouchThrottle window per token.
-        if (_lastTokenTouch.TryGetValue(id, out var last) && usedAt - last < TouchThrottle)
+        if (!_lastTokenTouch.ShouldPersist(id, usedAt))
         {
             return;
         }
-
-        _lastTokenTouch[id] = usedAt;
         await using var conn = await OpenAsync(cancellationToken);
         await conn.ExecuteAsync(new CommandDefinition("UPDATE AdminTokens SET LastUsedAt = @UsedAt WHERE Id = @Id",
             new { Id = id.ToString(), UsedAt = Iso(usedAt) }, cancellationToken: cancellationToken));
