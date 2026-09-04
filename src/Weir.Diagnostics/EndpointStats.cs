@@ -134,15 +134,22 @@ internal sealed class EndpointStats
         var sumMicros = Interlocked.Read(ref _sumMicros);
         var lastTicks = Interlocked.Read(ref _lastTicks);
 
-        // One windowed histogram drives all three percentiles, so they are self-consistent and the
-        // ring is only summed once per snapshot.
-        var histogram = _ring.WindowHistogram(nowSecond, PercentileWindowSeconds);
+        // Five histograms on the stack rather than five arrays on the heap: a snapshot is taken per
+        // route per dashboard tick, and every one of these dies before the next.
+        var buckets = _ring.BucketCount;
+        Span<long> histogram = stackalloc long[buckets];
+        Span<long> bindingHistogram = stackalloc long[buckets];
+        Span<long> cacheHistogram = stackalloc long[buckets];
+        Span<long> dbHistogram = stackalloc long[buckets];
+        Span<long> streamingHistogram = stackalloc long[buckets];
 
-        // Compute sub-phase percentiles from their dedicated rings.
-        var bindingHistogram = _bindingRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
-        var cacheHistogram = _cacheRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
-        var dbHistogram = _dbRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
-        var streamingHistogram = _streamingRing.WindowHistogram(nowSecond, PercentileWindowSeconds);
+        // One windowed histogram drives all three latency percentiles, so they are self-consistent and
+        // the ring is only summed once per snapshot; the sub-phase percentiles come from their own rings.
+        _ring.WindowHistogram(nowSecond, PercentileWindowSeconds, histogram);
+        _bindingRing.WindowHistogram(nowSecond, PercentileWindowSeconds, bindingHistogram);
+        _cacheRing.WindowHistogram(nowSecond, PercentileWindowSeconds, cacheHistogram);
+        _dbRing.WindowHistogram(nowSecond, PercentileWindowSeconds, dbHistogram);
+        _streamingRing.WindowHistogram(nowSecond, PercentileWindowSeconds, streamingHistogram);
 
         return new EndpointMetrics
         {
@@ -188,14 +195,18 @@ internal sealed class EndpointStats
     /// <param name="percentile">Percentile in range 0..1 (e.g. 0.95).</param>
     /// <param name="nowSecond">Current unix second, defining the trailing window.</param>
     /// <returns>Approximate latency in milliseconds.</returns>
-    public double Percentile(double percentile, long nowSecond) =>
-        Percentile(percentile, _ring.WindowHistogram(nowSecond, PercentileWindowSeconds));
+    public double Percentile(double percentile, long nowSecond)
+    {
+        Span<long> histogram = stackalloc long[_ring.BucketCount];
+        _ring.WindowHistogram(nowSecond, PercentileWindowSeconds, histogram);
+        return Percentile(percentile, histogram);
+    }
 
     /// <summary>Computes a latency percentile from a windowed histogram of bucket counts.</summary>
     /// <param name="percentile">Percentile in range 0..1.</param>
     /// <param name="histogram">Per-bucket sample counts over the window (overflow last).</param>
     /// <returns>Approximate latency in milliseconds (the upper bound of the containing bucket).</returns>
-    private static double Percentile(double percentile, long[] histogram)
+    private static double Percentile(double percentile, ReadOnlySpan<long> histogram)
     {
         long total = 0;
         foreach (var bucket in histogram)

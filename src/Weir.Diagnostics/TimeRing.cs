@@ -198,17 +198,30 @@ internal sealed class TimeRing
         }
     }
 
+    /// <summary>Number of latency histogram buckets, so a caller can size the span it passes in.</summary>
+    public int BucketCount => _bucketCount;
+
     /// <summary>
-    /// Sums the latency histogram over the trailing window into a fresh bucket array. Only slots whose
+    /// Sums the latency histogram over the trailing window into the caller's buffer. Only slots whose
     /// stored second still falls in the window contribute, so counts from expired seconds decay out.
+    /// <para>
+    /// The buffer is the caller's because this runs once per ring per snapshot, and a snapshot covers
+    /// five rings for every tracked route: on a dashboard refreshing twice a second across a hundred
+    /// routes that was a thousand short-lived arrays a second, all of them dead before the next tick.
+    /// The buckets number in the teens, so the caller can stack-allocate and the garbage disappears.
+    /// </para>
     /// </summary>
     /// <param name="nowSecond">Current unix second.</param>
     /// <param name="windowSeconds">Length of the window to cover.</param>
-    /// <returns>The summed per-bucket counts over the window.</returns>
-    public long[] WindowHistogram(long nowSecond, int windowSeconds)
+    /// <param name="histogram">
+    /// Destination for the per-bucket counts, at least <see cref="BucketCount"/> long. Overwritten in
+    /// full, so it does not need clearing first.
+    /// </param>
+    public void WindowHistogram(long nowSecond, int windowSeconds, Span<long> histogram)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(histogram.Length, _bucketCount);
         windowSeconds = Math.Clamp(windowSeconds, 1, _capacity);
-        var histogram = new long[_bucketCount];
+        histogram[.._bucketCount].Clear();
         var start = nowSecond - windowSeconds + 1;
 
         lock (_lock)
@@ -228,8 +241,6 @@ internal sealed class TimeRing
                 }
             }
         }
-
-        return histogram;
     }
 
     /// <summary>Builds a bucketed time series for a metric over the trailing window.</summary>
