@@ -214,6 +214,93 @@ public class ParameterBinderTests
     }
 
     [Fact]
+    public void Output_Parameter_Is_Bound_With_No_Value()
+    {
+        // A pure Output parameter carries no client value, and the connector still has to receive the
+        // parameter - with its size - or the procedure has nowhere to write its result. The size matters
+        // most when it is absent: introspection returns null for an nvarchar(max) output, and that null is
+        // what tells the connector to open a max buffer instead of a zero-length one.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "total",
+            DbType = WeirDbType.String,
+            Direction = ParameterDirection.Output,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{}"));
+        var parameter = Assert.Single(result.Parameters);
+        Assert.Equal(ParameterDirection.Output, parameter.Direction);
+        Assert.Null(parameter.Value);
+        Assert.Null(parameter.Size);
+        Assert.False(result.Values.ContainsKey("total"));
+    }
+
+    [Fact]
+    public void Output_Parameter_Ignores_A_Value_In_The_Body()
+    {
+        // Nothing stops a caller from sending one, and it must not reach the database: an Output parameter
+        // is the procedure's to write. It also must not reach the cache key, or two calls that differ only
+        // in a value the server discards would key apart.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "total",
+            DbType = WeirDbType.Int32,
+            Direction = ParameterDirection.Output,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"total\":42}"));
+        Assert.Null(result.Parameters[0].Value);
+        Assert.False(result.Values.ContainsKey("total"));
+    }
+
+    [Fact]
+    public void Output_Parameter_Keeps_Its_Declared_Size()
+    {
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "code",
+            DbType = WeirDbType.String,
+            Direction = ParameterDirection.Output,
+            Size = 255,
+        });
+
+        Assert.Equal(255, new ParameterBinder().Bind(Invocation(endpoint, "{}")).Parameters[0].Size);
+    }
+
+    [Fact]
+    public void InputOutput_Parameter_Takes_The_Body_Value()
+    {
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "counter",
+            DbType = WeirDbType.Int32,
+            Direction = ParameterDirection.InputOutput,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"counter\":7}"));
+        Assert.Equal(7, result.Parameters[0].Value);
+        Assert.Equal(ParameterDirection.InputOutput, result.Parameters[0].Direction);
+    }
+
+    [Fact]
+    public void InputOutput_Parameter_Without_A_Value_Binds_Null()
+    {
+        // This is the case the whole output-parameter path rests on: SQL Server reports every
+        // output-capable parameter as InputOutput, so a procedure's plain OUTPUT arrives here, and a
+        // caller has no reason to send a value for it. Binding null rather than rejecting the request is
+        // what lets the connector send its default and the procedure fill it in.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "counter",
+            DbType = WeirDbType.Int32,
+            Direction = ParameterDirection.InputOutput,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{}"));
+        Assert.Null(result.Parameters[0].Value);
+    }
+
+    [Fact]
     public void Tvp_MatchesRowKeysCaseInsensitively()
     {
         // SQL Server ignores identifier case, and a client that serializes its body with a camelCase

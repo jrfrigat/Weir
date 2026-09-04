@@ -12,15 +12,19 @@ namespace Weir.Tests;
 // patched SQLitePCLRaw works at runtime.
 public class ResponseWriterTests
 {
-    private sealed class TestExecution(DbDataReader reader, IReadOnlyList<SqlMessage>? messages = null) : IDbExecution
+    private sealed class TestExecution(
+        DbDataReader reader,
+        IReadOnlyList<SqlMessage>? messages = null,
+        IReadOnlyDictionary<string, object?>? outputs = null,
+        int? returnValue = null) : IDbExecution
     {
         public DbDataReader Reader => reader;
 
         public IReadOnlyList<SqlMessage> Messages => messages ?? [];
 
-        public IReadOnlyDictionary<string, object?> Outputs => new Dictionary<string, object?>();
+        public IReadOnlyDictionary<string, object?> Outputs => outputs ?? new Dictionary<string, object?>();
 
-        public int? ReturnValue => null;
+        public int? ReturnValue => returnValue;
 
         public int RecordsAffected => 0;
 
@@ -287,5 +291,76 @@ public class ResponseWriterTests
 
         using var document = JsonDocument.Parse(stream.ToArray());
         Assert.Equal(expectedCount, document.RootElement.GetProperty("messages").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Writes_Output_Parameters_And_ReturnValue_Under_Their_Logical_Names()
+    {
+        // The envelope is the only place an OUTPUT parameter surfaces, and the driver hands its values
+        // back keyed by the DATABASE parameter name. An endpoint that renames a parameter has to see its
+        // own name here, or a caller reading "output" gets a key it never wrote in the definition.
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT 1 AS id";
+        var reader = await query.ExecuteReaderAsync();
+
+        var outputs = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["CustomerTotal"] = 42,
+            ["note"] = null,
+        };
+
+        await using var execution = new TestExecution(reader, outputs: outputs, returnValue: 7);
+        var endpoint = new EndpointDefinition
+        {
+            Route = "x",
+            ConnectionName = "default",
+            ObjectName = "usp",
+            Parameters =
+            [
+                new EndpointParameter
+                {
+                    Name = "total",
+                    DbParameterName = "@CustomerTotal",
+                    DbType = WeirDbType.Int32,
+                    Direction = ParameterDirection.Output,
+                },
+                new EndpointParameter { Name = "note", DbType = WeirDbType.String, Direction = ParameterDirection.InputOutput },
+            ],
+        };
+
+        using var stream = new MemoryStream();
+        await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
+
+        using var document = JsonDocument.Parse(stream.ToArray());
+        var output = document.RootElement.GetProperty("output");
+        Assert.Equal(42, output.GetProperty("total").GetInt32());
+        Assert.Equal(JsonValueKind.Null, output.GetProperty("note").ValueKind);
+        Assert.Equal(7, document.RootElement.GetProperty("returnValue").GetInt32());
+    }
+
+    [Fact]
+    public async Task Output_And_ReturnValue_Are_Null_When_There_Are_None()
+    {
+        // The envelope shape is fixed: a caller (and the typed client) may read both properties without
+        // checking whether the procedure had any, so neither may go missing.
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT 1 AS id";
+        var reader = await query.ExecuteReaderAsync();
+
+        await using var execution = new TestExecution(reader);
+        var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
+
+        using var stream = new MemoryStream();
+        await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, CancellationToken.None);
+
+        using var document = JsonDocument.Parse(stream.ToArray());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("output").ValueKind);
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("returnValue").ValueKind);
     }
 }
