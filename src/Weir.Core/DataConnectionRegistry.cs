@@ -14,6 +14,43 @@ public sealed class DataConnectionEntry
 
     /// <summary>Optional default command timeout, in seconds.</summary>
     public int? DefaultCommandTimeoutSeconds { get; set; }
+
+    /// <summary>
+    /// Optional connection-pool settings for this connection. Bound from
+    /// <c>Weir:DataConnections:&lt;name&gt;:Pool</c>; every property is optional and an omitted one
+    /// leaves the driver's own default in place.
+    /// </summary>
+    public DataConnectionPoolEntry Pool { get; set; } = new();
+}
+
+/// <summary>
+/// Configuration entry for a connection's pool. A mutable, settable mirror of
+/// <see cref="ConnectionPoolOptions"/>, because the configuration binder needs public setters and the
+/// descriptor the rest of the system reads should stay immutable.
+/// </summary>
+public sealed class DataConnectionPoolEntry
+{
+    /// <summary>Whether physical connections are pooled and reused. Null keeps the driver default.</summary>
+    public bool? Enabled { get; set; }
+
+    /// <summary>Connections kept open while idle. Null keeps the driver default.</summary>
+    public int? MinSize { get; set; }
+
+    /// <summary>Ceiling on physical connections. Null keeps the driver default.</summary>
+    public int? MaxSize { get; set; }
+
+    /// <summary>Seconds a request waits for a free pooled connection. Null keeps the driver default.</summary>
+    public int? AcquireTimeoutSeconds { get; set; }
+
+    /// <summary>Converts the bound entry into the immutable form the descriptor carries.</summary>
+    /// <returns>The equivalent options record.</returns>
+    public ConnectionPoolOptions ToOptions() => new()
+    {
+        Enabled = Enabled,
+        MinSize = MinSize,
+        MaxSize = MaxSize,
+        AcquireTimeoutSeconds = AcquireTimeoutSeconds,
+    };
 }
 
 /// <summary>Options carrying the set of named data connections.</summary>
@@ -36,12 +73,23 @@ public sealed class DataConnectionRegistry : IDataConnectionRegistry
         _map = new Dictionary<string, DataConnectionDescriptor>(StringComparer.OrdinalIgnoreCase);
         foreach (var (name, entry) in options.Value.Connections)
         {
+            var pool = (entry.Pool ?? new DataConnectionPoolEntry()).ToOptions();
+
+            // A pool that cannot exist as described is a startup failure, not a runtime surprise: the
+            // registry is built while the host starts, so the process refuses to come up rather than
+            // serving traffic against a connection whose configuration was half ignored.
+            if (pool.Validate(name) is { } reason)
+            {
+                throw new WeirConfigurationException(reason);
+            }
+
             _map[name] = new DataConnectionDescriptor
             {
                 Name = name,
                 Provider = entry.Provider,
                 ConnectionString = entry.ConnectionString,
                 DefaultCommandTimeoutSeconds = entry.DefaultCommandTimeoutSeconds,
+                Pool = pool,
             };
         }
     }

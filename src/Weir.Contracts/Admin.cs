@@ -159,6 +159,30 @@ public sealed record ConnectionInfo
 
     /// <summary>Provider key, e.g. SqlServer.</summary>
     public required string Provider { get; init; }
+
+    /// <summary>
+    /// The connection's pool settings as configured, or null when it leaves every driver default in
+    /// place. Read-only: pooling is set in configuration and applied at startup, so there is nothing
+    /// here to edit at runtime - it is reported so an operator can see what the process is actually
+    /// running with. Contains no secret: sizes and a timeout, never the connection string.
+    /// </summary>
+    public ConnectionPoolInfo? Pool { get; init; }
+}
+
+/// <summary>The configured pool settings of one data connection, as reported by the admin API.</summary>
+public sealed record ConnectionPoolInfo
+{
+    /// <summary>Whether connections are pooled; null means the driver default (pooled) applies.</summary>
+    public bool? Enabled { get; init; }
+
+    /// <summary>Connections kept open while idle, or null for the driver default.</summary>
+    public int? MinSize { get; init; }
+
+    /// <summary>Ceiling on physical connections, or null for the driver default.</summary>
+    public int? MaxSize { get; init; }
+
+    /// <summary>Seconds a request waits for a free pooled connection, or null for the driver default.</summary>
+    public int? AcquireTimeoutSeconds { get; init; }
 }
 
 /// <summary>Request to change an admin's role.</summary>

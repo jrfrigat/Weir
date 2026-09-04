@@ -40,9 +40,55 @@ One entry per named target connection. Endpoints reference a connection by its `
 | Provider | `SqlServer` | Data-plane provider: `SqlServer` or `PostgreSql`. |
 | ConnectionString | (required) | ADO.NET connection string for the target database. |
 | DefaultCommandTimeoutSeconds | (none) | Default command timeout when an endpoint sets none. |
+| Pool | (driver default) | Connection pooling for this connection. See below. |
 
 Both connectors retry only transient connection-open failures (before any command runs), so a
 procedure is never invoked more than once.
+
+#### `Weir:DataConnections:{name}:Pool`
+
+Both shipped drivers pool by default, so **Weir already reuses connections** whether or not this
+section is present: a request borrows a connection from the pool, and when the pool is full it waits
+for one to come back rather than opening another. This section is how you say that on purpose, in
+Weir's terms, instead of hand-writing driver keywords into the connection string.
+
+| Key | Default | Meaning |
+| :-- | :-- | :-- |
+| Enabled | (driver default: pooled) | `false` turns pooling off: every request opens its own physical connection and closes it afterwards. |
+| MinSize | (driver default) | Connections the pool keeps open while idle. |
+| MaxSize | (driver default) | The most physical connections this connection may hold. Once the pool is full, further requests wait. |
+| AcquireTimeoutSeconds | (driver default) | How long a request waits for a free pooled connection before failing. |
+
+```json
+"Weir": {
+  "DataConnections": {
+    "default": {
+      "Provider": "SqlServer",
+      "ConnectionString": "Server=db;Database=Sales;...",
+      "Pool": { "Enabled": true, "MinSize": 2, "MaxSize": 40, "AcquireTimeoutSeconds": 15 }
+    }
+  }
+}
+```
+
+Notes worth knowing before setting any of it:
+
+- **A key left out changes nothing.** The section overlays the connection string the way the runtime
+  settings overlay their `appsettings.json` seeds, so a connection string that already carries
+  `Max Pool Size` keeps it until `MaxSize` says otherwise.
+- **`AcquireTimeoutSeconds` is the connect timeout.** Both drivers use one timeout for "get me a
+  connection", covering opening a new one and waiting for a pooled one alike; neither has a separate
+  queue timeout. So this is also the timeout for reaching a database that is simply slow to answer.
+- **Turning pooling off costs a TCP connect and a login handshake per request.** That is the cost
+  pooling exists to avoid, so set `Enabled: false` only when a connection genuinely may not be shared -
+  a server holding per-session state, for instance - not to keep things simple.
+- **`MinSize` / `MaxSize` with `Enabled: false` is refused at startup**, rather than half applied: it
+  says you expect a pool that will not exist.
+- **The pool is not the only limit on concurrency.** `MaxConcurrentRequestsPerConnection` (a runtime
+  setting) is a bulkhead in front of it, and it is fail-fast: a request over that limit gets HTTP 503
+  instead of waiting. If you want requests to queue for a connection, leave that setting at zero and let
+  `MaxSize` be the ceiling.
+- The configured pool is reported (read-only, no connection string) by `GET /admin/api/connections`.
 
 ### `Weir:Admin`
 

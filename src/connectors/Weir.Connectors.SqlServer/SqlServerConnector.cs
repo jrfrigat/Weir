@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -20,8 +21,24 @@ public sealed class SqlServerConnector : IDbConnector
 
     private readonly IDataConnectionRegistry _registry;
 
+    /// <summary>
+    /// Effective connection strings (the configured one with the pool settings applied), keyed by the
+    /// configured string. Built once per connection: the overlay parses and rebuilds a connection
+    /// string, which is not work to repeat on every request.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, string> _effective = new(StringComparer.Ordinal);
+
     /// <summary>Creates the connector over the shared connection registry.</summary>
     public SqlServerConnector(IDataConnectionRegistry registry) => _registry = registry;
+
+    /// <summary>Returns the connection string to actually open, with the connection's pool settings applied.</summary>
+    /// <param name="descriptor">The resolved data connection.</param>
+    /// <returns>The effective connection string.</returns>
+    private string ConnectionStringFor(DataConnectionDescriptor descriptor) =>
+        _effective.GetOrAdd(
+            descriptor.ConnectionString,
+            static (cs, pool) => SqlServerConnectionStrings.ApplyPool(cs, pool),
+            descriptor.Pool);
 
     /// <inheritdoc />
     public string ProviderName => "SqlServer";
@@ -76,7 +93,7 @@ public sealed class SqlServerConnector : IDbConnector
             return await ExecuteImportAsync(request, descriptor, cancellationToken);
         }
 
-        var connection = new SqlConnection(descriptor.ConnectionString);
+        var connection = new SqlConnection(ConnectionStringFor(descriptor));
         var messages = new List<SqlMessage>();
         SqlInfoMessageEventHandler handler = (_, e) =>
         {
@@ -132,7 +149,7 @@ public sealed class SqlServerConnector : IDbConnector
     {
         var descriptor = _registry.Resolve(connectionName);
         // Use a short connect timeout so a down database fails the probe fast (health checks must not hang).
-        var connectionString = new SqlConnectionStringBuilder(descriptor.ConnectionString) { ConnectTimeout = 3 }.ConnectionString;
+        var connectionString = new SqlConnectionStringBuilder(ConnectionStringFor(descriptor)) { ConnectTimeout = 3 }.ConnectionString;
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -145,7 +162,7 @@ public sealed class SqlServerConnector : IDbConnector
     public async Task<IReadOnlyList<DbObjectDescriptor>> ListObjectsAsync(string connectionName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = new SqlConnection(descriptor.ConnectionString);
+        await using var connection = new SqlConnection(ConnectionStringFor(descriptor));
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -179,7 +196,7 @@ public sealed class SqlServerConnector : IDbConnector
         string connectionName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = new SqlConnection(descriptor.ConnectionString);
+        await using var connection = new SqlConnection(ConnectionStringFor(descriptor));
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -207,7 +224,7 @@ public sealed class SqlServerConnector : IDbConnector
         string connectionName, string schema, string objectName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = new SqlConnection(descriptor.ConnectionString);
+        await using var connection = new SqlConnection(ConnectionStringFor(descriptor));
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
 
@@ -258,7 +275,7 @@ public sealed class SqlServerConnector : IDbConnector
         string connectionName, string schema, string objectName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = new SqlConnection(descriptor.ConnectionString);
+        await using var connection = new SqlConnection(ConnectionStringFor(descriptor));
         await connection.OpenAsync(cancellationToken);
 
         // Read every parameter first (the reader is closed before any per-TVP column lookup runs, so
@@ -470,13 +487,13 @@ public sealed class SqlServerConnector : IDbConnector
     /// <param name="descriptor">The resolved connection descriptor.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The execution carrying the row count and the summary.</returns>
-    private static async Task<IDbExecution> ExecuteImportAsync(
+    private async Task<IDbExecution> ExecuteImportAsync(
         DbExecutionRequest request, DataConnectionDescriptor descriptor, CancellationToken cancellationToken)
     {
         var payload = request.Rows
             ?? throw new InvalidOperationException("An import request must carry its rows.");
 
-        await using var connection = new SqlConnection(descriptor.ConnectionString);
+        await using var connection = new SqlConnection(ConnectionStringFor(descriptor));
         await OpenWithRetryAsync(connection, cancellationToken);
 
         return await TableImport.RunAsync(

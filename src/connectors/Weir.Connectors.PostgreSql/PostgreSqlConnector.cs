@@ -78,11 +78,18 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         return DbErrorCategory.None;
     }
 
-    /// <summary>Returns the pooled data source for a connection string, building it once on first use.</summary>
-    /// <param name="connectionString">The ADO.NET connection string.</param>
+    /// <summary>
+    /// Returns the pooled data source for a connection, building it once on first use with the
+    /// connection's pool settings applied. Keyed by the configured connection string, so two
+    /// connections that name the same string share one pool - which is the point of pooling.
+    /// </summary>
+    /// <param name="descriptor">The resolved data connection.</param>
     /// <returns>The shared, thread-safe data source.</returns>
-    private NpgsqlDataSource DataSourceFor(string connectionString) =>
-        _dataSources.GetOrAdd(connectionString, static cs => new NpgsqlDataSourceBuilder(cs).Build());
+    private NpgsqlDataSource DataSourceFor(DataConnectionDescriptor descriptor) =>
+        _dataSources.GetOrAdd(
+            descriptor.ConnectionString,
+            static (cs, pool) => new NpgsqlDataSourceBuilder(PostgreSqlConnectionStrings.ApplyPool(cs, pool)).Build(),
+            descriptor.Pool);
 
     /// <inheritdoc />
     public async Task<IDbExecution> ExecuteAsync(DbExecutionRequest request, CancellationToken cancellationToken = default)
@@ -97,7 +104,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             return await ExecuteImportAsync(request, descriptor, cancellationToken);
         }
 
-        var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        var connection = DataSourceFor(descriptor).CreateConnection();
         var messages = new List<SqlMessage>();
         NoticeEventHandler handler = (_, e) =>
         {
@@ -141,8 +148,11 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
     public async Task ProbeAsync(string connectionName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        // Use a short connect and command timeout so a down database fails the probe fast.
-        var connectionString = new NpgsqlConnectionStringBuilder(descriptor.ConnectionString) { Timeout = 3, CommandTimeout = 3 }.ConnectionString;
+        // Use a short connect and command timeout so a down database fails the probe fast. The pool
+        // settings still apply - a probe that opened an unpooled connection would not be testing the
+        // path requests take - but the short Timeout overrides their acquire timeout on purpose.
+        var pooled = PostgreSqlConnectionStrings.ApplyPool(descriptor.ConnectionString, descriptor.Pool);
+        var connectionString = new NpgsqlConnectionStringBuilder(pooled) { Timeout = 3, CommandTimeout = 3 }.ConnectionString;
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -154,7 +164,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
     public async Task<IReadOnlyList<DbObjectDescriptor>> ListObjectsAsync(string connectionName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = await DataSourceFor(descriptor.ConnectionString).OpenConnectionAsync(cancellationToken);
+        await using var connection = await DataSourceFor(descriptor).OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
             "SELECT n.nspname, p.proname, p.prokind, p.proretset " +
@@ -190,7 +200,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         string connectionName, string schema, string objectName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = await DataSourceFor(descriptor.ConnectionString).OpenConnectionAsync(cancellationToken);
+        await using var connection = await DataSourceFor(descriptor).OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
             "SELECT p.parameter_name, p.data_type, p.parameter_mode " +
@@ -318,7 +328,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         var payload = request.Rows
             ?? throw new InvalidOperationException("An import request must carry its rows.");
 
-        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await using var connection = DataSourceFor(descriptor).CreateConnection();
         await OpenWithRetryAsync(connection, cancellationToken);
 
         return await TableImport.RunAsync(
@@ -414,7 +424,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         string connectionName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await using var connection = DataSourceFor(descriptor).CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -442,7 +452,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
         string connectionName, string schema, string objectName, CancellationToken cancellationToken = default)
     {
         var descriptor = _registry.Resolve(connectionName);
-        await using var connection = DataSourceFor(descriptor.ConnectionString).CreateConnection();
+        await using var connection = DataSourceFor(descriptor).CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
 

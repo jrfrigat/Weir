@@ -30,4 +30,11 @@ public sealed record DataConnectionDescriptor
 
     /// <summary>Optional default command timeout, in seconds, applied when an endpoint sets none.</summary>
     public int? DefaultCommandTimeoutSeconds { get; init; }
+
+    /// <summary>
+    /// How this connection pools, stated independently of the driver. Never null; an unconfigured
+    /// connection carries an empty instance, which leaves every driver default alone. A connector that
+    /// does not understand pooling may ignore it - the connection string still works on its own.
+    /// </summary>
+    public ConnectionPoolOptions Pool { get; init; } = new();
 }

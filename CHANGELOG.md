@@ -8,6 +8,22 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Connection pooling is configurable per data connection, in Weir's own terms.** Both shipped drivers
+  already pool - a request has always borrowed a connection and waited for a free one when the pool was
+  full - but saying anything about it meant hand-writing driver keywords into the connection string, and
+  the two drivers spell them differently. `Weir:DataConnections:{name}:Pool` states it once:
+  `Enabled` (false gives every request its own physical connection, for a server that holds per-session
+  state), `MinSize`, `MaxSize` and `AcquireTimeoutSeconds`. Each connector translates it onto its own
+  driver, and a property left null writes nothing, so a connection string that already sizes its pool
+  keeps that size. Sizing a connection whose pooling is off is refused at startup rather than half
+  applied - it says the operator expects a pool that will not exist. The configured pool is reported
+  read-only (never the connection string) by `GET /admin/api/connections`.
+  <br>Worth knowing, because it is the one place the intent can be defeated: `MaxConcurrentRequestsPerConnection`
+  is a bulkhead in front of the pool and it is fail-fast, so a request over that limit gets HTTP 503
+  instead of queueing. Leave it at zero for requests to wait on `MaxSize` instead.
+
 ## [1.7.0] - 2026-09-04
 
 ### Added

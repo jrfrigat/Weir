@@ -906,6 +906,16 @@ public static class AdminApi
             {
                 Name = descriptor.Name,
                 Provider = descriptor.Provider,
+                // Omitted rather than reported as all-nulls when nothing is configured, so "no pool
+                // settings" and "pooling explicitly left at the driver default" read the same way they
+                // are written.
+                Pool = descriptor.Pool.IsEmpty ? null : new ConnectionPoolInfo
+                {
+                    Enabled = descriptor.Pool.Enabled,
+                    MinSize = descriptor.Pool.MinSize,
+                    MaxSize = descriptor.Pool.MaxSize,
+                    AcquireTimeoutSeconds = descriptor.Pool.AcquireTimeoutSeconds,
+                },
             }).ToList()));
 
         group.MapGet("/connections/health", async (ClaimsPrincipal user, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors, TimeProvider clock, CancellationToken cancellationToken) =>
