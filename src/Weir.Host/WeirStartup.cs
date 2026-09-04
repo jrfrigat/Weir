@@ -27,7 +27,11 @@ public static class WeirStartup
         // Load persisted runtime settings (overlaying the appsettings seed) before serving traffic.
         await services.GetRequiredService<IRuntimeSettings>().InitializeAsync();
 
-        await BootstrapAdminAsync(store, services.GetRequiredService<IOptions<AdminBootstrapOptions>>().Value, logger);
+        await BootstrapAdminAsync(
+            store,
+            services.GetRequiredService<IOptions<AdminBootstrapOptions>>().Value,
+            services.GetRequiredService<IOptions<AdminSecurityOptions>>().Value.PasswordIterations,
+            logger);
 
         await services.GetRequiredService<IEndpointCatalog>().LoadAsync();
         Log.Initialized(logger);
@@ -36,9 +40,11 @@ public static class WeirStartup
     /// <summary>Creates the bootstrap admin account when none exists and credentials are configured.</summary>
     /// <param name="store">The control-plane store.</param>
     /// <param name="options">The bootstrap credentials.</param>
+    /// <param name="passwordIterations">The configured PBKDF2 work factor.</param>
     /// <param name="logger">Logger for startup messages.</param>
     /// <returns>A task that completes when the check finishes.</returns>
-    private static async Task BootstrapAdminAsync(IControlPlaneStore store, AdminBootstrapOptions options, ILogger logger)
+    private static async Task BootstrapAdminAsync(
+        IControlPlaneStore store, AdminBootstrapOptions options, int passwordIterations, ILogger logger)
     {
         var username = options.Username;
         var password = options.Password;
@@ -60,7 +66,8 @@ public static class WeirStartup
             return;
         }
 
-        await store.CreateAdminAsync(username, PasswordHasher.Hash(password), Weir.Contracts.AdminRoles.Admin);
+        await store.CreateAdminAsync(
+            username, PasswordHasher.Hash(password, passwordIterations), Weir.Contracts.AdminRoles.Admin);
         Log.BootstrappedAdmin(logger, username);
     }
 }

@@ -65,6 +65,23 @@ scopes **and** be granted the resource. A key that is not granted the procedure 
   lockout survives a restart and is shared across every instance in an HA deployment.
 - Additional admins and password changes are managed under **Admins**.
 
+Two consequences of counting failures per address are worth knowing before you tune it:
+
+- **Everyone behind one address shares one budget.** Office NAT, a VPN concentrator, a corporate proxy:
+  one person fat-fingering their password repeatedly can lock the address out for their colleagues too.
+  This is the deliberate side of the trade - counting per username instead would let anyone lock a named
+  admin out at will, which is the worse failure. Raise `Weir:Admin:MaxFailedLogins` for a site whose
+  admins share an address, rather than turning the throttle off.
+- **Weir must see the real address.** Behind a reverse proxy it sees the proxy's unless
+  `Weir:Network:TrustedProxies` names it, and then every caller shares a single bucket: one attacker
+  locks out every admin at once. `X-Forwarded-For` is not trusted by default precisely because
+  trusting it from anywhere would let an attacker forge a fresh address per request and slip the
+  throttle entirely.
+
+The work factor for password hashing is `Weir:Admin:PasswordIterations` (PBKDF2-SHA256, 100,000 by
+default). It can be raised at any time without a migration: the count is stored inside each hash, so
+existing passwords keep verifying at their own and move up when they are next changed.
+
 ### Roles
 
 Admin accounts have one of two roles:

@@ -18,12 +18,6 @@ namespace Weir.Host.Http;
 /// <summary>Maps the admin API consumed by the PWA: auth, endpoint/key/scope/admin management, audit and metrics.</summary>
 public static class AdminApi
 {
-    /// <summary>
-    /// A dummy password hash verified when a sign-in names a missing or disabled account, so the
-    /// response time does not reveal whether a username exists (equal-cost login paths).
-    /// </summary>
-    private static readonly string DecoyPasswordHash = PasswordHasher.Hash("weir-decoy-not-a-real-password");
-
     /// <summary>JSON options for the control-plane export document (web casing, indented for review).</summary>
     private static readonly JsonSerializerOptions ExportJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -175,7 +169,7 @@ public static class AdminApi
     /// <param name="group">The admin route group.</param>
     private static void MapAuth(RouteGroupBuilder group)
     {
-        group.MapPost("/auth/login", async (LoginRequest request, HttpContext http, IControlPlaneStore store, JwtTokenService jwt, IOptions<JwtOptions> jwtOptions, ILoginThrottle throttle, TimeProvider clock, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
+        group.MapPost("/auth/login", async (LoginRequest request, HttpContext http, IControlPlaneStore store, JwtTokenService jwt, IOptions<JwtOptions> jwtOptions, IOptions<AdminSecurityOptions> adminOptions, ILoginThrottle throttle, TimeProvider clock, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
             var logger = loggerFactory.CreateLogger("Weir.Security");
             // Throttle by source IP, not username, so bad passwords cannot lock a real admin out.
@@ -203,7 +197,7 @@ public static class AdminApi
             else
             {
                 // Verify against a decoy so a missing/disabled account costs the same as a real one.
-                _ = PasswordHasher.Verify(request.Password, DecoyPasswordHash);
+                _ = PasswordHasher.Verify(request.Password, PasswordHasher.Decoy(adminOptions.Value.PasswordIterations));
                 passwordOk = false;
             }
 
@@ -279,7 +273,7 @@ public static class AdminApi
             }));
 
         // Self-service password change for the signed-in admin (any role); verifies the current password.
-        group.MapPost("/account/password", async (ChangeOwnPasswordRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
+        group.MapPost("/account/password", async (ChangeOwnPasswordRequest request, IControlPlaneStore store, IOptions<AdminSecurityOptions> adminOptions, ClaimsPrincipal user, TimeProvider clock) =>
         {
             var username = user.Identity?.Name;
             if (string.IsNullOrEmpty(username))
@@ -298,7 +292,7 @@ public static class AdminApi
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Weak password", detail: reason);
             }
 
-            await store.UpdateAdminPasswordAsync(admin.Id, PasswordHasher.Hash(request.NewPassword));
+            await store.UpdateAdminPasswordAsync(admin.Id, PasswordHasher.Hash(request.NewPassword, adminOptions.Value.PasswordIterations));
             // A password change already bumps the token version (revoking access tokens); also revoke the
             // account's refresh tokens and personal access tokens so a leaked one cannot mint new access tokens.
             await store.RevokeRefreshTokensForAdminAsync(admin.Id, clock.GetUtcNow());
@@ -755,7 +749,7 @@ public static class AdminApi
         group.MapGet("/admins", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetAdminsAsync()));
 
-        group.MapPost("/admins", async (CreateAdminRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
+        group.MapPost("/admins", async (CreateAdminRequest request, IControlPlaneStore store, IOptions<AdminSecurityOptions> adminOptions, ClaimsPrincipal user, TimeProvider clock) =>
         {
             if (string.IsNullOrWhiteSpace(request.Username))
             {
@@ -773,19 +767,19 @@ public static class AdminApi
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Weak password", detail: reason);
             }
 
-            var created = await store.CreateAdminAsync(request.Username, PasswordHasher.Hash(request.Password), request.Role);
+            var created = await store.CreateAdminAsync(request.Username, PasswordHasher.Hash(request.Password, adminOptions.Value.PasswordIterations), request.Role);
             await AuditActionAsync(store, clock, user, "admin.create", $"{request.Username} ({request.Role})");
             return Results.Ok(created);
         }).RequireAuthorization("AdminOnly");
 
-        group.MapPost("/admins/{id:guid}/password", async (Guid id, ChangePasswordRequest request, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
+        group.MapPost("/admins/{id:guid}/password", async (Guid id, ChangePasswordRequest request, IControlPlaneStore store, IOptions<AdminSecurityOptions> adminOptions, ClaimsPrincipal user, TimeProvider clock) =>
         {
             if (PasswordPolicy.Validate(request.Password) is { } reason)
             {
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Weak password", detail: reason);
             }
 
-            await store.UpdateAdminPasswordAsync(id, PasswordHasher.Hash(request.Password));
+            await store.UpdateAdminPasswordAsync(id, PasswordHasher.Hash(request.Password, adminOptions.Value.PasswordIterations));
             await store.RevokeRefreshTokensForAdminAsync(id, clock.GetUtcNow());
             await store.RevokeAdminTokensForAdminAsync(id);
             await AuditActionAsync(store, clock, user, "admin.password_reset", id.ToString());

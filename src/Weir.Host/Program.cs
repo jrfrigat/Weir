@@ -159,6 +159,9 @@ builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("We
 builder.Services.AddOptions<AdminSecurityOptions>()
     .Bind(builder.Configuration.GetSection("Weir:Admin"))
     .Validate(o => o.MaxFailedLogins >= 0 && o.LockoutMinutes >= 0, "Weir:Admin lockout settings must not be negative.")
+    .Validate(
+        o => o.PasswordIterations >= PasswordHasher.MinimumIterations,
+        $"Weir:Admin:PasswordIterations must be at least {PasswordHasher.MinimumIterations}.")
     .ValidateOnStart();
 // Reverse-proxy trust. Weir keeps the raw socket address unless proxies are named explicitly, because
 // X-Forwarded-For is caller-supplied: trusting it from anywhere would let an attacker forge a fresh

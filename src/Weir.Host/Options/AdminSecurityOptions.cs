@@ -25,4 +25,21 @@ public sealed class AdminSecurityOptions
 
     /// <summary>When true, personal access tokens must carry an expiry; a never-expiring token is rejected.</summary>
     public bool RequireTokenExpiry { get; set; }
+
+    /// <summary>
+    /// PBKDF2 work factor for admin password hashes. The right value rises with hardware, which is why
+    /// it is a setting: OWASP's floor has moved several times, and a constant compiled into the binary
+    /// ages without anyone noticing.
+    /// <para>
+    /// Raising it is safe at any time and needs no migration - the count is stored inside each hash, so
+    /// existing passwords keep verifying at their own. They move up when they are next changed, so a
+    /// deployment that raises this and forces a password rotation is fully on the new factor.
+    /// </para>
+    /// <para>
+    /// It is a direct CPU cost on every sign-in, paid by the server: doubling it doubles the time an
+    /// attacker needs per guess and the time a real sign-in takes. Values below
+    /// <see cref="Security.PasswordHasher.MinimumIterations"/> are refused at startup.
+    /// </para>
+    /// </summary>
+    public int PasswordIterations { get; set; } = Security.PasswordHasher.DefaultIterations;
 }

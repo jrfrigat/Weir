@@ -100,6 +100,7 @@ Notes worth knowing before setting any of it:
 | LockoutMinutes | `15` | How long a locked-out client stays locked. |
 | MaxTokensPerAdmin | `20` | Maximum personal access tokens one admin may hold at once. Zero or less means unlimited. |
 | RequireTokenExpiry | `false` | When true, a personal access token must be created with an expiry; a never-expiring token is rejected. |
+| PasswordIterations | `100000` | PBKDF2-SHA256 work factor for admin password hashes. Raise it as hardware gets faster; no migration is needed, since the count is stored inside each hash and an existing password moves up when it is next changed. Values below 10000 are refused at startup. |
 
 ### `Weir:Jwt`
 
