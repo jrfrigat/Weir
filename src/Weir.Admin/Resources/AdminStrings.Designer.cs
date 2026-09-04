@@ -2321,6 +2321,42 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на returned in output..
+        /// </summary>
+        public static string Endpoints_ParamReturnedInOutput {
+            get {
+                return ResourceManager.GetString("Endpoints_ParamReturnedInOutput", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Output parameters..
+        /// </summary>
+        public static string Endpoints_OutputParametersSection {
+            get {
+                return ResourceManager.GetString("Endpoints_OutputParametersSection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The procedure fills these in - there is nothing to send. They come back in the response's &quot;output&quot; object...
+        /// </summary>
+        public static string Endpoints_OutputParametersHint {
+            get {
+                return ResourceManager.GetString("Endpoints_OutputParametersHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not load the data. Check the connection and try again..
+        /// </summary>
+        public static string Common_LoadFailed {
+            get {
+                return ResourceManager.GetString("Common_LoadFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на This endpoint takes no input parameters..
         /// </summary>
         public static string Endpoints_NoInputParameters {

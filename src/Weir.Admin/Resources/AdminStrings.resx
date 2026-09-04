@@ -994,6 +994,18 @@
   <data name="Endpoints_NoInputParameters" xml:space="preserve">
     <value>This endpoint takes no input parameters.</value>
   </data>
+  <data name="Endpoints_ParamReturnedInOutput" xml:space="preserve">
+    <value>returned in output</value>
+  </data>
+  <data name="Endpoints_OutputParametersSection" xml:space="preserve">
+    <value>Output parameters</value>
+  </data>
+  <data name="Endpoints_OutputParametersHint" xml:space="preserve">
+    <value>The procedure fills these in - there is nothing to send. They come back in the response's "output" object.</value>
+  </data>
+  <data name="Common_LoadFailed" xml:space="preserve">
+    <value>Could not load the data. Check the connection and try again.</value>
+  </data>
   <data name="Endpoints_AddRow" xml:space="preserve">
     <value>Add row</value>
   </data>

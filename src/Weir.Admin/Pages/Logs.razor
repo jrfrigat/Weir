@@ -5,6 +5,7 @@
 @using System.Text.Json
 @inject WeirApiClient Api
 @inject NavigationManager Nav
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Logs_Title" Description="@AdminStrings.Logs_Description">
@@ -267,6 +268,13 @@
             _entries = await Api.GetRequestLogAsync(_endpointId, _route, _slowOnly, _errorsOnly, PageSize) ?? [];
             _hasMore = _entries.Count == PageSize;
         }
+        catch (HttpRequestException)
+        {
+            // Uncaught, this reached the ErrorBoundary and blanked the page, which says nothing about
+            // what went wrong and loses the filters the reader had set.
+            _entries ??= [];
+            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+        }
         finally
         {
             _loading = false;
@@ -291,6 +299,11 @@
             }
 
             _hasMore = older is { Count: PageSize };
+        }
+        catch (HttpRequestException)
+        {
+            // The pages already loaded stay on screen; only the one that failed is reported.
+            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
         }
         finally
         {

@@ -994,6 +994,18 @@
   <data name="Endpoints_NoInputParameters" xml:space="preserve">
     <value>Этот эндпоинт не принимает входных параметров.</value>
   </data>
+  <data name="Endpoints_ParamReturnedInOutput" xml:space="preserve">
+    <value>возвращается в output</value>
+  </data>
+  <data name="Endpoints_OutputParametersSection" xml:space="preserve">
+    <value>Output-параметры</value>
+  </data>
+  <data name="Endpoints_OutputParametersHint" xml:space="preserve">
+    <value>Их заполняет процедура - отправлять нечего. Они возвращаются в объекте "output" ответа.</value>
+  </data>
+  <data name="Common_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить данные. Проверьте соединение и повторите.</value>
+  </data>
   <data name="Endpoints_AddRow" xml:space="preserve">
     <value>Добавить строку</value>
   </data>

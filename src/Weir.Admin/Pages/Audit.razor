@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inherits LocalizedPage
 @inject WeirApiClient Api
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Audit_Title" Description="@AdminStrings.Audit_Description" />
@@ -65,8 +66,18 @@
     /// <summary>Loads the most recent audit entries (first keyset page).</summary>
     protected override async Task OnInitializedAsync()
     {
-        _entries = await Api.GetAuditAsync(PageSize);
-        _hasMore = _entries is { Count: PageSize };
+        try
+        {
+            _entries = await Api.GetAuditAsync(PageSize);
+            _hasMore = _entries is { Count: PageSize };
+        }
+        catch (HttpRequestException)
+        {
+            // An empty list rather than null: the page then draws its "nothing here" state next to the
+            // error, instead of the loading spinner it would otherwise sit on forever.
+            _entries = [];
+            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+        }
     }
 
     /// <summary>Fetches the next older page using the last entry's id as the keyset cursor.</summary>
@@ -88,6 +99,10 @@
             }
 
             _hasMore = older is { Count: PageSize };
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
         }
         finally
         {
