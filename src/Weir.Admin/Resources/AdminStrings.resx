@@ -1547,8 +1547,8 @@
   <data name="Settings_ExportServiceUnavailable" xml:space="preserve">
     <value>The export service did not respond.</value>
   </data>
-  <data name="Settings_ValuesMustNotBeNegative" xml:space="preserve">
-    <value>Values must not be negative.</value>
+  <data name="Settings_ValueOutOfRange" xml:space="preserve">
+    <value>"{0}" must be between {1} and {2}.</value>
   </data>
   <data name="Settings_UpdateRejected" xml:space="preserve">
     <value>The update was rejected. Only full admins can change settings.</value>

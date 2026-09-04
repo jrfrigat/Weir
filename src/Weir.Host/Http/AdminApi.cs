@@ -108,14 +108,13 @@ public static class AdminApi
             WeirSystemSettings update, IRuntimeSettings settings, IControlPlaneStore store,
             ClaimsPrincipal user, TimeProvider clock, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
-            if (update.MaxRows < 0 || update.RequestTimeoutSeconds < 0 || update.MaxTvpRows < 0 || update.MaxImportRows < 0 ||
-                update.DefaultApiKeyRateLimitPerMinute < 0 || update.AuditRetentionDays < 0 ||
-                update.MaxConcurrentRequestsPerConnection < 0 || update.CircuitBreakerFailureThreshold < 0 ||
-                update.CircuitBreakerResetSeconds < 0 || update.ApiKeyFailureThreshold < 0 ||
-                update.ResponseCacheMaxBytes < 0)
+            // Range-checked against SettingsBounds, the same table the admin form constrains its inputs
+            // with - a limit is not enforced by the page that edits it, and this route is reachable
+            // without one.
+            if (SettingsBounds.FirstViolation(update) is { } violation)
             {
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid settings",
-                    detail: "Settings values must not be negative.");
+                    detail: $"'{violation.Setting}' must be between {violation.Min} and {violation.Max}.");
             }
 
             var before = settings.Current;

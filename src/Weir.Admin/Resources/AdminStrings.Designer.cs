@@ -4492,11 +4492,11 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Values must not be negative..
+        ///   Ищет локализованную строку, похожую на &quot;{0}&quot; must be between {1} and {2}..
         /// </summary>
-        public static string Settings_ValuesMustNotBeNegative {
+        public static string Settings_ValueOutOfRange {
             get {
-                return ResourceManager.GetString("Settings_ValuesMustNotBeNegative", resourceCulture);
+                return ResourceManager.GetString("Settings_ValueOutOfRange", resourceCulture);
             }
         }
     }

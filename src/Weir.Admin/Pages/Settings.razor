@@ -1,4 +1,5 @@
 @page "/settings"
+@using System.Globalization
 @attribute [Authorize]
 @inherits LocalizedPage
 @inject WeirApiClient Api
@@ -26,10 +27,10 @@
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionDataPlaneLimits</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxImportRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxImportRows" HelperText="@AdminStrings.Settings_MaxImportRowsHelp" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Min="SettingsBounds.MaxRows.Min" Max="SettingsBounds.MaxRows.Max" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Min="SettingsBounds.RequestTimeoutSeconds.Min" Max="SettingsBounds.RequestTimeoutSeconds.Max" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Min="SettingsBounds.MaxTvpRows.Min" Max="SettingsBounds.MaxTvpRows.Max" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxImportRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxImportRows" Min="SettingsBounds.MaxImportRows.Min" Max="SettingsBounds.MaxImportRows.Max" HelperText="@AdminStrings.Settings_MaxImportRowsHelp" Style="max-width:12rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
             </FlareStack>
@@ -42,7 +43,7 @@
                     <FlareSelect TValue="ResponseDeliveryMode" Label="@AdminStrings.Settings_DeliveryModeLabel" Size="FieldSize.Sm"
                                  @bind-Value="_responseDeliveryMode" Items="Enum.GetValues<ResponseDeliveryMode>()"
                                  ItemLabel="DeliveryModeLabel" Style="min-width:16rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ResponseFlushBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseFlushBytes" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ResponseFlushBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseFlushBytes" Min="SettingsBounds.ResponseFlushBytes.Min" Max="SettingsBounds.ResponseFlushBytes.Max" Style="max-width:12rem;" />
                     <FlareSelect TValue="ResponseCompressionMode" Label="@AdminStrings.Settings_CompressionModeLabel" Size="FieldSize.Sm"
                                  @bind-Value="_responseCompressionMode" Items="Enum.GetValues<ResponseCompressionMode>()"
                                  ItemLabel="CompressionModeLabel" Style="min-width:16rem;" />
@@ -62,7 +63,7 @@
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
-                <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Style="max-width:16rem;" />
+                <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Min="SettingsBounds.ResponseCacheMaxBytes.Min" Max="SettingsBounds.ResponseCacheMaxBytes.Max" Style="max-width:16rem;" />
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ResponseCacheHelp</FlareText>
             </FlareStack>
         </FlareCard>
@@ -71,8 +72,8 @@
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRateLimiting</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Style="max-width:16rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ApiKeyFailureThresholdLabel" Size="FieldSize.Sm" @bind-Value="_apiKeyFailureThreshold" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_DefaultRateLimitLabel" Size="FieldSize.Sm" @bind-Value="_defaultRateLimit" Min="SettingsBounds.DefaultApiKeyRateLimitPerMinute.Min" Max="SettingsBounds.DefaultApiKeyRateLimitPerMinute.Max" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_ApiKeyFailureThresholdLabel" Size="FieldSize.Sm" @bind-Value="_apiKeyFailureThreshold" Min="SettingsBounds.ApiKeyFailureThreshold.Min" Max="SettingsBounds.ApiKeyFailureThreshold.Max" Style="max-width:16rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RateLimitingHelp</FlareText>
             </FlareStack>
@@ -82,9 +83,9 @@
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionConnectionResilience</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxConcurrentPerConnectionLabel" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Style="max-width:16rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerThresholdLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Style="max-width:14rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerResetLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" HelperText="@DurationHint.Humanize(_circuitBreakerResetSeconds)" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxConcurrentPerConnectionLabel" Size="FieldSize.Sm" @bind-Value="_maxConcurrentPerConnection" Min="SettingsBounds.MaxConcurrentRequestsPerConnection.Min" Max="SettingsBounds.MaxConcurrentRequestsPerConnection.Max" Style="max-width:16rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerThresholdLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerThreshold" Min="SettingsBounds.CircuitBreakerFailureThreshold.Min" Max="SettingsBounds.CircuitBreakerFailureThreshold.Max" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_CircuitBreakerResetLabel" Size="FieldSize.Sm" @bind-Value="_circuitBreakerResetSeconds" Min="SettingsBounds.CircuitBreakerResetSeconds.Min" Max="SettingsBounds.CircuitBreakerResetSeconds.Max" HelperText="@DurationHint.Humanize(_circuitBreakerResetSeconds)" Style="max-width:14rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ConnectionResilienceHelp</FlareText>
             </FlareStack>
@@ -93,7 +94,7 @@
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionAudit</FlareText>
-                <FlareNumericField TValue="int" Label="@AdminStrings.Settings_AuditRetentionLabel" Size="FieldSize.Sm" @bind-Value="_auditRetentionDays" Style="max-width:16rem;" />
+                <FlareNumericField TValue="int" Label="@AdminStrings.Settings_AuditRetentionLabel" Size="FieldSize.Sm" @bind-Value="_auditRetentionDays" Min="SettingsBounds.AuditRetentionDays.Min" Max="SettingsBounds.AuditRetentionDays.Max" Style="max-width:16rem;" />
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_AuditHelp</FlareText>
             </FlareStack>
         </FlareCard>
@@ -103,8 +104,8 @@
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionRequestLog</FlareText>
                 <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true" Align="FlareAlignItems.Center">
                     <FlareSwitch Value="_requestLogEnabled" ValueChanged="@(v => _requestLogEnabled = v)" Label="@AdminStrings.Settings_EnableRequestLogLabel" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_SlowThresholdLabel" Size="FieldSize.Sm" @bind-Value="_slowThresholdPercent" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestLogRetentionLabel" Size="FieldSize.Sm" @bind-Value="_requestLogRetentionDays" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_SlowThresholdLabel" Size="FieldSize.Sm" @bind-Value="_slowThresholdPercent" Min="SettingsBounds.SlowRequestThresholdPercent.Min" Max="SettingsBounds.SlowRequestThresholdPercent.Max" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestLogRetentionLabel" Size="FieldSize.Sm" @bind-Value="_requestLogRetentionDays" Min="SettingsBounds.RequestLogRetentionDays.Min" Max="SettingsBounds.RequestLogRetentionDays.Max" Style="max-width:12rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_RequestLogHelp</FlareText>
             </FlareStack>
@@ -260,11 +261,34 @@
     /// <summary>Validates and persists the edited settings, surfacing success or the failure reason.</summary>
     private async Task SaveAsync()
     {
-        if (_maxRows < 0 || _requestTimeoutSeconds < 0 || _maxTvpRows < 0 || _maxImportRows < 0 || _defaultRateLimit < 0 || _auditRetentionDays < 0 ||
-            _maxConcurrentPerConnection < 0 || _circuitBreakerThreshold < 0 || _circuitBreakerResetSeconds < 0 ||
-            _apiKeyFailureThreshold < 0 || _slowThresholdPercent < 0 || _requestLogRetentionDays < 0 || _responseCacheMaxBytes < 0)
+        var edited = new WeirSystemSettings
         {
-            _status = AdminStrings.Settings_ValuesMustNotBeNegative;
+            MaxRows = _maxRows,
+            RequestTimeoutSeconds = _requestTimeoutSeconds,
+            MaxTvpRows = _maxTvpRows,
+            MaxImportRows = _maxImportRows,
+            DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
+            ApiKeyFailureThreshold = _apiKeyFailureThreshold,
+            AuditRetentionDays = _auditRetentionDays,
+            MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
+            CircuitBreakerFailureThreshold = _circuitBreakerThreshold,
+            CircuitBreakerResetSeconds = _circuitBreakerResetSeconds,
+            RequestLogEnabled = _requestLogEnabled,
+            SlowRequestThresholdPercent = _slowThresholdPercent,
+            RequestLogRetentionDays = _requestLogRetentionDays,
+            ResponseCacheMaxBytes = _responseCacheMaxBytes,
+            ResponseDeliveryMode = _responseDeliveryMode,
+            ResponseFlushBytes = _responseFlushBytes,
+            ResponseCompressionMode = _responseCompressionMode,
+        };
+
+        // The same table the fields are bounded by and the API validates against, so the page reports the
+        // rejection itself instead of sending a request it knows the server will refuse.
+        if (SettingsBounds.FirstViolation(edited) is { } violation)
+        {
+            _status = string.Format(
+                CultureInfo.CurrentCulture, AdminStrings.Settings_ValueOutOfRange,
+                BoundLabel(violation.Setting), violation.Min, violation.Max);
             _statusError = true;
             return;
         }
@@ -273,26 +297,7 @@
         _status = null;
         try
         {
-            var applied = await Api.UpdateSettingsAsync(new WeirSystemSettings
-            {
-                MaxRows = _maxRows,
-                RequestTimeoutSeconds = _requestTimeoutSeconds,
-                MaxTvpRows = _maxTvpRows,
-                MaxImportRows = _maxImportRows,
-                DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
-                ApiKeyFailureThreshold = _apiKeyFailureThreshold,
-                AuditRetentionDays = _auditRetentionDays,
-                MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
-                CircuitBreakerFailureThreshold = _circuitBreakerThreshold,
-                CircuitBreakerResetSeconds = _circuitBreakerResetSeconds,
-                RequestLogEnabled = _requestLogEnabled,
-                SlowRequestThresholdPercent = _slowThresholdPercent,
-                RequestLogRetentionDays = _requestLogRetentionDays,
-                ResponseCacheMaxBytes = _responseCacheMaxBytes,
-                ResponseDeliveryMode = _responseDeliveryMode,
-                ResponseFlushBytes = _responseFlushBytes,
-                ResponseCompressionMode = _responseCompressionMode,
-            });
+            var applied = await Api.UpdateSettingsAsync(edited);
 
             if (applied is null)
             {
@@ -339,5 +344,27 @@
         ResponseCompressionMode.On => AdminStrings.Settings_CompressionModeOn,
         ResponseCompressionMode.Off => AdminStrings.Settings_CompressionModeOff,
         _ => mode.ToString(),
+    };
+
+    // Names the setting a range violation refers to with the same label its field carries, so the message
+    // points at something the reader can see on the page. The fallback is the property name, which is what
+    // the API reports; it is only reachable if a bound is added without a case here.
+    private static string BoundLabel(string setting) => setting switch
+    {
+        nameof(WeirSystemSettings.MaxRows) => AdminStrings.Settings_MaxRowsLabel,
+        nameof(WeirSystemSettings.RequestTimeoutSeconds) => AdminStrings.Settings_RequestTimeoutLabel,
+        nameof(WeirSystemSettings.MaxTvpRows) => AdminStrings.Settings_MaxTvpRowsLabel,
+        nameof(WeirSystemSettings.MaxImportRows) => AdminStrings.Settings_MaxImportRowsLabel,
+        nameof(WeirSystemSettings.DefaultApiKeyRateLimitPerMinute) => AdminStrings.Settings_DefaultRateLimitLabel,
+        nameof(WeirSystemSettings.AuditRetentionDays) => AdminStrings.Settings_AuditRetentionLabel,
+        nameof(WeirSystemSettings.MaxConcurrentRequestsPerConnection) => AdminStrings.Settings_MaxConcurrentPerConnectionLabel,
+        nameof(WeirSystemSettings.CircuitBreakerFailureThreshold) => AdminStrings.Settings_CircuitBreakerThresholdLabel,
+        nameof(WeirSystemSettings.CircuitBreakerResetSeconds) => AdminStrings.Settings_CircuitBreakerResetLabel,
+        nameof(WeirSystemSettings.ApiKeyFailureThreshold) => AdminStrings.Settings_ApiKeyFailureThresholdLabel,
+        nameof(WeirSystemSettings.SlowRequestThresholdPercent) => AdminStrings.Settings_SlowThresholdLabel,
+        nameof(WeirSystemSettings.RequestLogRetentionDays) => AdminStrings.Settings_RequestLogRetentionLabel,
+        nameof(WeirSystemSettings.ResponseCacheMaxBytes) => AdminStrings.Settings_ResponseCacheMaxBytesLabel,
+        nameof(WeirSystemSettings.ResponseFlushBytes) => AdminStrings.Settings_ResponseFlushBytesLabel,
+        _ => setting,
     };
 }

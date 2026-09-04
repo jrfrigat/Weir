@@ -1547,8 +1547,8 @@
   <data name="Settings_ExportServiceUnavailable" xml:space="preserve">
     <value>Служба экспорта не ответила.</value>
   </data>
-  <data name="Settings_ValuesMustNotBeNegative" xml:space="preserve">
-    <value>Значения не должны быть отрицательными.</value>
+  <data name="Settings_ValueOutOfRange" xml:space="preserve">
+    <value>Значение "{0}" должно быть между {1} и {2}.</value>
   </data>
   <data name="Settings_UpdateRejected" xml:space="preserve">
     <value>Обновление отклонено. Изменять настройки могут только администраторы с ролью Admin.</value>
