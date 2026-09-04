@@ -9,12 +9,15 @@ namespace Weir.Connectors.SqlServer;
 internal static class TableValuedParameters
 {
     /// <summary>
-    /// Returns the value to assign to a <see cref="SqlDbType.Structured"/> parameter. An empty table
-    /// is sent as <see cref="DBNull.Value"/>, which SQL Server interprets as an empty TVP.
+    /// Returns the value to assign to a <see cref="SqlDbType.Structured"/> parameter: one
+    /// <see cref="SqlDataRecord"/> per row. An empty table must be passed as a <c>null</c> value:
+    /// SqlClient maps that to "TVP with no rows", while <see cref="DBNull.Value"/> is rejected
+    /// ("Table-valued parameters cannot have the value DBNull") and so is a record sequence
+    /// with zero elements ("The enumeration of SqlDataRecord has no records").
     /// Cell values in each row must align to <see cref="TableParameter.Columns"/> order.
     /// </summary>
-    public static object BuildValue(TableParameter table) =>
-        table.Rows.Count == 0 ? DBNull.Value : Enumerate(table);
+    public static object? BuildValue(TableParameter table) =>
+        table.Rows.Count == 0 ? null : Enumerate(table);
 
     /// <summary>Yields one <see cref="SqlDataRecord"/> per row, aligned to the column metadata.</summary>
     /// <param name="table">The table parameter to enumerate.</param>

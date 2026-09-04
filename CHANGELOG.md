@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **An endpoint with a table-valued parameter failed whenever the caller left it out.** SqlClient takes
+  exactly one representation of "TVP with no rows" - a null value - and the connector was sending
+  `DBNull.Value`, which it rejects outright ("Table-valued parameters cannot have the value DBNull"). An
+  empty row list has the same problem from the other side: a record sequence with no elements is refused
+  as well. So an optional TVP was not optional, and the error named the driver rather than the parameter.
+  Guarded by `TableValuedParameterTests`.
+
 ### Changed
 
 - **Flare 0.29.0** (from 0.26.2), and the admin needed no edit to take it. The three breaking changes

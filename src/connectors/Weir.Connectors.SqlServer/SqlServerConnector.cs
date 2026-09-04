@@ -590,7 +590,9 @@ public sealed class SqlServerConnector : IDbConnector
             {
                 parameter.SqlDbType = SqlDbType.Structured;
                 parameter.TypeName = wp.TypeName;
-                parameter.Value = wp.Table is null ? DBNull.Value : TableValuedParameters.BuildValue(wp.Table);
+                // An empty table - or one the request omitted entirely - must be sent as a null value:
+                // SqlClient reads that as "TVP with no rows", and rejects DBNull outright.
+                parameter.Value = wp.Table is null ? null : TableValuedParameters.BuildValue(wp.Table);
             }
             else
             {
