@@ -16,6 +16,9 @@ public sealed class BearerHandler : DelegatingHandler
     private readonly TokenStore _tokens;
     private readonly WeirAuthStateProvider _authState;
 
+    /// <summary>Serializes refresh exchanges so only one request at a time may rotate the session.</summary>
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+
     /// <summary>Creates the handler over the token store and auth state provider.</summary>
     /// <param name="tokens">The token store.</param>
     /// <param name="authState">The auth state provider notified when a session is rejected.</param>
@@ -42,7 +45,7 @@ public sealed class BearerHandler : DelegatingHandler
         }
 
         // The access token expired or was revoked. Try to refresh, then replay the request once.
-        var refreshed = await TryRefreshAsync(cancellationToken);
+        var refreshed = await RefreshOnceAsync(token, cancellationToken);
         if (refreshed is null)
         {
             await _tokens.ClearAllAsync();
@@ -86,8 +89,39 @@ public sealed class BearerHandler : DelegatingHandler
     }
 
     /// <summary>
+    /// Refreshes the session at most once for a batch of requests that hit 401 together. A page loads
+    /// several requests at a time, so an expired access token produces several 401s at once; each used to
+    /// start its own exchange, and since a refresh token is rotated on use, the second one sent an already
+    /// revoked token, failed, and signed the user out mid-page. The exchange is serialized here, and a
+    /// caller that finds the stored access token already moved on past the one it sent takes that instead
+    /// of exchanging again.
+    /// </summary>
+    /// <param name="staleToken">The access token this request sent and got a 401 for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The access token to replay with, or null when the session cannot be renewed.</returns>
+    private async Task<string?> RefreshOnceAsync(string staleToken, CancellationToken cancellationToken)
+    {
+        await _refreshLock.WaitAsync(cancellationToken);
+        try
+        {
+            var current = await _tokens.GetAsync();
+            if (!string.IsNullOrEmpty(current) && !string.Equals(current, staleToken, StringComparison.Ordinal))
+            {
+                return current;
+            }
+
+            return await TryRefreshAsync(cancellationToken);
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
+    }
+
+    /// <summary>
     /// Exchanges the stored refresh token for a new access token (and rotated refresh token), persisting
     /// both. Returns the new access token, or null when there is no refresh token or the exchange fails.
+    /// Callers come through <see cref="RefreshOnceAsync"/>, which holds the lock this must run under.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The new access token, or null.</returns>
@@ -120,5 +154,16 @@ public sealed class BearerHandler : DelegatingHandler
         await _tokens.SetRefreshAsync(login.RefreshToken);
         _authState.NotifyLogin();
         return login.Token;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _refreshLock.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }

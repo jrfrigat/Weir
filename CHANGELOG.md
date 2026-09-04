@@ -23,6 +23,14 @@ All notable changes to this project are documented here. The format is based on
   until a NOT NULL table type turned it into a failure far from its cause. An absent column still binds
   NULL, so an optional one keeps its table-type default.
 
+- **A page load no longer signs the user out when the access token expires.** The admin issues several
+  API calls at once, so an expired token returns several 401s at the same instant, and each of them started
+  its own refresh exchange. Refresh tokens are rotated on use, so the second exchange presented a token the
+  first had already revoked: it failed, and the failure path clears the session. The exchange is serialized
+  now, and a request that finds the stored access token already renewed past the one it sent replays with
+  that instead of exchanging again. Guarded by `BearerHandlerTests`, which holds two requests inside the
+  handler at once and fails on the second exchange.
+
 ### Changed
 
 - **Flare 0.29.0** (from 0.26.2), and the admin needed no edit to take it. The three breaking changes
