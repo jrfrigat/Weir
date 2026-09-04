@@ -152,7 +152,7 @@ public static class OpenApiGenerator
                 {
                     ["application/json"] = new Dictionary<string, object?>(StringComparer.Ordinal)
                     {
-                        ["schema"] = Ref("ResponseEnvelope"),
+                        ["schema"] = EnvelopeSchema(endpoint),
                     },
                 },
             },
@@ -163,6 +163,62 @@ public static class OpenApiGenerator
         };
 
         return operation;
+    }
+
+    /// <summary>
+    /// Builds the 200 response schema. An endpoint with no output parameters just references the shared
+    /// envelope; one that has them narrows the envelope's <c>output</c> object to the parameters it
+    /// actually returns, named and typed. Without that a generated client sees <c>output</c> as an
+    /// untyped bag and can offer nothing better than a dictionary lookup for a value the endpoint
+    /// definition describes exactly.
+    /// <para>
+    /// The narrowing is an <c>allOf</c> over the shared schema rather than a copy of it, so the envelope
+    /// stays defined in one place and an endpoint-specific schema cannot drift from it.
+    /// </para>
+    /// </summary>
+    /// <param name="endpoint">The endpoint whose response is being described.</param>
+    /// <returns>A reference to the shared envelope, or an allOf that specializes it.</returns>
+    private static Dictionary<string, object?> EnvelopeSchema(EndpointDefinition endpoint)
+    {
+        var outputs = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var parameter in endpoint.Parameters)
+        {
+            // ReturnValue is not part of "output" - the envelope carries it as its own property.
+            if (parameter.Direction is ParameterDirection.Output or ParameterDirection.InputOutput)
+            {
+                var schema = SchemaFor(parameter);
+                schema["nullable"] = true;
+                outputs[parameter.Name] = schema;
+            }
+        }
+
+        if (outputs.Count == 0)
+        {
+            return Ref("ResponseEnvelope");
+        }
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["allOf"] = new object[]
+            {
+                Ref("ResponseEnvelope"),
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["type"] = "object",
+                    ["properties"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        // Null rather than an object when the procedure produced no values, which is what
+                        // the writer emits for an execution with an empty output set.
+                        ["output"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                        {
+                            ["type"] = "object",
+                            ["nullable"] = true,
+                            ["properties"] = outputs,
+                        },
+                    },
+                },
+            },
+        };
     }
 
     /// <summary>Builds a non-body parameter object (query, path or header).</summary>

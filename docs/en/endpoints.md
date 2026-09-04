@@ -106,6 +106,9 @@ of arrays); `messages` carries SQL `PRINT` / informational messages.
 
 - A single result set is `"data": [ [ ... ] ]`; an empty result set is `"data": [ [] ]`.
 - `output` holds output / input-output parameter values by logical name, or null if there are none.
+  The generated OpenAPI document describes them: an endpoint that declares output parameters narrows the
+  shared envelope's `output` object to exactly those properties, named and typed, so a client generated
+  from the spec reads them as fields rather than as an untyped bag.
 - `returnValue` is the procedure RETURN value, or null.
 - `truncated` is `true` when the result hit the configured `Weir:DataPlane:MaxRows` cap and was cut
   short (otherwise `false`).
