@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-04
+
+### Added
+
+- **The generated OpenAPI document now describes an endpoint's output parameters.** They are deliberately
+  absent from the request schema - the procedure writes them, the caller does not - which left the
+  response as the only place a generated client could learn they exist, and there they were an untyped
+  `"output": {}`. An endpoint that declares output or input-output parameters now narrows the shared
+  envelope's `output` object to exactly those properties, named and typed. The narrowing is an `allOf`
+  over `ResponseEnvelope` rather than a copy of it, so the envelope stays defined once and an
+  endpoint-specific schema cannot drift from it.
+
 ### Fixed
 
 - **An endpoint with a table-valued parameter failed whenever the caller left it out.** SqlClient takes
@@ -16,13 +28,11 @@ All notable changes to this project are documented here. The format is based on
   empty row list has the same problem from the other side: a record sequence with no elements is refused
   as well. So an optional TVP was not optional, and the error named the driver rather than the parameter.
   Guarded by `TableValuedParameterTests`.
-
 - **TVP row keys are matched to the column names case-insensitively.** SQL Server ignores identifier case,
   and a client that serializes its body with the `System.Text.Json` web default sends `{"sku": ...}` at a
   column declared `Sku`. The lookup was case-sensitive, so every cell of every row bound NULL - silently,
   until a NOT NULL table type turned it into a failure far from its cause. An absent column still binds
   NULL, so an optional one keeps its table-type default.
-
 - **A page load no longer signs the user out when the access token expires.** The admin issues several
   API calls at once, so an expired token returns several 401s at the same instant, and each of them started
   its own refresh exchange. Refresh tokens are rotated on use, so the second exchange presented a token the
@@ -30,6 +40,23 @@ All notable changes to this project are documented here. The format is based on
   now, and a request that finds the stored access token already renewed past the one it sent replays with
   that instead of exchanging again. Guarded by `BearerHandlerTests`, which holds two requests inside the
   handler at once and fails on the second exchange.
+- **A settings value out of any sane range is refused instead of stored.** `MaxRows` could be set to
+  `int.MaxValue` and the request timeout to something measured in years: both sides checked only that a
+  value was not negative. The accepted range of every numeric setting now lives in one table,
+  `SettingsBounds`, which the admin form constrains its inputs with and the admin API validates against -
+  a limit is not enforced by the page that edits it, and `PUT /admin/api/settings` is reachable without
+  one. Zero still means "unlimited" or "disabled" everywhere it did. The real thing this prevents is
+  arithmetic: a limit that overflows when something multiplies or converts it stops being a limit.
+- **The last-used throttle no longer leaks an entry per key.** Persisting a "last used" timestamp on every
+  authenticated request would put a write on the hot path, so each store keeps one timestamp per API key
+  and admin token and writes at most once a minute. Nothing ever removed those entries: a key used once
+  left one behind for the life of the process. The shared `TouchThrottleCache` sweeps entries that are
+  older than twice the window - by then the next touch for that key passes on age alone, so dropping them
+  changes no behaviour - and only once the map has grown past a thousand keys, so a small deployment never
+  pays for the sweep.
+- **The admin listing no longer reads every account's password hash.** `GetAdminsAsync` selected
+  `PasswordHash` into a view that has no place for it, on the SQLite and PostgreSQL stores; the SQL Server
+  one had already dropped it.
 
 ### Changed
 
@@ -50,6 +77,12 @@ All notable changes to this project are documented here. The format is based on
   switching a series off in the dashboard chart stops moving the axis.
 - Issue documents moved out of `docs/issues` and into `.claude/issues`, which is not committed, in step
   with how Flare keeps its backlog. `docs/` now holds only what ships with the product.
+
+## [1.6.2] - 2026-08-31
+
+### Changed
+
+- Flare 0.26.2.
 
 ## [1.6.1] - 2026-08-31
 
@@ -1146,7 +1179,11 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/jrfrigat/weir/compare/v1.6.2...v1.7.0
+[1.6.2]: https://github.com/jrfrigat/weir/compare/v1.6.1...v1.6.2
+[1.6.1]: https://github.com/jrfrigat/weir/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/jrfrigat/weir/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/jrfrigat/weir/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/jrfrigat/weir/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jrfrigat/weir/compare/v1.3.0...v1.4.0
