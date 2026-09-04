@@ -43,6 +43,8 @@ samples/client/**/launchSettings.json
 
 ## AI tooling (Claude Code / MCP) - local dev config, kept out of the repo.
 ## Note: .claude/launch.json holds a machine-specific dev connection string (a secret).
+## Note: .claude/issues and .claude/backlog are working material (issue documents, audits, the
+## triage data and its report). Deliberately not in the history - and so not backed up by it.
 CLAUDE.md
 .claude/
 .mcp.json

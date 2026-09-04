@@ -25,6 +25,8 @@ All notable changes to this project are documented here. The format is based on
   grid for a screen-fit page without application CSS, `FlareDataGrid.Scroll` for a few thousand rows
   with one scrollbar and no pager, standalone `FlareCsv` export, and `ChartScaleMode.FitAll` so
   switching a series off in the dashboard chart stops moving the axis.
+- Issue documents moved out of `docs/issues` and into `.claude/issues`, which is not committed, in step
+  with how Flare keeps its backlog. `docs/` now holds only what ships with the product.
 
 ## [1.6.1] - 2026-08-31
 
