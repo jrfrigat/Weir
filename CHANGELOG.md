@@ -8,6 +8,24 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- **Flare 0.29.0** (from 0.26.2), and the admin needed no edit to take it. The three breaking changes
+  in the range miss Weir: `DataGridExportColumn` is renamed and the admin exports nothing,
+  `.flare-datagrid__wrapper--virtual` is renamed and the admin overrides no Flare CSS, and the five
+  new required `InputTokens` heights are supplied by `Flare.Theme.VisualStudio`, which Weir takes as a
+  package rather than building a theme of its own.
+  <br>What the admin gets: every field is one height per size instead of a height set by whatever its
+  well happened to hold (0.27.0) - measured on the login page, both fields land on the theme's `Md`
+  step of 46px, and the ramp `--flare-input-height-xs..xl` is present; a select and a combobox draw
+  the same chevron at the same size; a rich tooltip sizes to its own text rather than to its trigger,
+  and a hidden tooltip or a closed speed dial no longer reserves the room it uses when open, which is
+  where a phone was picking up a sideways scrollbar (0.29.0).
+  <br>Also newly available, and not adopted here yet: `FillHeight` on layout content, tabs and the data
+  grid for a screen-fit page without application CSS, `FlareDataGrid.Scroll` for a few thousand rows
+  with one scrollbar and no pager, standalone `FlareCsv` export, and `ChartScaleMode.FitAll` so
+  switching a series off in the dashboard chart stops moving the axis.
+
 ## [1.6.1] - 2026-08-31
 
 ### Changed
