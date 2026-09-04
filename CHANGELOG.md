@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-04
+
 ### Added
 
 - **Connection pooling is configurable per data connection, in Weir's own terms.** Both shipped drivers
@@ -23,6 +25,36 @@ All notable changes to this project are documented here. The format is based on
   <br>Worth knowing, because it is the one place the intent can be defeated: `MaxConcurrentRequestsPerConnection`
   is a bulkhead in front of the pool and it is fail-fast, so a request over that limit gets HTTP 503
   instead of queueing. Leave it at zero for requests to wait on `MaxSize` instead.
+- **The PBKDF2 work factor for admin passwords is a setting**, `Weir:Admin:PasswordIterations`
+  (default 100,000, values under 10,000 refused at startup). It was a constant, and OWASP's floor has
+  moved several times - a number compiled into the binary ages without anyone noticing. Raising it needs
+  no migration: the count is stored inside each hash, so existing passwords keep verifying at their own
+  and move up when next changed. The decoy hash that keeps a sign-in for a missing account as expensive
+  as a real one is now built at the configured factor too, which is the part that would have quietly
+  broken otherwise - at the old constant, raising the setting would have made real accounts measurably
+  slower than missing ones and let response times say which usernames exist.
+
+### Changed
+
+- **The endpoint test drawer says what comes back.** OUTPUT parameters were already kept out of the form
+  (there is nothing to send), but nothing said they existed, so the reader had no way to know the call
+  returns them - and an INPUT-OUTPUT parameter looked exactly like a plain input, with no hint that the
+  procedure overwrites whatever is typed. The drawer now lists the endpoint's output parameters with
+  their types, and an input-output field says it is returned in `output`.
+- **The windowed latency histograms are stack-allocated.** `TimeRing.WindowHistogram` returned a fresh
+  array; a snapshot takes five of them per route, so a dashboard refreshing twice a second across a
+  hundred routes made a thousand short-lived arrays a second, all dead before the next tick. It fills a
+  caller-provided span now, and the buckets number in the teens, so the caller stack-allocates.
+- Documented the sign-in throttle's trade-off for operators: failures are counted per caller address, so
+  everyone behind one NAT or proxy shares a budget - which is the deliberate side of not letting anyone
+  lock a named admin out at will - and Weir must see the real address for it to work at all.
+
+### Fixed
+
+- **A failed load on the Logs or Audit page reported itself.** Neither caught `HttpRequestException`, so
+  an admin API that was unreachable took the exception to the error boundary and blanked the page,
+  losing the filters the reader had set and saying nothing about what happened. Both now keep the page
+  and raise an error snackbar, like every other page in the console.
 
 ## [1.7.0] - 2026-09-04
 
@@ -1195,7 +1227,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/jrfrigat/weir/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/jrfrigat/weir/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/jrfrigat/weir/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/jrfrigat/weir/compare/v1.6.0...v1.6.1
