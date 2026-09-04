@@ -17,6 +17,12 @@ All notable changes to this project are documented here. The format is based on
   as well. So an optional TVP was not optional, and the error named the driver rather than the parameter.
   Guarded by `TableValuedParameterTests`.
 
+- **TVP row keys are matched to the column names case-insensitively.** SQL Server ignores identifier case,
+  and a client that serializes its body with the `System.Text.Json` web default sends `{"sku": ...}` at a
+  column declared `Sku`. The lookup was case-sensitive, so every cell of every row bound NULL - silently,
+  until a NOT NULL table type turned it into a failure far from its cause. An absent column still binds
+  NULL, so an optional one keeps its table-type default.
+
 ### Changed
 
 - **Flare 0.29.0** (from 0.26.2), and the admin needed no edit to take it. The three breaking changes

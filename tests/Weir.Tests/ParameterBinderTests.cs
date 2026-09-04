@@ -213,6 +213,57 @@ public class ParameterBinderTests
         Assert.Equal("XYZ", result.Values["code"]);
     }
 
+    [Fact]
+    public void Tvp_MatchesRowKeysCaseInsensitively()
+    {
+        // SQL Server ignores identifier case, and a client that serializes its body with a camelCase
+        // naming policy - the System.Text.Json web default - sends "sku"/"qty" against columns declared
+        // as "Sku"/"Qty". A case-sensitive lookup finds neither and binds NULL into every cell, which a
+        // NOT NULL table type turns into a failure far from its cause. Nothing warns about it, so the
+        // only guard is this test.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "items",
+            DbType = WeirDbType.Structured,
+            TypeName = "dbo.OrderItemType",
+            TableColumns =
+            [
+                new TvpColumn { Name = "Sku" },
+                new TvpColumn { Name = "Qty", DbType = WeirDbType.Int32 },
+            ],
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\",\"qty\":2}]}"));
+        var table = result.Parameters[0].Table;
+        Assert.NotNull(table);
+        Assert.Equal("A1", table!.Rows[0][0]);
+        Assert.Equal(2, table.Rows[0][1]);
+    }
+
+    [Fact]
+    public void Tvp_LeavesAnAbsentColumnNull()
+    {
+        // The case-insensitive lookup must not turn into a match-anything one: a column the row does
+        // not carry still binds NULL, which is what lets an optional column keep its table-type default.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "items",
+            DbType = WeirDbType.Structured,
+            TypeName = "dbo.OrderItemType",
+            TableColumns =
+            [
+                new TvpColumn { Name = "Sku" },
+                new TvpColumn { Name = "Note" },
+            ],
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{\"items\":[{\"sku\":\"A1\"}]}"));
+        var table = result.Parameters[0].Table;
+        Assert.NotNull(table);
+        Assert.Equal("A1", table!.Rows[0][0]);
+        Assert.Null(table.Rows[0][1]);
+    }
+
     /// <summary>A TVP parameter definition used by the token tests.</summary>
     private static EndpointParameter TvpParameter() => new()
     {

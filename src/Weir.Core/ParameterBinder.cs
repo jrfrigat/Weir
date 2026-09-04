@@ -319,11 +319,25 @@ public sealed class ParameterBinder : IParameterBinder
                         $"Table-valued parameter '{definition.Name}' exceeds the maximum of {maxTvpRows} rows.");
                 }
 
+                // Row keys must match column names case-insensitively: SQL Server itself ignores
+                // identifier case, and clients that serialize bodies with a camelCase naming
+                // policy would otherwise send {"id": 8} against a column declared as "Id",
+                // silently binding NULL into a NOT NULL TVP column.
+                Dictionary<string, JsonElement>? rowProperties = null;
+                if (rowElement.ValueKind == JsonValueKind.Object)
+                {
+                    rowProperties = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var property in rowElement.EnumerateObject())
+                    {
+                        rowProperties[property.Name] = property.Value;
+                    }
+                }
+
                 var cells = new object?[columns.Count];
                 for (var i = 0; i < columns.Count; i++)
                 {
                     var column = columns[i];
-                    cells[i] = rowElement.ValueKind == JsonValueKind.Object && rowElement.TryGetProperty(column.Name, out var cell)
+                    cells[i] = rowProperties is not null && rowProperties.TryGetValue(column.Name, out var cell)
                         ? ValueCoercion.FromJson(cell, column.DbType)
                         : null;
                 }
