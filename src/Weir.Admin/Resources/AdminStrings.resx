@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -331,8 +331,8 @@
   <data name="Endpoints_SelectNone" xml:space="preserve">
     <value>None</value>
   </data>
-  <data name="Nav_Overview" xml:space="preserve">
-    <value>overview</value>
+  <data name="Nav_Dashboard" xml:space="preserve">
+    <value>dashboard</value>
   </data>
   <data name="Nav_Endpoints" xml:space="preserve">
     <value>endpoints</value>
@@ -613,11 +613,11 @@
   <data name="Audit_EntriesLoaded" xml:space="preserve">
     <value>{0} loaded</value>
   </data>
-  <data name="Dashboard_OverviewHeading" xml:space="preserve">
-    <value>// OVERVIEW</value>
+  <data name="Dashboard_Heading" xml:space="preserve">
+    <value>// DASHBOARD</value>
   </data>
-  <data name="Dashboard_OverviewHeadingLive" xml:space="preserve">
-    <value>// OVERVIEW - LIVE</value>
+  <data name="Dashboard_HeadingLive" xml:space="preserve">
+    <value>// DASHBOARD - LIVE</value>
   </data>
   <data name="Dashboard_StatusStarting" xml:space="preserve">
     <value>STARTING</value>

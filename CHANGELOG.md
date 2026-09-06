@@ -71,6 +71,24 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **The dashboard's socket carries changes, not a heartbeat.** It always ran on the SignalR hub rather
+  than on polling - the timer in the page is only the fallback for when the socket is gone - but the
+  server pushed a full snapshot on a fixed two-second beat whether or not anything had moved. It now
+  reads the in-memory aggregator once a second and sends only when the result would change what is on
+  screen, with a keepalive every five seconds so the uptime stays honest and a client can tell the
+  stream is alive. Measured against a running gateway: an idle one updates every 5 seconds instead of
+  every 2, and a busy one updates every second - twice as often as before, and only with news. A newly
+  connected dashboard is pushed to immediately rather than waiting for the next change.
+  <br>The uptime is deliberately the one field left out of "did anything change" - it changes every
+  second by definition, and letting it decide would put the metronome straight back.
+  <br>The page also stops claiming to be LIVE when it is not: the marker followed "a hub object exists",
+  which stayed true after the connection had closed for good and the page had quietly fallen back to
+  polling. It now follows the connection, polls while the socket is reconnecting, and stops polling the
+  moment it is back - a dashboard that keeps polling after reconnecting fetches what is already being
+  pushed to it.
+- **The Overview tab is called Dashboard** (`дашборд` in Russian), in the nav and in the page heading.
+- The admin app bar is 43px tall rather than 50px.
+
 - **Flare 0.32.0** (from 0.29.0), and this time the admin's data grids had to answer for themselves.
   0.31.0 takes `FlareDataGrid`'s size, paging and sticky header apart into three independent
   parameters, and two defaults move with them: `PageSize` is `0` (every row on one page) instead of

@@ -52,12 +52,24 @@ public sealed class DashboardHub : Hub
 public sealed class DashboardClientTracker
 {
     private int _count;
+    private long _joined;
 
     /// <summary>Whether at least one dashboard is currently connected.</summary>
     public bool HasClients => Volatile.Read(ref _count) > 0;
 
+    /// <summary>
+    /// How many dashboards have connected since the process started. Only ever increases, and only the
+    /// change matters: the broadcaster sends nothing while the data is unchanged, so it watches this to
+    /// notice that someone new is looking at a screen that has had no reason to be pushed to.
+    /// </summary>
+    public long Joined => Interlocked.Read(ref _joined);
+
     /// <summary>Records a new connection.</summary>
-    public void Increment() => Interlocked.Increment(ref _count);
+    public void Increment()
+    {
+        Interlocked.Increment(ref _count);
+        Interlocked.Increment(ref _joined);
+    }
 
     /// <summary>Records a dropped connection.</summary>
     public void Decrement() => Interlocked.Decrement(ref _count);

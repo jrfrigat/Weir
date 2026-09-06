@@ -6,15 +6,31 @@ using Weir.Contracts;
 namespace Weir.Host.Realtime;
 
 /// <summary>
-/// Pushes live dashboard data to connected admins over <see cref="DashboardHub"/>, replacing the
-/// dashboard's HTTP polling. A cheap metrics snapshot (from the in-memory aggregator) is broadcast
-/// every couple of seconds; connection health, which probes the databases, is broadcast on a slower
-/// cadence. Both are skipped entirely when no dashboard is connected.
+/// Pushes live dashboard data to connected admins over <see cref="DashboardHub"/>, which is what the
+/// dashboard runs on - it polls nothing while the hub is up.
+/// <para>
+/// The socket carries changes rather than a heartbeat: the in-memory aggregator is read once a second
+/// (cheap - no database is touched) and a snapshot is sent only when it differs from the one already on
+/// the client's screen. An idle gateway therefore sends one keepalive every five seconds instead of a
+/// full snapshot twice a second, and a busy one updates four times faster than the old fixed cadence
+/// did. Everything stops entirely when no dashboard is connected.
+/// </para>
+/// <para>
+/// Connection health is the exception and stays on a slow fixed cadence: it opens a database
+/// connection per named connection, so it is a probe rather than a reading, and "has it changed" cannot
+/// be answered without paying for it.
+/// </para>
 /// </summary>
 public sealed class DashboardBroadcaster : BackgroundService
 {
-    /// <summary>How often the cheap metrics snapshot is pushed.</summary>
-    private static readonly TimeSpan MetricsInterval = TimeSpan.FromSeconds(2);
+    /// <summary>How often the in-memory metrics are read to see whether anything moved.</summary>
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// How long an unchanged dashboard may go without a message. It keeps the uptime clock on the
+    /// ribbon honest and tells a connected client that the stream is alive rather than stuck.
+    /// </summary>
+    private static readonly TimeSpan KeepaliveInterval = TimeSpan.FromSeconds(5);
 
     /// <summary>How often connection health (which opens database connections) is pushed.</summary>
     private static readonly TimeSpan HealthInterval = TimeSpan.FromSeconds(15);
@@ -52,20 +68,38 @@ public sealed class DashboardBroadcaster : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(MetricsInterval, _clock);
+        using var timer = new PeriodicTimer(PollInterval, _clock);
         var sinceHealth = HealthInterval; // probe on the first tick that has clients
+        var sinceSnapshot = KeepaliveInterval;
+        DashboardSnapshot? lastSent = null;
+        var lastJoined = _tracker.Joined;
+
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
                 if (!_tracker.HasClients)
                 {
+                    // Nobody is looking. Forget what was last sent: the next client to arrive gets a
+                    // snapshot rather than inheriting a comparison made against a screen that is gone.
+                    lastSent = null;
                     continue;
                 }
 
-                await BroadcastMetricsAsync(stoppingToken);
+                sinceSnapshot += PollInterval;
+                var joined = _tracker.Joined;
+                var newClient = joined != lastJoined;
+                lastJoined = joined;
 
-                sinceHealth += MetricsInterval;
+                var snapshot = ReadSnapshot();
+                if (newClient || sinceSnapshot >= KeepaliveInterval || !SameData(lastSent, snapshot))
+                {
+                    await _hub.Clients.All.SendAsync("snapshot", snapshot, stoppingToken);
+                    lastSent = snapshot;
+                    sinceSnapshot = TimeSpan.Zero;
+                }
+
+                sinceHealth += PollInterval;
                 if (sinceHealth >= HealthInterval)
                 {
                     sinceHealth = TimeSpan.Zero;
@@ -79,19 +113,95 @@ public sealed class DashboardBroadcaster : BackgroundService
         }
     }
 
-    /// <summary>Builds and pushes the metrics snapshot to all connected dashboards.</summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    private async Task BroadcastMetricsAsync(CancellationToken cancellationToken)
+    /// <summary>Reads the current metrics snapshot. Touches only in-memory state.</summary>
+    /// <returns>The snapshot as the dashboard would draw it.</returns>
+    private DashboardSnapshot ReadSnapshot() => new()
     {
-        var snapshot = new DashboardSnapshot
-        {
-            Overview = _metrics.GetOverview(),
-            Endpoints = _metrics.GetEndpoints(),
-            Throughput = _metrics.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
-            Latency = _metrics.GetTimeSeries("latency", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
-        };
+        Overview = _metrics.GetOverview(),
+        Endpoints = _metrics.GetEndpoints(),
+        Throughput = _metrics.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
+        Latency = _metrics.GetTimeSeries("latency", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
+    };
 
-        await _hub.Clients.All.SendAsync("snapshot", snapshot, cancellationToken);
+    /// <summary>
+    /// Whether two snapshots would draw the same dashboard. Uptime is deliberately left out of the
+    /// comparison: it changes every second by definition, and letting it decide would mean the socket
+    /// carries a clock rather than the data - which is the whole thing this is here to stop. The
+    /// keepalive is what keeps the uptime honest.
+    /// </summary>
+    /// <param name="previous">The snapshot the clients already have, or null when they have none.</param>
+    /// <param name="current">The snapshot just read.</param>
+    /// <returns>True when sending <paramref name="current"/> would change nothing on screen.</returns>
+    internal static bool SameData(DashboardSnapshot? previous, DashboardSnapshot current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+
+        return previous is not null
+            && SameOverview(previous.Overview, current.Overview)
+            && SameEndpoints(previous.Endpoints, current.Endpoints)
+            && SameSeries(previous.Throughput, current.Throughput)
+            && SameSeries(previous.Latency, current.Latency);
+    }
+
+    /// <summary>Compares two overviews field by field, except for the uptime.</summary>
+    /// <param name="a">One overview.</param>
+    /// <param name="b">The other.</param>
+    /// <returns>True when every displayed value matches.</returns>
+    private static bool SameOverview(MetricsOverview a, MetricsOverview b) =>
+        a.TotalRequests == b.TotalRequests
+        && a.TotalErrors == b.TotalErrors
+        && a.RequestsPerSecond.Equals(b.RequestsPerSecond)
+        && a.ErrorRate.Equals(b.ErrorRate)
+        && a.CacheHitRatio.Equals(b.CacheHitRatio)
+        && a.P50LatencyMs.Equals(b.P50LatencyMs)
+        && a.P95LatencyMs.Equals(b.P95LatencyMs)
+        && a.P99LatencyMs.Equals(b.P99LatencyMs)
+        && a.ActiveRequests == b.ActiveRequests
+        && SameEndpoints(a.TopSlow, b.TopSlow);
+
+    /// <summary>Compares two endpoint-metric lists item by item.</summary>
+    /// <param name="a">One list.</param>
+    /// <param name="b">The other.</param>
+    /// <returns>True when both hold the same metrics in the same order.</returns>
+    private static bool SameEndpoints(IReadOnlyList<EndpointMetrics> a, IReadOnlyList<EndpointMetrics> b)
+    {
+        if (a.Count != b.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < a.Count; i++)
+        {
+            // EndpointMetrics is a record of scalars, so its own equality compares every field.
+            if (a[i] != b[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Compares two time series point by point.</summary>
+    /// <param name="a">One series.</param>
+    /// <param name="b">The other.</param>
+    /// <returns>True when both hold the same points in the same order.</returns>
+    private static bool SameSeries(TimeSeries a, TimeSeries b)
+    {
+        if (a.Points.Count != b.Points.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < a.Points.Count; i++)
+        {
+            if (a.Points[i] != b.Points[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Probes each connection and pushes the health list to all connected dashboards.</summary>

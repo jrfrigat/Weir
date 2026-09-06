@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -331,8 +331,8 @@
   <data name="Endpoints_SelectNone" xml:space="preserve">
     <value>Ничего</value>
   </data>
-  <data name="Nav_Overview" xml:space="preserve">
-    <value>обзор</value>
+  <data name="Nav_Dashboard" xml:space="preserve">
+    <value>дашборд</value>
   </data>
   <data name="Nav_Endpoints" xml:space="preserve">
     <value>эндпоинты</value>
@@ -613,11 +613,11 @@
   <data name="Audit_EntriesLoaded" xml:space="preserve">
     <value>загружено: {0}</value>
   </data>
-  <data name="Dashboard_OverviewHeading" xml:space="preserve">
-    <value>// ОБЗОР</value>
+  <data name="Dashboard_Heading" xml:space="preserve">
+    <value>// ДАШБОРД</value>
   </data>
-  <data name="Dashboard_OverviewHeadingLive" xml:space="preserve">
-    <value>// ОБЗОР - LIVE</value>
+  <data name="Dashboard_HeadingLive" xml:space="preserve">
+    <value>// ДАШБОРД - LIVE</value>
   </data>
   <data name="Dashboard_StatusStarting" xml:space="preserve">
     <value>ЗАПУСК</value>

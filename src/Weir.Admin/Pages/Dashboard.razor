@@ -16,7 +16,7 @@
 
 <FlareStack Gap="FlareSpacing.XSmall">
 
-    <FlareText Element="h1" Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@(_hub is not null ? AdminStrings.Dashboard_OverviewHeadingLive : AdminStrings.Dashboard_OverviewHeading)</FlareText>
+    <FlareText Element="h1" Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@(_live ? AdminStrings.Dashboard_HeadingLive : AdminStrings.Dashboard_Heading)</FlareText>
 
     @* Status ribbon *@
     <FlareCard Variant="CardVariant.Filled">
@@ -159,6 +159,13 @@
     private Timer? _timer;
     private bool _disposed;
 
+    /// <summary>
+    /// Whether the page is currently fed by the hub rather than by the polling fallback. It drives the
+    /// LIVE marker in the heading, which used to be "a hub object exists" - true even after the socket
+    /// had closed for good and the page had quietly gone back to polling.
+    /// </summary>
+    private bool _live;
+
     /// <summary>Loads an initial snapshot for a fast first paint, then subscribes to the real-time hub.</summary>
     protected override async Task OnInitializedAsync()
     {
@@ -197,19 +204,43 @@
                 return InvokeAsync(StateHasChanged);
             });
 
-            // If automatic reconnection ultimately fails, keep the dashboard alive by polling.
-            _hub.Closed += _ =>
+            // While the socket is down - a blip it will recover from, or a close it will not - the page
+            // falls back to polling so it does not silently freeze, and the heading stops claiming LIVE.
+            // Both are undone the moment the stream is back: a dashboard that keeps polling after
+            // reconnecting would be fetching what is already being pushed to it.
+            _hub.Reconnecting += _ => GoOfflineAsync();
+            _hub.Closed += _ => GoOfflineAsync();
+            _hub.Reconnected += _ =>
             {
-                StartPollingFallback();
-                return Task.CompletedTask;
+                _live = true;
+                StopPollingFallback();
+                return InvokeAsync(StateHasChanged);
             };
 
             await _hub.StartAsync();
+            _live = true;
         }
         catch (Exception)
         {
             StartPollingFallback();
         }
+    }
+
+    /// <summary>Drops to polling and stops claiming the page is live.</summary>
+    /// <returns>A task that completes when the page has been told.</returns>
+    private Task GoOfflineAsync()
+    {
+        _live = false;
+        StartPollingFallback();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Stops the polling fallback, if it is running.</summary>
+    private void StopPollingFallback()
+    {
+        var timer = _timer;
+        _timer = null;
+        timer?.Dispose();
     }
 
     /// <summary>Starts the 3-second polling timer used when the real-time hub is unavailable.</summary>

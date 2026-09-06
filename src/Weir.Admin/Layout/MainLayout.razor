@@ -10,17 +10,18 @@
    region. A single fixed theme (Visual Studio 2026 geometry, Command Center palette) - no switcher.
    The signed-in user's name on the right is a menu: Account / Sign out. *@
 <FlareLayout>
-    @* Match the Command Center design's 50px nav bar. Flare 0.1.9 makes the height a first-class param and
-       gives the bar a bottom border by default; the only thing left is lifting its surface above the canvas,
-       via the dedicated --flare-layout-appbar-bg token. *@
-    <FlareLayoutAppBar Height="50px" Style="--flare-layout-appbar-bg:var(--flare-color-surface-container-low);">
+    @* A 43px nav bar (the Command Center design's 50px, tightened). Height is a first-class parameter and
+       Flare writes it to --flare-layout-appbar-height, which the shell's grid row reads; the bar keeps its
+       bottom border by default, so the only thing left here is lifting its surface above the canvas, via
+       the dedicated --flare-layout-appbar-bg token. *@
+    <FlareLayoutAppBar Height="43px" Style="--flare-layout-appbar-bg:var(--flare-color-surface-container-low);">
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Medium" Style="width:100%;min-width:0;">
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
                 <WeirMark Size="1.6rem" />
                 <FlareText Typo="TypographyScale.TitleMedium" Weight="FontWeight.Bold" Mono="true">weir</FlareText>
             </FlareStack>
             <FlareLinkTabs>
-                <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="@AdminStrings.Nav_Overview" />
+                <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="@AdminStrings.Nav_Dashboard" />
                 <FlareLinkTab Href="/endpoints" Label="@AdminStrings.Nav_Endpoints" />
                 <FlareLinkTab Href="/scopes" Label="@AdminStrings.Nav_Scopes" />
                 <FlareLinkTab Href="/keys" Label="@AdminStrings.Nav_Keys" />
