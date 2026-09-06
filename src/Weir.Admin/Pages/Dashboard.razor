@@ -155,6 +155,17 @@
     private ChartData? _thrData;
     private ChartData? _latData;
     private List<ConnectionHealth>? _connections;
+    /// <summary>The window the two sparklines cover, in seconds. Matches what the hub pushes.</summary>
+    private const int ChartWindowSeconds = 300;
+
+    /// <summary>
+    /// Bucket width for those sparklines, in seconds, and it matches the hub's for one reason: the two
+    /// paths must draw the same picture, or the chart would change shape when the socket dropped and
+    /// the page fell back to polling. Five seconds rather than fifteen because a series advances one
+    /// whole bucket at a time, so the bucket is the size of the step the line takes on screen.
+    /// </summary>
+    private const int ChartBucketSeconds = 5;
+
     private HubConnection? _hub;
     private Timer? _timer;
     private bool _disposed;
@@ -284,8 +295,8 @@
         {
             _overview = await Api.GetOverviewAsync();
             _endpoints = await Api.GetEndpointMetricsAsync();
-            _thrData = ToChart(await Api.GetTimeSeriesAsync("requests", null, 300, 15), "req/s", "var(--flare-color-primary)");
-            _latData = ToChart(await Api.GetTimeSeriesAsync("latency", null, 300, 15), "ms", "var(--flare-color-success)");
+            _thrData = ToChart(await Api.GetTimeSeriesAsync("requests", null, ChartWindowSeconds, ChartBucketSeconds), "req/s", "var(--flare-color-primary)");
+            _latData = ToChart(await Api.GetTimeSeriesAsync("latency", null, ChartWindowSeconds, ChartBucketSeconds), "ms", "var(--flare-color-success)");
             if (!_disposed)
             {
                 StateHasChanged();

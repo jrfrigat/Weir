@@ -35,6 +35,18 @@ public sealed class DashboardBroadcaster : BackgroundService
     /// <summary>How often connection health (which opens database connections) is pushed.</summary>
     private static readonly TimeSpan HealthInterval = TimeSpan.FromSeconds(15);
 
+    /// <summary>The window the dashboard's two sparklines cover.</summary>
+    private static readonly TimeSpan ChartWindow = TimeSpan.FromSeconds(300);
+
+    /// <summary>
+    /// Bucket width for those sparklines, and it is a readability setting rather than a resolution one.
+    /// A series advances by exactly one whole bucket at a time, so the bucket IS the size of the step
+    /// the line takes: at 15 seconds the five-minute window held twenty points and the line jumped a
+    /// twentieth of its width four times a minute, which reads as a jerk. At five it holds sixty and
+    /// moves a sixtieth at a time, which reads as a crawl - the same data, told in smaller steps.
+    /// </summary>
+    private static readonly TimeSpan ChartBucket = TimeSpan.FromSeconds(5);
+
     private readonly IHubContext<DashboardHub> _hub;
     private readonly IMetricsAggregator _metrics;
     private readonly DashboardClientTracker _tracker;
@@ -119,8 +131,8 @@ public sealed class DashboardBroadcaster : BackgroundService
     {
         Overview = _metrics.GetOverview(),
         Endpoints = _metrics.GetEndpoints(),
-        Throughput = _metrics.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
-        Latency = _metrics.GetTimeSeries("latency", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15)),
+        Throughput = _metrics.GetTimeSeries("requests", null, ChartWindow, ChartBucket),
+        Latency = _metrics.GetTimeSeries("latency", null, ChartWindow, ChartBucket),
     };
 
     /// <summary>
