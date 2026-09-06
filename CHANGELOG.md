@@ -8,6 +8,43 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **An endpoint says which front doors serve it: HTTP, gRPC, WebSocket, in any combination.**
+  `EndpointDefinition.Transports` is a flags value (1 HTTP, 2 gRPC, 4 WebSocket) that defaults to HTTP
+  alone, so every endpoint that existed before this behaves exactly as it did; the control-plane
+  migration adds the column with that default (SQLite v16, Postgres v15, SQL Server v15). Saving an
+  endpoint that names no transport is refused - `Enabled: false` is how an endpoint is taken out of
+  service, and an unreachable endpoint that still looks enabled is a trap rather than a configuration.
+  <br>A transport decides framing and how the API key travels, and nothing else. Parameter binding, the
+  response envelope, required scopes, resource grants, the rate limit, the request log and the audit
+  entry are the same on all three, because they go through one call path (`DataPlaneDispatcher`) that
+  the WebSocket and gRPC doors share, and the two authorization checks the HTTP path uses are now one
+  copy the three of them call. A door a caller is not entitled to walk through answers exactly as the
+  others would; a route an endpoint does not name answers 404 there, whatever the route table says.
+  The generated OpenAPI document leaves out an endpoint that does not name HTTP - describing it would
+  hand a generated client a route that answers 404.
+- **A WebSocket session at `/ws`**: the key is checked on the handshake, so an unauthenticated caller
+  never gets a socket, and the whole session runs as that one key. A request frame names a route and a
+  method and carries `body` and `query`; the reply is the envelope wrapped with the caller's own
+  correlation id, streamed out as the rows are read with the status written last - when it is actually
+  known. Message fragments are cut on UTF-8 character boundaries, so a reader that decodes each
+  fragment as it arrives never sees a replacement character where two of them meet. What the session
+  buys is the connection, the TLS handshake and the key lookup happening once instead of per call.
+- **A gRPC service, `weir.v1.WeirGateway`**, with a unary `Invoke` and a server-streaming
+  `InvokeStream` whose chunks concatenate to exactly what the unary call would have returned. The
+  payload stays the JSON envelope rather than becoming a generated message per endpoint, and that is a
+  decision: Weir's endpoints are metadata added at run time, so there is nothing to generate a message
+  from at build time. Failures are gRPC statuses mapped from the HTTP-shaped ones, with the original
+  code in the detail so one event reads the same in the logs and on the wire. Streaming is the one
+  place this transport is strictly better than HTTP: a failure part-way through ends the stream with a
+  status instead of a truncated body.
+  <br>Worth knowing before deploying it: gRPC needs HTTP/2, which shares a port with HTTP/1.1 only
+  over TLS (by ALPN). On a cleartext port Kestrel serves HTTP/1.1 and refuses HTTP/2 with
+  `HTTP_1_1_REQUIRED`, so a TLS-less deployment gives gRPC its own port through Kestrel's own
+  configuration - no Weir setting is involved. Both cases are written down in
+  [docs/en/transports.md](docs/en/transports.md).
+
 ### Changed
 
 - **Flare 0.32.0** (from 0.29.0), and this time the admin's data grids had to answer for themselves.

@@ -204,7 +204,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
         "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, " +
-        "Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt";
+        "Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -236,17 +236,17 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         const string sql = """
             INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
                                    CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson,
-                                   Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt)
+                                   Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt)
             VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
                     @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson,
-                    @Operation, @DictionaryJson, @ImportJson, @Description, @CreatedAt, @UpdatedAt)
+                    @Operation, @DictionaryJson, @ImportJson, @Transports, @Description, @CreatedAt, @UpdatedAt)
             ON CONFLICT (Id) DO UPDATE SET
                 Route=EXCLUDED.Route, HttpMethod=EXCLUDED.HttpMethod, ConnectionName=EXCLUDED.ConnectionName,
                 ObjectType=EXCLUDED.ObjectType, SchemaName=EXCLUDED.SchemaName, ObjectName=EXCLUDED.ObjectName,
                 ResultMode=EXCLUDED.ResultMode, CommandTimeoutSeconds=EXCLUDED.CommandTimeoutSeconds, Enabled=EXCLUDED.Enabled,
                 SuppressMessages=EXCLUDED.SuppressMessages, CacheJson=EXCLUDED.CacheJson, LoggingJson=EXCLUDED.LoggingJson, DeliveryJson=EXCLUDED.DeliveryJson, ParametersJson=EXCLUDED.ParametersJson,
                 RequiredScopesJson=EXCLUDED.RequiredScopesJson, Operation=EXCLUDED.Operation, DictionaryJson=EXCLUDED.DictionaryJson,
-                ImportJson=EXCLUDED.ImportJson, Description=EXCLUDED.Description, UpdatedAt=EXCLUDED.UpdatedAt;
+                ImportJson=EXCLUDED.ImportJson, Transports=EXCLUDED.Transports, Description=EXCLUDED.Description, UpdatedAt=EXCLUDED.UpdatedAt;
             """;
 
         await using var conn = await OpenAsync(cancellationToken);
@@ -273,6 +273,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
                 Operation = (int)endpoint.Operation,
                 DictionaryJson = endpoint.Dictionary is null ? null : JsonSerializer.Serialize(endpoint.Dictionary, Json),
                 ImportJson = endpoint.Import is null ? null : JsonSerializer.Serialize(endpoint.Import, Json),
+                Transports = (int)endpoint.Transports,
                 endpoint.Description,
                 CreatedAt = Iso(createdAt),
                 UpdatedAt = Iso(now),
@@ -320,6 +321,7 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         Operation = (EndpointOperation)r.Operation,
         Dictionary = string.IsNullOrWhiteSpace(r.DictionaryJson) ? null : JsonSerializer.Deserialize<DictionaryPolicy>(r.DictionaryJson, Json),
         Import = string.IsNullOrWhiteSpace(r.ImportJson) ? null : JsonSerializer.Deserialize<ImportPolicy>(r.ImportJson, Json),
+        Transports = (EndpointTransports)r.Transports,
         Description = r.Description,
         CreatedAt = ParseDto(r.CreatedAt),
         UpdatedAt = ParseDto(r.UpdatedAt),
@@ -1142,6 +1144,8 @@ public sealed class PostgresControlPlaneStore : IControlPlaneStore
         public string? DictionaryJson { get; set; }
         /// <summary>Serialized import policy, null for a non-import endpoint.</summary>
         public string? ImportJson { get; set; }
+        /// <summary>Transports the endpoint answers on (flags ordinal).</summary>
+        public int Transports { get; set; }
         /// <summary>Optional description.</summary>
         public string? Description { get; set; }
         /// <summary>Created timestamp (ISO-8601 text).</summary>

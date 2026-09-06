@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
@@ -20,6 +21,12 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Weir.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Both, not Server: the generated client is what the tests call the gateway with, and what a .NET
+         consumer gets for free by referencing the same .proto. -->
+    <Protobuf Include="Protos\weir.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>

@@ -18,6 +18,7 @@ managed from the admin UI (or the admin API) and take effect immediately - no re
 | ResultMode | MultiRow, SingleRow, Scalar, NonQuery, or MultiResultSet (informational). |
 | CommandTimeoutSeconds | Optional per-command timeout. |
 | Enabled | Whether the endpoint is served. |
+| Transports | Which front doors serve it: HTTP (`/api`), gRPC (`weir.v1.WeirGateway`), WebSocket (`/ws`) - any combination, at least one. Defaults to HTTP alone, which is what every endpoint defined before 1.9 answers on. See [Transports](transports.md). |
 | SuppressMessages | Omit SQL informational (`PRINT` / notice) messages from the response envelope - `messages` is written as an empty array. Off by default (see below). |
 | Cache | Result-cache policy (see below). |
 | Delivery | How the response body reaches the caller (see below). |

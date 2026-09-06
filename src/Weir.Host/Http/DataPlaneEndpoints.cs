@@ -145,7 +145,18 @@ public static class DataPlaneEndpoints
 
         var endpoint = match.Endpoint;
 
-        if (!HasRequiredScopes(endpoint, key) || !IsGrantedResource(endpoint, key))
+        // The endpoint exists but does not answer here. 404 rather than 405: the method is not the
+        // problem, and to an HTTP caller a route served only over gRPC is simply not a route. The
+        // message says which doors are open, because by this point the caller is authenticated - it is
+        // holding a key that may well be entitled to call it over one of them.
+        if ((endpoint.Transports & EndpointTransports.Http) == 0)
+        {
+            await ProblemResults.WriteAsync(context, StatusCodes.Status404NotFound, "Endpoint not found",
+                $"The endpoint for {context.Request.Method} /api/{route} is not served over HTTP (transports: {endpoint.Transports}).");
+            return key.Prefix;
+        }
+
+        if (!DataPlaneAuthorization.HasRequiredScopes(endpoint, key) || !DataPlaneAuthorization.IsGrantedResource(endpoint, key))
         {
             var securityLog = loggerFactory.CreateLogger("Weir.DataPlane");
             Log.DataPlaneForbidden(securityLog, key.Prefix, route);
@@ -309,66 +320,6 @@ public static class DataPlaneEndpoints
                 return ValueTask.CompletedTask;
             },
         };
-    }
-
-    /// <summary>Checks whether the key grants every scope the endpoint requires.</summary>
-    /// <param name="endpoint">The resolved endpoint.</param>
-    /// <param name="key">The authenticated key record.</param>
-    /// <returns>True if all required scopes are present.</returns>
-    private static bool HasRequiredScopes(EndpointDefinition endpoint, ApiKeyRecord key)
-    {
-        if (endpoint.RequiredScopes.Count == 0)
-        {
-            return true;
-        }
-
-        // Both sides hold a handful of entries in practice, so a nested scan beats building a hash set
-        // per request: it allocates nothing and, at these sizes, finishes sooner than hashing would.
-        foreach (var required in endpoint.RequiredScopes)
-        {
-            var granted = false;
-            foreach (var scope in key.Scopes)
-            {
-                if (string.Equals(scope, required, StringComparison.Ordinal))
-                {
-                    granted = true;
-                    break;
-                }
-            }
-
-            if (!granted)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks whether the key's resource grants allow this endpoint's procedure. A key with no
-    /// grants is unrestricted; otherwise at least one grant must match the endpoint's connection,
-    /// schema and object.
-    /// </summary>
-    /// <param name="endpoint">The resolved endpoint.</param>
-    /// <param name="key">The authenticated key record.</param>
-    /// <returns>True if the key may call this procedure.</returns>
-    private static bool IsGrantedResource(EndpointDefinition endpoint, ApiKeyRecord key)
-    {
-        if (key.Grants.Count == 0)
-        {
-            return true;
-        }
-
-        foreach (var grant in key.Grants)
-        {
-            if (grant.Allows(endpoint.ConnectionName, endpoint.Schema, endpoint.ObjectName))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>Determines whether the request carries a JSON body worth parsing.</summary>

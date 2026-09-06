@@ -72,6 +72,9 @@
                         <FlareColumn TItem="EndpointDefinition" Id="object" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(e => (object?)(e.Schema + "." + e.ObjectName))" Sortable="true" Filterable="true" />
                         <FlareColumn TItem="EndpointDefinition" Id="type" Title="@AdminStrings.Endpoints_TypeColumn" Field="@(e => (object?)ObjectTypeLabel(e.ObjectType))" Sortable="true" />
                         <FlareColumn TItem="EndpointDefinition" Id="params" Title="@AdminStrings.Endpoints_ParamsColumn" Field="@(e => (object?)e.Parameters.Count)" Align="ColumnAlign.End" />
+                        <FlareColumn TItem="EndpointDefinition" Id="transports" Title="@AdminStrings.Endpoints_TransportsSection" Field="@(e => (object?)TransportsLabel(e.Transports))" Sortable="true">
+                            <Template><FlareText Element="span" Mono="true" Color="@(context.Transports == EndpointTransports.Http ? FlareColor.OnSurfaceVariant : FlareColor.Primary)">@TransportsLabel(context.Transports)</FlareText></Template>
+                        </FlareColumn>
                         <FlareColumn TItem="EndpointDefinition" Id="actions" Title="@AdminStrings.Common_Actions" Align="ColumnAlign.End">
                             <Template>
                                 <FlareStack Row Gap="FlareSpacing.XSmall" Justify="FlareJustifyContent.End">
@@ -217,6 +220,21 @@
                     <FlareSwitch Value="_editing.Enabled" ValueChanged="@(v => _editing.Enabled = v)" Label="@AdminStrings.Common_Enabled" />
                     <FlareSwitch Value="_editing.SuppressMessages" ValueChanged="@(v => _editing.SuppressMessages = v)" Label="@AdminStrings.Endpoints_SuppressMessagesLabel" />
                 </FlareStack>
+
+                <FlareDivider Text="@AdminStrings.Endpoints_TransportsSection" TextAlign="DividerTextAlign.Left" />
+                <FlareStack Row Gap="FlareSpacing.Large" Wrap="true">
+                    <FlareSwitch Value="@_editing.HasTransport(EndpointTransports.Http)"
+                                 ValueChanged="@(v => _editing.SetTransport(EndpointTransports.Http, v))" Label="HTTP" />
+                    <FlareSwitch Value="@_editing.HasTransport(EndpointTransports.Grpc)"
+                                 ValueChanged="@(v => _editing.SetTransport(EndpointTransports.Grpc, v))" Label="gRPC" />
+                    <FlareSwitch Value="@_editing.HasTransport(EndpointTransports.WebSocket)"
+                                 ValueChanged="@(v => _editing.SetTransport(EndpointTransports.WebSocket, v))" Label="WebSocket" />
+                </FlareStack>
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_TransportsHelp</FlareText>
+                @if (_editing.Transports == EndpointTransports.None)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@AdminStrings.Endpoints_TransportsNoneWarning</FlareText>
+                }
 
                 <FlareDivider Text="@AdminStrings.Endpoints_DeliverySection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
@@ -1623,6 +1641,38 @@
         _ => type.ToString(),
     };
 
+    /// <summary>
+    /// Compact label for an endpoint's transports, e.g. <c>HTTP</c> or <c>HTTP+WS</c>. Not localized:
+    /// the three names are protocol names, and they are what an operator greps the list for.
+    /// </summary>
+    /// <param name="transports">The transports the endpoint answers on.</param>
+    /// <returns>The joined short names, or a dash when the endpoint names none.</returns>
+    private static string TransportsLabel(EndpointTransports transports)
+    {
+        if (transports == EndpointTransports.None)
+        {
+            return "-";
+        }
+
+        var names = new List<string>(3);
+        if ((transports & EndpointTransports.Http) != 0)
+        {
+            names.Add("HTTP");
+        }
+
+        if ((transports & EndpointTransports.Grpc) != 0)
+        {
+            names.Add("gRPC");
+        }
+
+        if ((transports & EndpointTransports.WebSocket) != 0)
+        {
+            names.Add("WS");
+        }
+
+        return string.Join('+', names);
+    }
+
     /// <summary>Human label for one endpoint operation.</summary>
     /// <param name="operation">The operation.</param>
     /// <returns>The localized label.</returns>
@@ -1935,6 +1985,18 @@
         public int? CommandTimeoutSeconds { get; set; }
         public bool Enabled { get; set; } = true;
         public bool SuppressMessages { get; set; }
+        public EndpointTransports Transports { get; set; } = EndpointTransports.Http;
+
+        /// <summary>Whether the endpoint being edited is served over one transport.</summary>
+        /// <param name="transport">The transport to test.</param>
+        /// <returns>True when the flag is set.</returns>
+        public bool HasTransport(EndpointTransports transport) => (Transports & transport) != 0;
+
+        /// <summary>Turns one transport on or off, leaving the others as they are.</summary>
+        /// <param name="transport">The transport to change.</param>
+        /// <param name="on">True to serve the endpoint over it.</param>
+        public void SetTransport(EndpointTransports transport, bool on) =>
+            Transports = on ? Transports | transport : Transports & ~transport;
         public bool LogEnabled { get; set; } = true;
         public bool LogParameters { get; set; }
         public bool LogResult { get; set; }
@@ -2000,6 +2062,7 @@
                 CommandTimeoutSeconds = endpoint.CommandTimeoutSeconds,
                 Enabled = endpoint.Enabled,
                 SuppressMessages = endpoint.SuppressMessages,
+                Transports = endpoint.Transports,
                 LogEnabled = endpoint.Logging.Enabled,
                 LogParameters = endpoint.Logging.LogParameters,
                 LogResult = endpoint.Logging.LogResult,
@@ -2077,6 +2140,7 @@
             CommandTimeoutSeconds = CommandTimeoutSeconds,
             Enabled = Enabled,
             SuppressMessages = SuppressMessages,
+            Transports = Transports,
             Logging = new EndpointLogging
             {
                 Enabled = LogEnabled,

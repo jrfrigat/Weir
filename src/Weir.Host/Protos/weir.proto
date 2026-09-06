@@ -1,0 +1,59 @@
+// The gRPC door onto the Weir data plane.
+//
+// Weir's endpoints are metadata, not code: an operator adds one at run time and it is callable a second
+// later. A generated message per endpoint is therefore not on offer - there is nothing to generate it
+// from at build time, and a gateway that needed a redeploy per endpoint would not be this gateway. So
+// the payload stays the JSON Weir already speaks, and what gRPC contributes is the transport: HTTP/2
+// multiplexing over one connection, real server streaming, deadlines and cancellation, and a generated
+// client in every language it supports.
+//
+// Authentication is the same API key as everywhere else, sent as call metadata: "x-api-key: wk_live_..."
+// or "authorization: Bearer wk_live_...". Scopes, grants, rate limits and the response envelope are the
+// ones the endpoint already has - see docs/en/transports.md.
+
+syntax = "proto3";
+
+package weir.v1;
+
+option csharp_namespace = "Weir.Host.Grpc";
+
+// One call onto an endpoint, addressed the way Weir addresses endpoints: by method and route.
+message InvokeRequest {
+  // The route beneath /api, with or without a leading slash, e.g. "orders/create" or "orders/42".
+  string route = 1;
+
+  // The HTTP method the endpoint is registered under. An endpoint's identity is method plus route, so
+  // it is required here even though gRPC has no methods of its own. Empty means POST.
+  string method = 2;
+
+  // The request body: a JSON object whose members are the procedure's parameters, as text. Empty means
+  // no body, which is how a parameterless endpoint or one that reads only route and query is called.
+  string body = 3;
+
+  // Values for query-sourced parameters, the ones that would follow a "?" over HTTP.
+  map<string, string> query = 4;
+}
+
+// The whole response envelope, in one message.
+message InvokeReply {
+  // The response envelope as UTF-8 JSON: data, output, returnValue, rowsAffected, truncated, messages.
+  bytes envelope = 1;
+}
+
+// One piece of the response envelope, in the order the rows were read.
+message InvokeChunk {
+  // A fragment of the UTF-8 JSON envelope. Concatenating every chunk of the stream, in order, gives
+  // exactly the bytes InvokeReply would have carried.
+  bytes data = 1;
+}
+
+// The data plane, as a service.
+service WeirGateway {
+  // Calls an endpoint and returns the whole envelope. The simple call, for a result that fits in a
+  // message: the reply is not sent until the last row has been read.
+  rpc Invoke(InvokeRequest) returns (InvokeReply);
+
+  // Calls an endpoint and streams the envelope out as it is produced. For a large result set: the
+  // first chunk leaves while the reader is still going, and nothing holds the whole body in memory.
+  rpc InvokeStream(InvokeRequest) returns (stream InvokeChunk);
+}

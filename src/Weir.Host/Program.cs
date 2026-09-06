@@ -29,6 +29,7 @@ using Weir.ControlPlane.Sqlite;
 using Weir.Core;
 using Weir.Diagnostics;
 using Weir.Host;
+using Weir.Host.Grpc;
 using Weir.Host.Health;
 using Weir.Host.Http;
 using Weir.Host.Audit;
@@ -147,6 +148,14 @@ builder.Services.AddSingleton<RequestLogSink>();
 builder.Services.AddSingleton<IRequestLogSink>(sp => sp.GetRequiredService<RequestLogSink>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RequestLogSink>());
 builder.Services.AddSingleton<IWeirCallObserver, RequestLogObserver>();
+
+// The call path shared by every transport that is not HTTP (WebSocket, gRPC): route resolution,
+// transport check, scopes and grants, rate limit, engine, error mapping.
+builder.Services.AddSingleton<DataPlaneDispatcher>();
+
+// The gRPC door. Kestrel already speaks HTTP/1.1 and HTTP/2 on the same port (over TLS by ALPN, and on
+// cleartext by the connection preface), so this adds a service rather than a listener.
+builder.Services.AddGrpc();
 
 // Data-plane limits, HTTP security, admin sign-in lockout, and (for HA) periodic catalog reload.
 builder.Services.AddOptions<WeirDataPlaneOptions>()
@@ -468,10 +477,16 @@ if (corsOrigins.Length > 0)
     app.UseCors();
 }
 
+// The data-plane WebSocket door at /ws. SignalR brings its own for the dashboard hub; a raw socket
+// endpoint needs this one, and it does nothing to a request that is not a handshake.
+app.UseWebSockets();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapWeirDataPlane();
+app.MapWeirWebSocket();
+app.MapGrpcService<WeirGatewayService>();
 app.MapWeirAdminApi();
 // Real-time dashboard hub; the [Authorize] on the hub gates it to authenticated admins.
 app.MapHub<DashboardHub>("/hubs/dashboard");

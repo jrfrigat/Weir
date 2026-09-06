@@ -84,6 +84,13 @@ public sealed record EndpointDefinition
     public bool Enabled { get; init; } = true;
 
     /// <summary>
+    /// Which front doors serve this endpoint. Defaults to <see cref="EndpointTransports.Http"/>, which
+    /// is what an endpoint defined before this setting existed answers on. A transport the endpoint does
+    /// not name answers 404 for it, whatever the route table says.
+    /// </summary>
+    public EndpointTransports Transports { get; init; } = EndpointTransports.Http;
+
+    /// <summary>
     /// When true, SQL informational messages (<c>PRINT</c> / notices / info) are omitted from the
     /// response envelope - <c>messages</c> is written as an empty array. Useful for procedures that emit
     /// chatty diagnostics you do not want to leak to callers. Defaults to false (messages are returned).

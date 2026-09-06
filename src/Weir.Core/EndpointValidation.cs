@@ -18,6 +18,14 @@ public static class EndpointValidation
         ArgumentNullException.ThrowIfNull(endpoint);
         var errors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
+        // An endpoint reachable over nothing is not a configuration, it is a mistake wearing one: the
+        // route table would carry it, the admin list would show it enabled, and every call would 404.
+        if (endpoint.Transports == EndpointTransports.None)
+        {
+            Add(errors, nameof(endpoint.Transports),
+                "An endpoint must be served over at least one transport. Disable it instead to take it out of service.");
+        }
+
         switch (endpoint.Operation)
         {
             case EndpointOperation.Dictionary:

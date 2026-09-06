@@ -54,6 +54,12 @@
   <ItemGroup Label="Distributed">
     <PackageVersion Include="StackExchange.Redis" Version="3.1.13" />
   </ItemGroup>
+  <ItemGroup Label="Transports">
+    <!-- The gRPC door onto the data plane: the server in the host, the client in the tests. Grpc.Tools
+         comes with Grpc.AspNetCore and generates the service base from Protos/weir.proto at build. -->
+    <PackageVersion Include="Grpc.AspNetCore" Version="2.83.0" />
+    <PackageVersion Include="Grpc.Net.Client" Version="2.83.0" />
+  </ItemGroup>
   <ItemGroup Label="Samples">
     <!-- Rich console rendering for the sample CLI client / load tester (samples/client). The 0.x line
          bundles the command framework in the main package; the split-out Spectre.Console.Cli only ships

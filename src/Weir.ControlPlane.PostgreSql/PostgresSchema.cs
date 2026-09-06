@@ -202,5 +202,12 @@ internal static class PostgresSchema
         ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS DictionaryJson text NULL;
         ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS ImportJson text NULL;
         """,
+
+        // v15 - the transports an endpoint answers on (flags: 1 HTTP, 2 gRPC, 4 WebSocket). The default
+        // is 1, so an endpoint that predates this column is served over HTTP and only HTTP, which is
+        // what it was already doing.
+        """
+        ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS Transports integer NOT NULL DEFAULT 1;
+        """,
     ];
 }

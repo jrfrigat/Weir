@@ -18,6 +18,7 @@
 | ResultMode | MultiRow, SingleRow, Scalar, NonQuery или MultiResultSet (информационно). |
 | CommandTimeoutSeconds | Опциональный таймаут команды. |
 | Enabled | Обслуживается ли эндпоинт. |
+| Transports | Через какие двери он доступен: HTTP (`/api`), gRPC (`weir.v1.WeirGateway`), WebSocket (`/ws`) - любое сочетание, минимум одна. По умолчанию только HTTP - то, на чём отвечает любой эндпоинт, созданный до 1.9. См. [Транспорты](transports.md). |
 | SuppressMessages | Не включать информационные сообщения SQL (`PRINT` / notice) в конверт ответа - `messages` пишется пустым массивом. По умолчанию выключено (см. ниже). |
 | Cache | Политика кэша результата (см. ниже). |
 | Delivery | Как тело ответа доходит до клиента (см. ниже). |

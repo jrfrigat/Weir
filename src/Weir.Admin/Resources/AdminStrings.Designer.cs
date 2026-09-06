@@ -2918,6 +2918,33 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Which front doors serve this endpoint..
+        /// </summary>
+        public static string Endpoints_TransportsHelp {
+            get {
+                return ResourceManager.GetString("Endpoints_TransportsHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на An endpoint with no transport cannot be called..
+        /// </summary>
+        public static string Endpoints_TransportsNoneWarning {
+            get {
+                return ResourceManager.GetString("Endpoints_TransportsNoneWarning", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Transports.
+        /// </summary>
+        public static string Endpoints_TransportsSection {
+            get {
+                return ResourceManager.GetString("Endpoints_TransportsSection", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на TVP type e.g. dbo.OrderLineType.
         /// </summary>
         public static string Endpoints_TvpTypePlaceholder {

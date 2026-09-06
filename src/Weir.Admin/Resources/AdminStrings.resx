@@ -847,6 +847,15 @@
   <data name="Endpoints_SuppressMessagesLabel" xml:space="preserve">
     <value>Suppress SQL messages</value>
   </data>
+  <data name="Endpoints_TransportsSection" xml:space="preserve">
+    <value>Transports</value>
+  </data>
+  <data name="Endpoints_TransportsHelp" xml:space="preserve">
+    <value>Which front doors serve this endpoint. HTTP is /api, gRPC is the weir.v1.WeirGateway service, WebSocket is one session at /ws with a request frame per call. Parameters, envelope, cache, scopes and rate limit are the same on all three.</value>
+  </data>
+  <data name="Endpoints_TransportsNoneWarning" xml:space="preserve">
+    <value>An endpoint with no transport cannot be called at all. Turn one on, or switch the endpoint off instead.</value>
+  </data>
   <data name="Endpoints_CachingSection" xml:space="preserve">
     <value>Caching</value>
   </data>

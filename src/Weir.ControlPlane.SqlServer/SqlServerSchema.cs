@@ -233,5 +233,13 @@ internal static class SqlServerSchema
         IF COL_LENGTH(N'Endpoints', N'ImportJson') IS NULL
             ALTER TABLE Endpoints ADD ImportJson nvarchar(max) NULL;
         """,
+
+        // v15 - the transports an endpoint answers on (flags: 1 HTTP, 2 gRPC, 4 WebSocket). The default
+        // is 1, so an endpoint that predates this column is served over HTTP and only HTTP, which is
+        // what it was already doing.
+        """
+        IF COL_LENGTH(N'Endpoints', N'Transports') IS NULL
+            ALTER TABLE Endpoints ADD Transports int NOT NULL CONSTRAINT DF_Endpoints_Transports DEFAULT 1;
+        """,
     ];
 }

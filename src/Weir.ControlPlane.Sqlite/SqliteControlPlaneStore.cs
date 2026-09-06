@@ -170,7 +170,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
         "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, " +
-        "Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt";
+        "Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -202,17 +202,17 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         const string sql = """
             INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
                                    CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson,
-                                   Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt)
+                                   Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt)
             VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
                     @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson,
-                    @Operation, @DictionaryJson, @ImportJson, @Description, @CreatedAt, @UpdatedAt)
+                    @Operation, @DictionaryJson, @ImportJson, @Transports, @Description, @CreatedAt, @UpdatedAt)
             ON CONFLICT(Id) DO UPDATE SET
                 Route=excluded.Route, HttpMethod=excluded.HttpMethod, ConnectionName=excluded.ConnectionName,
                 ObjectType=excluded.ObjectType, SchemaName=excluded.SchemaName, ObjectName=excluded.ObjectName,
                 ResultMode=excluded.ResultMode, CommandTimeoutSeconds=excluded.CommandTimeoutSeconds, Enabled=excluded.Enabled,
                 SuppressMessages=excluded.SuppressMessages, CacheJson=excluded.CacheJson, LoggingJson=excluded.LoggingJson, DeliveryJson=excluded.DeliveryJson, ParametersJson=excluded.ParametersJson,
                 RequiredScopesJson=excluded.RequiredScopesJson, Operation=excluded.Operation, DictionaryJson=excluded.DictionaryJson,
-                ImportJson=excluded.ImportJson, Description=excluded.Description, UpdatedAt=excluded.UpdatedAt;
+                ImportJson=excluded.ImportJson, Transports=excluded.Transports, Description=excluded.Description, UpdatedAt=excluded.UpdatedAt;
             """;
 
         await using var conn = await OpenAsync(cancellationToken);
@@ -239,6 +239,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
                 Operation = (int)endpoint.Operation,
                 DictionaryJson = endpoint.Dictionary is null ? null : JsonSerializer.Serialize(endpoint.Dictionary, Json),
                 ImportJson = endpoint.Import is null ? null : JsonSerializer.Serialize(endpoint.Import, Json),
+                Transports = (int)endpoint.Transports,
                 endpoint.Description,
                 CreatedAt = Iso(createdAt),
                 UpdatedAt = Iso(now),
@@ -286,6 +287,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         Operation = (EndpointOperation)r.Operation,
         Dictionary = string.IsNullOrWhiteSpace(r.DictionaryJson) ? null : JsonSerializer.Deserialize<DictionaryPolicy>(r.DictionaryJson, Json),
         Import = string.IsNullOrWhiteSpace(r.ImportJson) ? null : JsonSerializer.Deserialize<ImportPolicy>(r.ImportJson, Json),
+        Transports = (EndpointTransports)r.Transports,
         Description = r.Description,
         CreatedAt = ParseDto(r.CreatedAt),
         UpdatedAt = ParseDto(r.UpdatedAt),
@@ -1106,6 +1108,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         public string? DictionaryJson { get; set; }
         /// <summary>Serialized import policy, null for a non-import endpoint.</summary>
         public string? ImportJson { get; set; }
+        /// <summary>Transports the endpoint answers on (flags ordinal).</summary>
+        public int Transports { get; set; }
         /// <summary>Optional description.</summary>
         public string? Description { get; set; }
         /// <summary>Created timestamp (ISO-8601 text).</summary>

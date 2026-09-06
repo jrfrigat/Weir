@@ -238,5 +238,12 @@ internal static class SqliteSchema
         ALTER TABLE Endpoints ADD COLUMN DictionaryJson TEXT NULL;
         ALTER TABLE Endpoints ADD COLUMN ImportJson TEXT NULL;
         """,
+
+        // v16 - the transports an endpoint answers on (flags: 1 HTTP, 2 gRPC, 4 WebSocket). The default
+        // is 1, so an endpoint that predates this column is served over HTTP and only HTTP, which is
+        // what it was already doing.
+        """
+        ALTER TABLE Endpoints ADD COLUMN Transports INTEGER NOT NULL DEFAULT 1;
+        """,
     ];
 }

@@ -197,3 +197,44 @@ public enum WeirDbType
     /// <summary>A table-valued parameter (TVP). Carries rows rather than a scalar value.</summary>
     Structured,
 }
+
+/// <summary>
+/// The front doors an endpoint answers on. Flags rather than one choice, because the same procedure is
+/// often worth reaching two ways: HTTP for the caller whose client is one line of curl, and a long-lived
+/// connection for the service that calls it a thousand times a minute.
+/// <para>
+/// A transport decides framing and authentication carrier, and nothing else. Parameter binding, the
+/// response envelope, the cache, the required scopes, the grants and the rate limit are the same on all
+/// three - a transport is a way in, not a second gateway with its own rules.
+/// </para>
+/// </summary>
+[Flags]
+public enum EndpointTransports
+{
+    /// <summary>
+    /// No transport at all, which makes the endpoint unreachable. Refused when an endpoint is saved:
+    /// <see cref="EndpointDefinition.Enabled"/> already says "not served", and says it where an operator
+    /// will look for it.
+    /// </summary>
+    None = 0,
+
+    /// <summary>
+    /// Ordinary HTTP under <c>/api</c>. The default, and what every endpoint defined before this setting
+    /// existed answers on.
+    /// </summary>
+    Http = 1,
+
+    /// <summary>
+    /// gRPC on the <c>weir.v1.WeirGateway</c> service: one unary call for a whole envelope, one
+    /// server-streaming call that delivers it in chunks as the rows are read. For a service caller that
+    /// wants HTTP/2 multiplexing and one connection instead of a request per call.
+    /// </summary>
+    Grpc = 2,
+
+    /// <summary>
+    /// A WebSocket session at <c>/ws</c>: the caller opens one connection, authenticates once on the
+    /// handshake, and sends a request frame per call. For a client that makes many small calls and does
+    /// not want to pay for a connection, a TLS handshake and an API-key lookup on each of them.
+    /// </summary>
+    WebSocket = 4,
+}

@@ -219,7 +219,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     private const string EndpointColumns =
         "Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode, " +
         "CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson, " +
-        "Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt";
+        "Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt";
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EndpointDefinition>> GetEndpointsAsync(CancellationToken cancellationToken = default)
@@ -255,10 +255,10 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             BEGIN TRY
                 INSERT INTO Endpoints (Id, Route, HttpMethod, ConnectionName, ObjectType, SchemaName, ObjectName, ResultMode,
                                        CommandTimeoutSeconds, Enabled, SuppressMessages, CacheJson, LoggingJson, DeliveryJson, ParametersJson, RequiredScopesJson,
-                                       Operation, DictionaryJson, ImportJson, Description, CreatedAt, UpdatedAt)
+                                       Operation, DictionaryJson, ImportJson, Transports, Description, CreatedAt, UpdatedAt)
                 VALUES (@Id, @Route, @HttpMethod, @ConnectionName, @ObjectType, @SchemaName, @ObjectName, @ResultMode,
                         @CommandTimeoutSeconds, @Enabled, @SuppressMessages, @CacheJson, @LoggingJson, @DeliveryJson, @ParametersJson, @RequiredScopesJson,
-                        @Operation, @DictionaryJson, @ImportJson, @Description, @CreatedAt, @UpdatedAt);
+                        @Operation, @DictionaryJson, @ImportJson, @Transports, @Description, @CreatedAt, @UpdatedAt);
             END TRY
             BEGIN CATCH
                 IF ERROR_NUMBER() IN (2627, 2601)
@@ -270,7 +270,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
                             ResultMode = @ResultMode, CommandTimeoutSeconds = @CommandTimeoutSeconds, Enabled = @Enabled,
                             SuppressMessages = @SuppressMessages, CacheJson = @CacheJson, LoggingJson = @LoggingJson, DeliveryJson = @DeliveryJson, ParametersJson = @ParametersJson,
                             RequiredScopesJson = @RequiredScopesJson, Operation = @Operation, DictionaryJson = @DictionaryJson,
-                            ImportJson = @ImportJson, Description = @Description, UpdatedAt = @UpdatedAt
+                            ImportJson = @ImportJson, Transports = @Transports, Description = @Description, UpdatedAt = @UpdatedAt
                         WHERE Id = @Id;
                     ELSE
                         THROW;
@@ -304,6 +304,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
                 Operation = (int)endpoint.Operation,
                 DictionaryJson = endpoint.Dictionary is null ? null : JsonSerializer.Serialize(endpoint.Dictionary, Json),
                 ImportJson = endpoint.Import is null ? null : JsonSerializer.Serialize(endpoint.Import, Json),
+                Transports = (int)endpoint.Transports,
                 endpoint.Description,
                 CreatedAt = Iso(createdAt),
                 UpdatedAt = Iso(now),
@@ -367,6 +368,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         Operation = (EndpointOperation)r.Operation,
         Dictionary = string.IsNullOrWhiteSpace(r.DictionaryJson) ? null : JsonSerializer.Deserialize<DictionaryPolicy>(r.DictionaryJson, Json),
         Import = string.IsNullOrWhiteSpace(r.ImportJson) ? null : JsonSerializer.Deserialize<ImportPolicy>(r.ImportJson, Json),
+        Transports = (EndpointTransports)r.Transports,
         Description = r.Description,
         CreatedAt = ParseDto(r.CreatedAt),
         UpdatedAt = ParseDto(r.UpdatedAt),
@@ -1207,6 +1209,8 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         public string? DictionaryJson { get; set; }
         /// <summary>Serialized import policy, null for a non-import endpoint.</summary>
         public string? ImportJson { get; set; }
+        /// <summary>Transports the endpoint answers on (flags ordinal).</summary>
+        public int Transports { get; set; }
         /// <summary>Optional description.</summary>
         public string? Description { get; set; }
         /// <summary>Created timestamp (ISO-8601 text).</summary>

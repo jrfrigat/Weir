@@ -847,6 +847,15 @@
   <data name="Endpoints_SuppressMessagesLabel" xml:space="preserve">
     <value>Подавлять SQL-сообщения</value>
   </data>
+  <data name="Endpoints_TransportsSection" xml:space="preserve">
+    <value>Транспорты</value>
+  </data>
+  <data name="Endpoints_TransportsHelp" xml:space="preserve">
+    <value>Через какие двери отвечает эндпоинт. HTTP - это /api, gRPC - сервис weir.v1.WeirGateway, WebSocket - одна сессия на /ws с кадром-запросом на вызов. Параметры, конверт ответа, кэш, скоупы и лимит частоты у всех трёх одинаковые.</value>
+  </data>
+  <data name="Endpoints_TransportsNoneWarning" xml:space="preserve">
+    <value>Эндпоинт без транспорта нельзя вызвать вообще. Включите хотя бы один или выключите сам эндпоинт.</value>
+  </data>
   <data name="Endpoints_CachingSection" xml:space="preserve">
     <value>Кэширование</value>
   </data>

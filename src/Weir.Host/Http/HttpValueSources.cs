@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Weir.Abstractions;
 using Weir.Core;
@@ -47,6 +48,50 @@ public sealed class HeaderValueSource : IValueSource
 
         value = null;
         return false;
+    }
+}
+
+/// <summary>
+/// An <see cref="IValueSource"/> over a JSON object, for a transport whose request carries its
+/// query-style values in the frame rather than in a URL. Values are read as text, exactly as a query
+/// string would deliver them, so an endpoint's parameter binding does not vary by door: a number in the
+/// frame binds the same way as the same number typed after a <c>?</c>.
+/// </summary>
+public sealed class JsonObjectValueSource : IValueSource
+{
+    private readonly JsonElement _object;
+
+    /// <summary>Creates the source over a JSON object element.</summary>
+    /// <param name="element">The object whose members are the values.</param>
+    public JsonObjectValueSource(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new ArgumentException("A value source needs a JSON object.", nameof(element));
+        }
+
+        _object = element;
+    }
+
+    /// <inheritdoc />
+    public bool TryGet(string key, out string? value)
+    {
+        if (!_object.TryGetProperty(key, out var found))
+        {
+            value = null;
+            return false;
+        }
+
+        value = found.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.String => found.GetString(),
+            // Anything else - number, bool, and an object or array a caller had no business putting
+            // here - is handed over as its JSON text, which is what the coercion layer expects to parse.
+            _ => found.GetRawText(),
+        };
+
+        return true;
     }
 }
 

@@ -655,7 +655,13 @@ public static class AdminApi
         group.MapGet("/openapi.json", async (HttpContext context, IEndpointCatalog catalog, IControlPlaneStore store, Guid? key, string? scope) =>
         {
             var serverUrl = $"{context.Request.Scheme}://{context.Request.Host}";
-            IEnumerable<EndpointDefinition> endpoints = catalog.All;
+
+            // An OpenAPI document describes an HTTP surface, so an endpoint that is not served over
+            // HTTP has no place in it - describing it would hand a generated client a route that
+            // answers 404. The gRPC and WebSocket transports carry their own contract (the .proto and
+            // the frame shape in docs/en/transports.md).
+            IEnumerable<EndpointDefinition> endpoints =
+                catalog.All.Where(e => (e.Transports & EndpointTransports.Http) != 0);
             string? audience = null;
 
             if (key is { } keyId)
