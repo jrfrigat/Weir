@@ -45,6 +45,30 @@ All notable changes to this project are documented here. The format is based on
   configuration - no Weir setting is involved. Both cases are written down in
   [docs/en/transports.md](docs/en/transports.md).
 
+### Fixed
+
+- **A metrics time series is bucketed by the clock, not by the moment it is read - so the dashboard's
+  charts stop moving when nothing is happening.** `TimeRing.Snapshot` anchored its bucket grid to
+  "now", so every read cut the same seconds into different buckets and all twenty values of a
+  five-minute series shifted a little; on a dashboard fed twice a second that is a line that reshapes
+  itself continuously while the data underneath it is unchanged. The newest bucket was worse than
+  jittery: it was always partly elapsed, and a rate divided it by the full bucket width anyway, so the
+  most recent point understated the current rate and then climbed for the rest of the bucket - the same
+  traffic reported at three different values depending on when you looked.
+  <br>Buckets are now aligned to absolute time and only whole ones are reported. Two reads inside one
+  bucket return an identical series, and the series advances by exactly one complete point per bucket.
+  Measured in a browser against live traffic: the chart's geometry changed twice in 32 seconds, once
+  per 15-second bucket, where the hub pushed sixteen times in that window. The ring keeps one bucket of
+  slack beyond the five-minute window (315 seconds) so the aligned grid still covers it in twenty
+  points, and the percentile window is pinned to 300 seconds rather than to the ring's capacity, so
+  that slack cannot quietly widen "the last five minutes".
+  <br>The cost is that the newest point is up to one bucket old. That is the right trade for a chart -
+  a partial bucket is not a smaller measurement, it is a wrong one - and the live number beside the
+  chart still reads up to the present second.
+- **The dashboard's sparklines pin their floor at zero** (`YMin="0"`) on top of the `StickyDomain` and
+  `AnimateUpdates` below. A throughput or latency axis that floats its own bottom moves the whole plot
+  when the smallest value changes, and neither metric has anything below zero to show.
+
 ### Changed
 
 - **Flare 0.32.0** (from 0.29.0), and this time the admin's data grids had to answer for themselves.

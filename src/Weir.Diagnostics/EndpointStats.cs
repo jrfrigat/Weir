@@ -8,11 +8,27 @@ namespace Weir.Diagnostics;
 /// </summary>
 internal sealed class EndpointStats
 {
-    /// <summary>Number of one-second slots kept for time series and windowed rates (the maximum window length).</summary>
-    public const int RingCapacitySeconds = 300;
+    /// <summary>The longest span anything asks these rings for: five minutes of history.</summary>
+    public const int MaxWindowSeconds = 300;
 
-    /// <summary>Trailing window, in seconds, over which the decaying latency percentiles are computed.</summary>
-    public const int PercentileWindowSeconds = RingCapacitySeconds;
+    /// <summary>
+    /// Slack kept beyond <see cref="MaxWindowSeconds"/>, in seconds, so a clock-aligned time series can
+    /// still cover the whole window. A series reports whole buckets aligned to absolute time, and that
+    /// grid reaches up to one bucket further back than a plain trailing window does - without the slack
+    /// the dashboard's five-minute chart would show nineteen or twenty points depending on what the
+    /// clock happened to say. One bucket of the widest chart bucket size is what that costs.
+    /// </summary>
+    private const int AlignmentSlackSeconds = 15;
+
+    /// <summary>Number of one-second slots kept for time series and windowed rates.</summary>
+    public const int RingCapacitySeconds = MaxWindowSeconds + AlignmentSlackSeconds;
+
+    /// <summary>
+    /// Trailing window, in seconds, over which the decaying latency percentiles are computed. Pinned to
+    /// the window rather than to the ring's capacity: the slack above exists for chart alignment, and
+    /// letting it widen "the last five minutes" into the last five and a quarter would be an accident.
+    /// </summary>
+    public const int PercentileWindowSeconds = MaxWindowSeconds;
 
     /// <summary>Upper bounds, in milliseconds, of the latency histogram buckets.</summary>
     private static readonly double[] Boundaries = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];

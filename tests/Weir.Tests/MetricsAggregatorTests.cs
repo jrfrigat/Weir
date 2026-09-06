@@ -26,8 +26,12 @@ public class MetricsAggregatorTests
     {
         private long _reads;
 
+        // Written only after the concurrent phase has joined, to close the second the run ended in: a
+        // time series reports whole buckets, so the bucket that was still filling is not in it yet.
+        public int ExtraSeconds { get; set; }
+
         public override DateTimeOffset GetUtcNow() =>
-            start.AddSeconds(Interlocked.Increment(ref _reads) / readsPerSecond);
+            start.AddSeconds((Interlocked.Increment(ref _reads) / readsPerSecond) + ExtraSeconds);
     }
 
     private static WeirCallContext Call(string route, double durationMs, string outcome) =>
@@ -111,6 +115,87 @@ public class MetricsAggregatorTests
     }
 
     [Fact]
+    public async Task TimeSeries_Is_Identical_For_Two_Reads_Inside_One_Bucket()
+    {
+        // The defect this pins: the bucket grid used to be anchored to "now", so every read cut the same
+        // seconds into different buckets and all twenty values of the dashboard's series moved a little -
+        // a chart that reshaped itself every few seconds while nothing was happening.
+        var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1));
+        var aggregator = new InMemoryMetricsAggregator(clock);
+        var call = Call("orders/get", 5, "ok");
+        await aggregator.OnStartedAsync(call);
+        await aggregator.OnCompletedAsync(call);
+
+        clock.Now = clock.Now.AddSeconds(30);
+        var first = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        // Anywhere inside the same 15-second bucket, including its last second.
+        clock.Now = clock.Now.AddSeconds(14);
+        var second = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        Assert.Equal(first.Points.Select(p => p.Timestamp), second.Points.Select(p => p.Timestamp));
+        Assert.Equal(first.Points.Select(p => p.Value), second.Points.Select(p => p.Value));
+    }
+
+    [Fact]
+    public void TimeSeries_Advances_By_One_Whole_Bucket()
+    {
+        var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1));
+        var aggregator = new InMemoryMetricsAggregator(clock);
+
+        clock.Now = clock.Now.AddSeconds(60);
+        var before = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        clock.Now = clock.Now.AddSeconds(15);
+        var after = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        // Same shape - which is what lets the chart animate the move instead of jumping - shifted by one.
+        Assert.Equal(before.Points.Count, after.Points.Count);
+        Assert.Equal(before.Points[^1].Timestamp.AddSeconds(15), after.Points[^1].Timestamp);
+        Assert.Equal(before.Points.Skip(1).Select(p => p.Timestamp), after.Points.Take(after.Points.Count - 1).Select(p => p.Timestamp));
+    }
+
+    [Fact]
+    public void TimeSeries_Buckets_Are_Clock_Aligned_And_Complete()
+    {
+        var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1).AddSeconds(127));
+        var aggregator = new InMemoryMetricsAggregator(clock);
+
+        var series = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        Assert.Equal(20, series.Points.Count);
+        Assert.All(series.Points, point => Assert.Equal(0, point.Timestamp.ToUnixTimeSeconds() % 15));
+
+        // The newest bucket is the last one that has finished, so it ends before the current second
+        // rather than covering it: a partial bucket is not a smaller measurement, it is a wrong one.
+        var newestEnd = series.Points[^1].Timestamp.AddSeconds(15);
+        Assert.True(newestEnd <= clock.Now, "the newest bucket must be complete");
+        Assert.True(newestEnd > clock.Now.AddSeconds(-15), "and it must be the most recent complete one");
+    }
+
+    [Fact]
+    public async Task A_Rate_Is_Divided_By_A_Bucket_That_Actually_Elapsed()
+    {
+        var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1));
+        var aggregator = new InMemoryMetricsAggregator(clock);
+
+        // 15 calls inside one 15-second bucket is one call per second. The old snapshot divided a
+        // part-elapsed bucket by its full width, so the newest point read low and then climbed as the
+        // rest of the bucket passed - the same number arriving at three different values.
+        for (var i = 0; i < 15; i++)
+        {
+            var call = Call("orders/get", 5, "ok");
+            await aggregator.OnStartedAsync(call);
+            await aggregator.OnCompletedAsync(call);
+            clock.Now = clock.Now.AddSeconds(1);
+        }
+
+        var series = aggregator.GetTimeSeries("requests", null, TimeSpan.FromSeconds(300), TimeSpan.FromSeconds(15));
+
+        Assert.Equal(1.0, series.Points.Max(point => point.Value));
+    }
+
+    [Fact]
     public async Task Percentiles_Decay_Out_Of_The_Window()
     {
         var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1));
@@ -144,7 +229,8 @@ public class MetricsAggregatorTests
             // second could ever be published before its counters were cleared, or if two threads could
             // both clear it, the ring totals below would drift low. A fresh aggregator per round means
             // every round re-runs that contended claim.
-            var aggregator = new InMemoryMetricsAggregator(new FixedClock(DateTimeOffset.UnixEpoch.AddDays(1)));
+            var clock = new MovableClock(DateTimeOffset.UnixEpoch.AddDays(1));
+            var aggregator = new InMemoryMetricsAggregator(clock);
 
             RunConcurrently(threads, () =>
             {
@@ -170,7 +256,10 @@ public class MetricsAggregatorTests
             Assert.Equal(total / 2, endpoint.Errors);
 
             // These come off the ring's per-second slots rather than the lifetime counters: they are only
-            // exact if not one increment was lost to, or double counted by, the slot claim.
+            // exact if not one increment was lost to, or double counted by, the slot claim. The clock is
+            // moved on first because a time series reports whole buckets, and every call above landed in
+            // the one that was still filling.
+            clock.Now = clock.Now.AddSeconds(2);
             Assert.Equal(total, RingTotal(aggregator, "requests"));
             Assert.Equal(total / 2, RingTotal(aggregator, "errors"));
             Assert.Equal(0.5, overview.ErrorRate);
@@ -189,7 +278,8 @@ public class MetricsAggregatorTests
         // ring's 300s capacity, so no slot is reused and nothing may legitimately fall out of the window,
         // yet it forces ~128 roll-overs that threads hit concurrently - some still recording second S
         // while others have already moved on to S+1.
-        var aggregator = new InMemoryMetricsAggregator(new TickingClock(DateTimeOffset.UnixEpoch.AddDays(1), 250));
+        var clock = new TickingClock(DateTimeOffset.UnixEpoch.AddDays(1), 250);
+        var aggregator = new InMemoryMetricsAggregator(clock);
 
         RunConcurrently(threads, () =>
         {
@@ -206,6 +296,9 @@ public class MetricsAggregatorTests
         });
 
         Assert.Equal(total, aggregator.GetOverview().TotalRequests);
+
+        // Close the second the run ended in, for the same reason as above: a series carries whole buckets.
+        clock.ExtraSeconds = 2;
         Assert.Equal(total, RingTotal(aggregator, "requests"));
         Assert.Equal(total / 2, RingTotal(aggregator, "errors"));
     }

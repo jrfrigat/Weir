@@ -243,27 +243,58 @@ internal sealed class TimeRing
         }
     }
 
-    /// <summary>Builds a bucketed time series for a metric over the trailing window.</summary>
+    /// <summary>
+    /// Builds a bucketed time series for a metric over the trailing window. Buckets are aligned to
+    /// absolute time and only whole ones are reported, which is what makes the result stable enough to
+    /// draw.
+    /// <para>
+    /// Both halves of that were defects, and both showed up as a live chart that would not sit still.
+    /// Anchoring the grid to <paramref name="nowSecond"/> re-bucketed the same seconds differently on
+    /// every read, so all twenty values of a five-minute series changed a little each time even when
+    /// nothing had happened; and the trailing bucket was always partially elapsed while a rate divided
+    /// it by the full bucket width anyway, so the newest point understated the current rate and then
+    /// climbed for the rest of the bucket. Aligned and whole, two reads inside the same bucket return
+    /// exactly the same series, and the series advances by one complete point per bucket.
+    /// </para>
+    /// <para>
+    /// The cost is that the newest data is up to one bucket old. That is the right trade for a chart -
+    /// a partial bucket is not a smaller measurement, it is a wrong one - and the current rate is on the
+    /// dashboard beside the chart, from <see cref="Window"/>, which does read up to the present second.
+    /// </para>
+    /// </summary>
     /// <param name="nowSecond">Current unix second.</param>
     /// <param name="metric">One of "requests", "errors", "latency", "cacheHitRatio".</param>
     /// <param name="windowSeconds">Length of the window to cover.</param>
     /// <param name="bucketSeconds">Width of each output bucket.</param>
-    /// <returns>Ordered points, oldest first.</returns>
+    /// <returns>Ordered points, oldest first, each covering one whole bucket.</returns>
     public IReadOnlyList<MetricPoint> Snapshot(long nowSecond, string metric, int windowSeconds, int bucketSeconds)
     {
         // Clamp to capacity: a window longer than the ring would wrap and alias one physical slot to two
         // different seconds, silently double-counting. bucketSeconds must be at least 1 to advance.
         windowSeconds = Math.Clamp(windowSeconds, 1, _capacity);
-        bucketSeconds = Math.Max(1, bucketSeconds);
-        var points = new List<MetricPoint>();
-        var start = nowSecond - windowSeconds + 1;
+        bucketSeconds = Math.Clamp(bucketSeconds, 1, _capacity);
+
+        // How many buckets are asked for, and how many the ring can answer with whole ones. An aligned
+        // grid reaches up to one bucket further back than a plain trailing window does, so the affordable
+        // count is one short of capacity/bucket - and it is computed rather than assumed, so a caller
+        // asking for a window the ring cannot cover gets fewer points instead of an oldest point that is
+        // silently missing the seconds that have already been overwritten.
+        var requested = (windowSeconds + bucketSeconds - 1) / bucketSeconds;
+        var affordable = Math.Max(1, (_capacity / bucketSeconds) - 1);
+        var buckets = Math.Max(1, Math.Min(requested, affordable));
+
+        // The last bucket that has finished: the one before the bucket holding the current second, which
+        // is still filling.
+        var lastStart = FloorTo(nowSecond, bucketSeconds) - bucketSeconds;
+        var firstStart = lastStart - ((long)buckets - 1) * bucketSeconds;
+        var points = new List<MetricPoint>(buckets);
 
         lock (_lock)
         {
-            for (var bucketStart = start; bucketStart <= nowSecond; bucketStart += bucketSeconds)
+            for (var bucketStart = firstStart; bucketStart <= lastStart; bucketStart += bucketSeconds)
             {
                 long count = 0, errors = 0, cacheHits = 0, sumMicros = 0, sumDbMicros = 0;
-                for (var s = bucketStart; s < bucketStart + bucketSeconds && s <= nowSecond; s++)
+                for (var s = bucketStart; s < bucketStart + bucketSeconds; s++)
                 {
                     var slot = Slot(s);
                     if (Volatile.Read(ref _second[slot]) == s)
@@ -291,6 +322,24 @@ internal sealed class TimeRing
         }
 
         return points;
+    }
+
+    /// <summary>Rounds a second down to the start of the bucket that contains it.</summary>
+    /// <param name="second">The unix second to round.</param>
+    /// <param name="bucketSeconds">Bucket width, at least 1.</param>
+    /// <returns>The first second of that bucket.</returns>
+    private static long FloorTo(long second, int bucketSeconds)
+    {
+        // Integer division truncates towards zero, so a negative second (a clock set before 1970, which
+        // is a test rather than a deployment, but the arithmetic should not lie either way) needs the
+        // quotient pushed down to make this a floor.
+        var quotient = second / bucketSeconds;
+        if (second < 0 && quotient * bucketSeconds != second)
+        {
+            quotient--;
+        }
+
+        return quotient * bucketSeconds;
     }
 
     /// <summary>Aggregates the trailing window into totals used by the overview.</summary>

@@ -100,7 +100,7 @@
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates Height="150" Data="_thrData" Style="padding:6px 0;" />
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_thrData" Style="padding:6px 0;" />
             </FlareCard>
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
@@ -109,7 +109,7 @@
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates Height="150" Data="_latData" Style="padding:6px 0;" />
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_latData" Style="padding:6px 0;" />
             </FlareCard>
         </FlareStack>
     </FlareStack>
