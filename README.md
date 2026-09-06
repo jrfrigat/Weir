@@ -34,6 +34,36 @@ mapping, caching, telemetry and serialization.
   is an installable PWA. It ships English and Russian, chosen per browser - see
   [Admin UI](docs/en/admin-ui.md#language).
 
+## The admin console
+
+An installable PWA, served by the gateway itself. The dashboard is fed over SignalR - metrics as they
+move, not on a timer - and the rest of it manages endpoints, keys, scopes, admins, request logs, the
+audit trail and the runtime settings. English and Russian, chosen per browser.
+
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" width="900"
+       alt="Weir dashboard: connection health, service metrics, live throughput and latency charts, and per-endpoint rates">
+  <br><em>Dashboard - throughput, latency and per-endpoint metrics, pushed as they change</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/endpoints.png" width="900"
+       alt="Endpoints list: route, connection, database object, type, parameter count and transports">
+  <br><em>Endpoints - HTTP routes mapped to procedures, functions, tables and views</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/endpoint-editor.png" width="900"
+       alt="Endpoint editor: method, route, connection, operation, object, transports, delivery and caching">
+  <br><em>The editor, on an endpoint served over all three transports</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/settings.png" width="900"
+       alt="Runtime settings: data-plane limits, response delivery, response cache, rate limiting and connection resilience">
+  <br><em>Runtime settings - applied without a restart</em>
+</p>
+
 ## Two planes
 
 | Plane | Concern | Storage |
