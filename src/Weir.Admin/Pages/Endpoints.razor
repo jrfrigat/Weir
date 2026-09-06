@@ -56,7 +56,7 @@
                         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
                     }
                 </FlareStack>
-                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50">
+                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" Height="auto">
                     <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <Columns>
                         <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
@@ -115,7 +115,7 @@
                         }
                         else
                         {
-                            <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" RowClick="OnObjectRowClick">
+                            <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="OnObjectRowClick">
                                 <Columns>
                                     <FlareColumn TItem="DbObjectDescriptor" Id="object-schema" Title="@AdminStrings.Endpoints_SchemaLabel" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
                                     <FlareColumn TItem="DbObjectDescriptor" Id="object-name" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">

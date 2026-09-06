@@ -100,7 +100,7 @@
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth Height="150" Data="_thrData" Style="padding:6px 0;" />
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates Height="150" Data="_thrData" Style="padding:6px 0;" />
             </FlareCard>
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
@@ -109,7 +109,7 @@
                     <FlareSpacer />
                     <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth Height="150" Data="_latData" Style="padding:6px 0;" />
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates Height="150" Data="_latData" Style="padding:6px 0;" />
             </FlareCard>
         </FlareStack>
     </FlareStack>
@@ -127,7 +127,7 @@
         }
         else
         {
-            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
+            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
                 <Columns>
                     <FlareColumn TItem="EndpointMetrics" Id="route" Title="@AdminStrings.Dashboard_ColumnRoute" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
                     <FlareColumn TItem="EndpointMetrics" Id="object" Title="@AdminStrings.Dashboard_ColumnObject" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />

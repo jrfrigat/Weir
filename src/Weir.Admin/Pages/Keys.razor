@@ -44,7 +44,7 @@
     }
     else
     {
-        <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true">
+        <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
             <Columns>
                 <FlareColumn TItem="ApiKeyInfo" Id="name" Title="@AdminStrings.Common_Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
                 <FlareColumn TItem="ApiKeyInfo" Id="key" Title="@AdminStrings.Keys_ColumnKey">

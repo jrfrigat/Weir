@@ -83,7 +83,7 @@
             }
             else
             {
-                <FlareDataGrid Items="@_tokens" Dense="true" Striped="true">
+                <FlareDataGrid Items="@_tokens" Dense="true" Striped="true" PageSize="50" Height="auto">
                     <Columns>
                         <FlareColumn TItem="AdminTokenInfo" Id="name" Title="@AdminStrings.Common_Name" Field="@(t => (object?)t.Name)" />
                         <FlareColumn TItem="AdminTokenInfo" Id="token" Title="@AdminStrings.Account_ColumnToken">

@@ -8,6 +8,40 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- **Flare 0.32.0** (from 0.29.0), and this time the admin's data grids had to answer for themselves.
+  0.31.0 takes `FlareDataGrid`'s size, paging and sticky header apart into three independent
+  parameters, and two defaults move with them: `PageSize` is `0` (every row on one page) instead of
+  `10`, and `Height` - which defaults to `400px` - now bounds the WHOLE component in every mode, where
+  before it applied only to a grid that had `Scroll` set. Weir never set `Scroll`, so `Height` had
+  never applied to anything here; on 0.32.0 all nine grids came out as a 400px box with an internal
+  scrollbar and half a screen of empty page underneath.
+  <br>Every grid now says what it wants rather than inheriting a default that can move again:
+  `Height="auto"` - the page scrolls, not the grid, which is what these pages were drawn for - and
+  `PageSize="50"` on each of them. That also settles the pagination the console never had a rule for:
+  six grids paged at ten because nobody set a size, three at fifty because somebody did.
+  <br>The other breaking changes in the range miss Weir: `FlareText.AnchorId` is gone and the admin
+  has no deep-linked headings, `Css.Classes.Transfer` / `Css.Classes.Rte` moved into their own packages
+  and the admin names no Flare class at all, and `SmartPosition` is gone from the tooltip and the
+  popover, which the admin never set - collision-aware placement is now what they always do.
+  <br>What the console gets for free: every floating panel escapes whatever clipped it and is promoted
+  to the browser's top layer (0.30.0), so the DataGrid menu filter - the filter mode the Endpoints and
+  Audit pages use - keeps its Clear/Apply row on screen inside a scrolling grid; a sticky header keeps
+  the divider under it once the body moves; a dialog taller than the window scrolls its content instead
+  of hanging off both ends; and a field tells a phone which keyboard to open (`inputmode`), which is
+  what the numeric fields in Settings and the endpoint editor want.
+
+### Added
+
+- **The dashboard's two sparklines stop jittering, and an update reads as a movement.** They are fed
+  from the hub every two seconds, and each dataset carried its own value axis: the one metric that
+  changed stayed pinned to the top of the plot while the nineteen points that did not crawled
+  underneath it, and the whole line was redrawn in place with nothing to say what moved.
+  `FlareChart.StickyDomain` holds the widest range it has seen (and gives the space back only when the
+  data has genuinely moved into a smaller one), and `AnimateUpdates` walks the geometry from one
+  dataset to the next in the browser, at no interop cost per update.
+
 ## [1.8.0] - 2026-09-04
 
 ### Added

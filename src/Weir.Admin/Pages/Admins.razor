@@ -44,7 +44,7 @@
             <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Admins_ChangeRefusedTitle">@_actionError</FlareAlert>
         }
 
-        <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true">
+        <FlareDataGrid Items="@_admins" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
             <Columns>
                 <FlareColumn TItem="AdminUserInfo" Id="login" Title="@AdminStrings.Admins_Login" Field="@(a => (object?)a.Username)" Sortable="true" Filterable="true">
                     <Template>

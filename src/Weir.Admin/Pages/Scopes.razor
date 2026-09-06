@@ -40,7 +40,7 @@
     }
     else
     {
-        <FlareDataGrid Items="@_scopes" Dense="true" Striped="true" Hoverable="true">
+        <FlareDataGrid Items="@_scopes" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
             <Columns>
                 <FlareColumn TItem="Scope" Id="scope" Title="@AdminStrings.Scopes_ColumnScope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
                     <Template><FlareCode>@context.Name</FlareCode></Template>
