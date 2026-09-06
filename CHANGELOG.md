@@ -8,118 +8,93 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-06
+
 ### Added
 
-- **An endpoint says which front doors serve it: HTTP, gRPC, WebSocket, in any combination.**
-  `EndpointDefinition.Transports` is a flags value (1 HTTP, 2 gRPC, 4 WebSocket) that defaults to HTTP
-  alone, so every endpoint that existed before this behaves exactly as it did; the control-plane
-  migration adds the column with that default (SQLite v16, Postgres v15, SQL Server v15). Saving an
-  endpoint that names no transport is refused - `Enabled: false` is how an endpoint is taken out of
-  service, and an unreachable endpoint that still looks enabled is a trap rather than a configuration.
-  <br>A transport decides framing and how the API key travels, and nothing else. Parameter binding, the
-  response envelope, required scopes, resource grants, the rate limit, the request log and the audit
-  entry are the same on all three, because they go through one call path (`DataPlaneDispatcher`) that
-  the WebSocket and gRPC doors share, and the two authorization checks the HTTP path uses are now one
-  copy the three of them call. A door a caller is not entitled to walk through answers exactly as the
-  others would; a route an endpoint does not name answers 404 there, whatever the route table says.
-  The generated OpenAPI document leaves out an endpoint that does not name HTTP - describing it would
-  hand a generated client a route that answers 404.
-- **A WebSocket session at `/ws`**: the key is checked on the handshake, so an unauthenticated caller
-  never gets a socket, and the whole session runs as that one key. A request frame names a route and a
-  method and carries `body` and `query`; the reply is the envelope wrapped with the caller's own
-  correlation id, streamed out as the rows are read with the status written last - when it is actually
-  known. Message fragments are cut on UTF-8 character boundaries, so a reader that decodes each
-  fragment as it arrives never sees a replacement character where two of them meet. What the session
-  buys is the connection, the TLS handshake and the key lookup happening once instead of per call.
-- **A gRPC service, `weir.v1.WeirGateway`**, with a unary `Invoke` and a server-streaming
-  `InvokeStream` whose chunks concatenate to exactly what the unary call would have returned. The
-  payload stays the JSON envelope rather than becoming a generated message per endpoint, and that is a
-  decision: Weir's endpoints are metadata added at run time, so there is nothing to generate a message
-  from at build time. Failures are gRPC statuses mapped from the HTTP-shaped ones, with the original
-  code in the detail so one event reads the same in the logs and on the wire. Streaming is the one
-  place this transport is strictly better than HTTP: a failure part-way through ends the stream with a
-  status instead of a truncated body.
-  <br>Worth knowing before deploying it: gRPC needs HTTP/2, which shares a port with HTTP/1.1 only
-  over TLS (by ALPN). On a cleartext port Kestrel serves HTTP/1.1 and refuses HTTP/2 with
-  `HTTP_1_1_REQUIRED`, so a TLS-less deployment gives gRPC its own port through Kestrel's own
-  configuration - no Weir setting is involved. Both cases are written down in
-  [docs/en/transports.md](docs/en/transports.md).
-
-### Fixed
-
-- **A metrics time series is bucketed by the clock, not by the moment it is read - so the dashboard's
-  charts stop moving when nothing is happening.** `TimeRing.Snapshot` anchored its bucket grid to
-  "now", so every read cut the same seconds into different buckets and all twenty values of a
-  five-minute series shifted a little; on a dashboard fed twice a second that is a line that reshapes
-  itself continuously while the data underneath it is unchanged. The newest bucket was worse than
-  jittery: it was always partly elapsed, and a rate divided it by the full bucket width anyway, so the
-  most recent point understated the current rate and then climbed for the rest of the bucket - the same
-  traffic reported at three different values depending on when you looked.
-  <br>Buckets are now aligned to absolute time and only whole ones are reported. Two reads inside one
-  bucket return an identical series, and the series advances by exactly one complete point per bucket.
-  Measured in a browser against live traffic: the chart's geometry changed twice in 32 seconds, once
-  per 15-second bucket, where the hub pushed sixteen times in that window. The ring keeps one bucket of
-  slack beyond the five-minute window (315 seconds) so the aligned grid still covers it in twenty
-  points, and the percentile window is pinned to 300 seconds rather than to the ring's capacity, so
-  that slack cannot quietly widen "the last five minutes".
-  <br>The cost is that the newest point is up to one bucket old. That is the right trade for a chart -
-  a partial bucket is not a smaller measurement, it is a wrong one - and the live number beside the
-  chart still reads up to the present second.
-- **The dashboard's sparklines pin their floor at zero** (`YMin="0"`) on top of the `StickyDomain` and
-  `AnimateUpdates` below. A throughput or latency axis that floats its own bottom moves the whole plot
-  when the smallest value changes, and neither metric has anything below zero to show.
+- **An endpoint declares which transports serve it: HTTP, gRPC, WebSocket, in any combination.**
+  `EndpointDefinition.Transports` is a flags value (1 HTTP, 2 gRPC, 4 WebSocket) defaulting to HTTP
+  alone, so an endpoint defined before this release is served exactly as it was; the control-plane
+  migration adds the column with that default (SQLite v16, PostgreSQL v15, SQL Server v15). An endpoint
+  that names no transport is refused at save time - `Enabled: false` is how an endpoint is taken out of
+  service. Set it per endpoint in the admin UI or through the admin API.
+  <br>A transport decides framing and how the API key travels, and nothing else: parameter binding, the
+  response envelope, required scopes, resource grants, rate limits, the request log and the audit entry
+  are identical on all three, because WebSocket and gRPC share one call path (`DataPlaneDispatcher`)
+  with the HTTP handler's authorization checks. A route an endpoint does not name answers 404 on that
+  transport, and the generated OpenAPI document omits an endpoint that does not name HTTP.
+- **A WebSocket session at `/ws`.** The API key is checked on the handshake, so an unauthenticated
+  caller never gets a socket, and every call on the session runs as that key. A request frame names a
+  route and a method and carries `body` and `query`; the reply is the response envelope wrapped with
+  the caller's correlation id, streamed out as rows are read, with the status written last. A session
+  is ordered - one request is answered before the next is read - and a frame larger than
+  `Weir:DataPlane:MaxRequestBodyBytes` closes it with 1009. See
+  [docs/en/transports.md](docs/en/transports.md) for the frame contract.
+- **A gRPC service, `weir.v1.WeirGateway`** ([weir.proto](src/Weir.Host/Protos/weir.proto)), with a
+  unary `Invoke` and a server-streaming `InvokeStream` whose chunks concatenate to exactly what the
+  unary call returns. The payload is the same JSON envelope rather than a generated message per
+  endpoint: endpoints are metadata added at run time, so there is nothing to generate from at build
+  time. The API key travels in call metadata; failures are gRPC statuses mapped from the HTTP-shaped
+  ones, with the original code in the detail. On a stream, a failure part-way through ends the call
+  with a status instead of a truncated body.
+  <br>gRPC needs HTTP/2, which shares a port with HTTP/1.1 only over TLS (by ALPN). On a cleartext
+  port Kestrel serves HTTP/1.1 and refuses HTTP/2 with `HTTP_1_1_REQUIRED`, so a deployment without TLS
+  gives gRPC its own Kestrel endpoint with `"Protocols": "Http2"`. No Weir setting is involved.
 
 ### Changed
 
-- **The dashboard's socket carries changes, not a heartbeat.** It always ran on the SignalR hub rather
-  than on polling - the timer in the page is only the fallback for when the socket is gone - but the
-  server pushed a full snapshot on a fixed two-second beat whether or not anything had moved. It now
-  reads the in-memory aggregator once a second and sends only when the result would change what is on
-  screen, with a keepalive every five seconds so the uptime stays honest and a client can tell the
-  stream is alive. Measured against a running gateway: an idle one updates every 5 seconds instead of
-  every 2, and a busy one updates every second - twice as often as before, and only with news. A newly
-  connected dashboard is pushed to immediately rather than waiting for the next change.
-  <br>The uptime is deliberately the one field left out of "did anything change" - it changes every
-  second by definition, and letting it decide would put the metronome straight back.
-  <br>The page also stops claiming to be LIVE when it is not: the marker followed "a hub object exists",
-  which stayed true after the connection had closed for good and the page had quietly fallen back to
-  polling. It now follows the connection, polls while the socket is reconnecting, and stops polling the
-  moment it is back - a dashboard that keeps polling after reconnecting fetches what is already being
-  pushed to it.
-- **The Overview tab is called Dashboard** (`дашборд` in Russian), in the nav and in the page heading.
+- **The dashboard hub sends changes rather than a fixed beat.** The dashboard has always run on the
+  SignalR hub (the timer in the page is only the fallback for a lost socket), but the server pushed a
+  full snapshot every two seconds whether or not anything had moved. It now reads the in-memory
+  aggregator once a second and sends only when the result would change the screen, with a keepalive
+  every five seconds. An idle gateway updates every five seconds instead of every two; a busy one
+  updates every second. A newly connected dashboard is pushed to immediately. Uptime is excluded from
+  the change test - it moves every second by definition - and the keepalive is what advances it.
+  <br>The page no longer claims to be LIVE while it is not: the marker followed "a hub object exists",
+  which stayed true after the connection had closed for good and the page had fallen back to polling.
+  It now follows the connection, polls while the socket is reconnecting, and stops polling once it is
+  back.
+- **Flare 0.32.0** (from 0.29.0). 0.31.0 splits `FlareDataGrid`'s size, paging and sticky header into
+  three independent parameters and moves two defaults with them: `PageSize` is `0` (every row on one
+  page) instead of `10`, and `Height` (default `400px`) now bounds the whole component in every mode,
+  where before it applied only to a grid with `Scroll` set. Weir never set `Scroll`, so `Height` had
+  never applied here, and all nine admin grids came out as a 400px box with an internal scrollbar.
+  Every grid now states what it wants: `Height="auto"` - the page scrolls, not the grid - and
+  `PageSize="50"`, which also settles pagination that used to be ten rows on six grids and fifty on
+  three.
+  <br>The other breaking changes in the range miss Weir: `FlareText.AnchorId` is gone (no deep-linked
+  headings here), `Css.Classes.Transfer` / `Css.Classes.Rte` moved into their own packages (the admin
+  names no Flare class), and `SmartPosition` is gone from the tooltip and popover (never set;
+  collision-aware placement is now unconditional).
+  <br>What the console gains: every floating panel escapes its clipping ancestor into the browser's top
+  layer (0.30.0), so the DataGrid menu filter keeps its Clear/Apply row on screen inside a scrolling
+  grid; a sticky header keeps its divider once the body moves; a dialog taller than the window scrolls
+  its content; and a field derives `inputmode`, so a phone opens the right keyboard for the numeric
+  fields in Settings and the endpoint editor.
+- The admin's Overview tab is named Dashboard (`дашборд` in Russian), in the navigation and in the page
+  heading.
 - The admin app bar is 43px tall rather than 50px.
 
-- **Flare 0.32.0** (from 0.29.0), and this time the admin's data grids had to answer for themselves.
-  0.31.0 takes `FlareDataGrid`'s size, paging and sticky header apart into three independent
-  parameters, and two defaults move with them: `PageSize` is `0` (every row on one page) instead of
-  `10`, and `Height` - which defaults to `400px` - now bounds the WHOLE component in every mode, where
-  before it applied only to a grid that had `Scroll` set. Weir never set `Scroll`, so `Height` had
-  never applied to anything here; on 0.32.0 all nine grids came out as a 400px box with an internal
-  scrollbar and half a screen of empty page underneath.
-  <br>Every grid now says what it wants rather than inheriting a default that can move again:
-  `Height="auto"` - the page scrolls, not the grid, which is what these pages were drawn for - and
-  `PageSize="50"` on each of them. That also settles the pagination the console never had a rule for:
-  six grids paged at ten because nobody set a size, three at fifty because somebody did.
-  <br>The other breaking changes in the range miss Weir: `FlareText.AnchorId` is gone and the admin
-  has no deep-linked headings, `Css.Classes.Transfer` / `Css.Classes.Rte` moved into their own packages
-  and the admin names no Flare class at all, and `SmartPosition` is gone from the tooltip and the
-  popover, which the admin never set - collision-aware placement is now what they always do.
-  <br>What the console gets for free: every floating panel escapes whatever clipped it and is promoted
-  to the browser's top layer (0.30.0), so the DataGrid menu filter - the filter mode the Endpoints and
-  Audit pages use - keeps its Clear/Apply row on screen inside a scrolling grid; a sticky header keeps
-  the divider under it once the body moves; a dialog taller than the window scrolls its content instead
-  of hanging off both ends; and a field tells a phone which keyboard to open (`inputmode`), which is
-  what the numeric fields in Settings and the endpoint editor want.
+### Fixed
 
-### Added
-
-- **The dashboard's two sparklines stop jittering, and an update reads as a movement.** They are fed
-  from the hub every two seconds, and each dataset carried its own value axis: the one metric that
-  changed stayed pinned to the top of the plot while the nineteen points that did not crawled
-  underneath it, and the whole line was redrawn in place with nothing to say what moved.
-  `FlareChart.StickyDomain` holds the widest range it has seen (and gives the space back only when the
-  data has genuinely moved into a smaller one), and `AnimateUpdates` walks the geometry from one
-  dataset to the next in the browser, at no interop cost per update.
+- **A metrics time series is bucketed by the clock rather than by the moment it is read.**
+  `TimeRing.Snapshot` anchored its bucket grid to "now", so every read cut the same seconds into
+  different buckets and every value of a five-minute series shifted a little - on a dashboard fed twice
+  a second, a chart that reshaped itself continuously while the data was unchanged. The newest bucket
+  was also always partly elapsed while a rate divided it by the full bucket width, so the most recent
+  point understated the current rate and climbed for the rest of the bucket.
+  <br>Buckets are now aligned to absolute time and only whole ones are reported: two reads inside one
+  bucket return an identical series, and the series advances by exactly one complete point per bucket.
+  The newest point is therefore up to one bucket old; the live figures beside the chart still read to
+  the present second. The ring keeps one bucket of slack beyond the five-minute window (315 seconds) so
+  the aligned grid still covers it, and the percentile window is pinned to 300 seconds rather than to
+  the ring's capacity.
+- **The dashboard's sparklines hold still.** `StickyDomain` keeps the value axis from being refitted on
+  every update, `YMin="0"` pins the floor - neither throughput nor latency has anything below zero to
+  show - and the five-minute series is bucketed at 5 seconds rather than 15, so the line advances a
+  sixtieth of its width at a time instead of a twentieth. `AnimateUpdates` is set but currently has no
+  effect: Flare rebuilds the chart's SVG nodes instead of patching their attributes, so its transition
+  never observes the change (filed upstream).
 
 ## [1.8.0] - 2026-09-04
 
