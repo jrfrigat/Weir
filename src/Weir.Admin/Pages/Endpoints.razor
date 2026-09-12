@@ -593,7 +593,7 @@
                         <FlareStack Gap="FlareSpacing.None">
                             @if (parameter.DbType == WeirDbType.Boolean)
                             {
-                                <FlareCheckbox Label="@parameter.Name" Value="GetTestBool(parameter.Name)" ValueChanged="@(v => SetTestBool(parameter.Name, v == true))" />
+                                <FlareCheckbox TValue="bool" Label="@parameter.Name" Value="GetTestBool(parameter.Name)" ValueChanged="@(v => SetTestBool(parameter.Name, v))" />
                             }
                             else if (parameter.DbType == WeirDbType.Structured)
                             {

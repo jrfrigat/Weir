@@ -23,6 +23,13 @@ public sealed class CommandCenterTheme : ITheme
     /// <inheritdoc />
     public string DisplayName => "Command Center";
 
+    /// <summary>
+    /// The Visual Studio family: its stylesheets are <c>@scope</c>d to <c>flare-theme-visualstudio</c>
+    /// (Flare 0.34+), so without this second root class the reused <see cref="StyleAssets"/> would match
+    /// nothing and every component would lose the IDE geometry.
+    /// </summary>
+    public string StyleFamilyId => VisualStudioTheme.ThemeId;
+
     /// <inheritdoc />
     public DesignTokens Design => VisualStudio.DesignReference;
 

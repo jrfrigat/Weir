@@ -87,7 +87,7 @@
             </FlareDescriptionList>
             <FlareStack Gap="FlareSpacing.XSmall" Style="margin-top:0.75rem;">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Dashboard_CacheHeading</FlareText>
-                <FlareProgress Variant="ProgressVariant.Linear" Value="@((_overview?.CacheHitRatio ?? 0) * 100)" Color="FlareColor.Success" />
+                <FlareProgressLinear Value="@((_overview?.CacheHitRatio ?? 0) * 100)" Color="FlareColor.Success" />
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">@string.Format(AdminStrings.Dashboard_CacheHitMiss, Pct1(_overview?.CacheHitRatio ?? 0), Pct1(1 - (_overview?.CacheHitRatio ?? 0)))</FlareText>
             </FlareStack>
         </FlareCard>

@@ -19,8 +19,10 @@
     <link rel="stylesheet" href="_content/Flare.Components.IDE/css/flare-ide.css" />
     <link rel="stylesheet" href="css/app.css" />
 
-    <!-- Applies the saved Flare theme/palette/mode classes to <html> before first paint. -->
-    <script src="_content/Flare.Components/js/flare-bootstrap.js"></script>
+    <!-- Applies the saved Flare theme/palette/mode classes to <html> before first paint. Since Flare 0.35
+         the script assumes no theme on a first visit, so it is told the one Program.cs registers. -->
+    <script src="_content/Flare.Components/js/flare-bootstrap.js"
+            data-default-theme="command-center" data-default-palette="command-center" data-default-mode="dark"></script>
 </head>
 
 <body>

@@ -12,35 +12,35 @@
        PrivateAssets=all, so these never flow to consumers. MinVer derives the package version from the
        git tag; Microsoft.SourceLink.GitHub embeds repo + commit metadata for source-debuggable packages. -->
   <ItemGroup>
-    <GlobalPackageReference Include="MinVer" Version="7.0.0" />
-    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+    <GlobalPackageReference Include="MinVer" Version="8.0.0" />
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
   </ItemGroup>
   <ItemGroup Label="Data access">
-    <PackageVersion Include="Dapper" Version="2.1.79" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageVersion Include="Dapper" Version="2.1.86" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.3" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
     <!-- Override the transitive (vulnerable, NU1903) SQLitePCLRaw 2.1.11 with the patched 3.0.x line. -->
-    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
-    <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.5" />
   </ItemGroup>
   <ItemGroup Label="Microsoft.Extensions">
     <!-- Keep the whole 10.0.* set on one servicing patch. Flare's Microsoft.AspNetCore.Components.Web
          floats to the newest 10.0.* patch, so letting these lag behind it downgrades them (NU1109). -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.12" />
   </ItemGroup>
   <ItemGroup Label="Telemetry / observability">
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
   </ItemGroup>
   <ItemGroup Label="Logging">
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
@@ -48,11 +48,11 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>
   <ItemGroup Label="Auth / API">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
   </ItemGroup>
   <ItemGroup Label="Distributed">
-    <PackageVersion Include="StackExchange.Redis" Version="3.1.13" />
+    <PackageVersion Include="StackExchange.Redis" Version="3.2.0" />
   </ItemGroup>
   <ItemGroup Label="Transports">
     <!-- The gRPC door onto the data plane: the server in the host, the client in the tests. Grpc.Tools
@@ -67,21 +67,21 @@
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
   <ItemGroup Label="Blazor WASM admin">
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
-    <PackageVersion Include="Flare.Blazor" Version="0.32.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.32.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.32.0" />
-    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.32.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageVersion Include="Flare.Blazor" Version="0.35.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.35.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.35.0" />
+    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.35.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.14.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
   </ItemGroup>
 </Project>
