@@ -287,10 +287,32 @@ buffer stays a cheap reusable array. Raising it past that threshold undoes the p
 lowering it far trades the gain for a write per row. It self-adjusts otherwise - a wide row crosses it
 on its own.
 
+The threshold never holds rows back across a pause. Whenever the reader has to wait for the database -
+the next row is not in the driver's buffer yet, or the procedure moves on to its next result set - a
+streaming response sends what it has first, however little. A procedure that returns a few rows, works
+for a minute and returns a few more delivers the first ones immediately, not when the threshold fills
+or the call ends. A fast result the driver already holds never waits, so it still batches by the
+threshold.
+
 **The mode does not apply to every endpoint.** One that caches its responses, or captures its result
 for the request log, needs the whole body before it can do either - there is nothing to store or log
 until it exists - so it buffers whatever the mode says. This is not the mode being overridden so much
 as already satisfied. The admin panel says so next to the field when it applies.
+
+**Weir can only stream what the database sends.** Two things upstream of Weir decide when rows leave:
+
+- SQL Server packs results into TDS packets (4-8 KB) and sends one when it is full or the batch ends.
+  A procedure that selects a few rows and then waits keeps them on the server for the wait. Put
+  `RAISERROR('...', 0, 1) WITH NOWAIT` after the SELECT to push the partial packet out; the message
+  lands in `messages` (or nowhere, with `SuppressMessages`). A large result fills its packets and needs
+  nothing.
+- PostgreSQL: a PL/pgSQL function builds its entire result before returning (`RETURN NEXT` and
+  `RETURN QUERY` accumulate it), so its first row leaves only when the function has finished. A
+  `LANGUAGE sql` function that the planner inlines, or a dictionary endpoint over a table or view,
+  streams as the query runs.
+
+To check a real endpoint end to end, the sample client's `stream` command times when each piece of the
+body arrives; see [samples/README.md](../../samples/README.md#streaming-check).
 
 ## Compression
 

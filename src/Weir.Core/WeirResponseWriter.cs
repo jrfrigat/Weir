@@ -40,6 +40,14 @@ internal static class WeirResponseWriter
     /// client - it is what stops the writer's own array from doubling its way onto the large-object
     /// heap alongside it.
     /// </param>
+    /// <param name="flushWhenWaiting">
+    /// Whether to push out whatever is pending, however little, whenever the reader has to wait for the
+    /// database: when the next row is not already in the driver's buffer, and at every result-set boundary.
+    /// Set on the streaming path: without it, rows a procedure produced before a pause sit in the writer
+    /// until the threshold fills - which can be the next burst of rows, or the end - so the client sees them
+    /// late. A row read that completes synchronously never triggers it, which is every row of a result the
+    /// driver already holds.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The number of data rows written and whether the response was truncated.</returns>
     public static async Task<WriteResult> WriteAsync(
@@ -49,6 +57,7 @@ internal static class WeirResponseWriter
         JsonWriterOptions options,
         int maxRows,
         int flushBytes,
+        bool flushWhenWaiting,
         CancellationToken cancellationToken)
     {
         var rowCount = 0;
@@ -82,7 +91,7 @@ internal static class WeirResponseWriter
                     kinds[i] = Classify(reader.GetFieldType(i));
                 }
 
-                while (await reader.ReadAsync(cancellationToken))
+                while (await FlushWhileWaitingAsync(reader.ReadAsync(cancellationToken), writer, flushWhenWaiting, cancellationToken))
                 {
                     if (maxRows > 0 && rowCount >= maxRows)
                     {
@@ -112,6 +121,15 @@ internal static class WeirResponseWriter
             }
 
             writer.WriteEndArray();
+
+            // A result-set boundary is where a procedure pauses between two SELECTs, and SqlClient's
+            // NextResultAsync sits out that pause synchronously - it hands back a task that is already
+            // complete - so waiting cannot be detected here the way it is for a row. Flush before asking
+            // instead: it costs one write per result set, and a procedure returns a handful of those.
+            if (flushWhenWaiting && !truncated && writer.BytesPending > 0)
+            {
+                await writer.FlushAsync(cancellationToken);
+            }
         }
         while (!truncated && await reader.NextResultAsync(cancellationToken));
 
@@ -180,6 +198,46 @@ internal static class WeirResponseWriter
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
         return new WriteResult(rowCount, truncated);
+    }
+
+    /// <summary>
+    /// Awaits the next row, first flushing the writer if the read has to wait on the database and there is
+    /// something to send. The flush runs while the read is in flight, which is safe because they touch
+    /// different streams.
+    /// </summary>
+    /// <param name="read">The read, already started.</param>
+    /// <param name="writer">The JSON writer over the response.</param>
+    /// <param name="flushWhenWaiting">Whether a waiting read flushes the pending bytes.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Whether there was a row.</returns>
+    private static async ValueTask<bool> FlushWhileWaitingAsync(Task<bool> read, Utf8JsonWriter writer, bool flushWhenWaiting, CancellationToken cancellationToken)
+    {
+        if (!flushWhenWaiting || read.IsCompleted || writer.BytesPending == 0)
+        {
+            return await read;
+        }
+
+        try
+        {
+            await writer.FlushAsync(cancellationToken);
+        }
+        catch
+        {
+            // The client is gone or the call was cancelled. Let the read settle before the exception
+            // unwinds into disposing the reader, which must not happen under a pending read.
+            try
+            {
+                await read;
+            }
+            catch (Exception ex) when (ex is DbException or OperationCanceledException or InvalidOperationException)
+            {
+                // The flush failure is the one worth reporting; this read is being abandoned with it.
+            }
+
+            throw;
+        }
+
+        return await read;
     }
 
     /// <summary>Maps driver output-parameter names (db name, minus any leading '@') to their logical names.</summary>

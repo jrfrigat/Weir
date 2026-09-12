@@ -94,6 +94,38 @@ public class ResponseDeliveryTests
             $"a 1 KB threshold should chunk more finely than 32 KB, got {fine.Writes} vs {coarse.Writes} writes");
     }
 
+    [Theory]
+    [InlineData(ResponseDeliveryMode.Stream, ResultMode.MultiRow, false, false, true)]
+    [InlineData(ResponseDeliveryMode.Auto, ResultMode.MultiRow, false, false, true)]
+    [InlineData(ResponseDeliveryMode.Auto, ResultMode.SingleRow, false, false, false)]
+    [InlineData(ResponseDeliveryMode.Full, ResultMode.MultiRow, false, false, false)]
+    [InlineData(ResponseDeliveryMode.Stream, ResultMode.MultiRow, true, false, false)]
+    [InlineData(ResponseDeliveryMode.Stream, ResultMode.MultiRow, false, true, false)]
+    public void StreamsResponse_Agrees_With_What_The_Engine_Does(
+        ResponseDeliveryMode mode, ResultMode resultMode, bool cached, bool capturesResult, bool expected)
+    {
+        // The host sends X-Accel-Buffering: no on exactly the responses this says will stream, so it must
+        // follow the same rules the tests above pin on the engine: caching and result capture buffer
+        // whatever the mode says, and Auto reads the declared result shape.
+        var runtime = new FixedSettings(new WeirSystemSettings());
+        using var cache = new MemoryResponseCache(runtime);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [new SizedConnector()], cache, [], runtime);
+
+        var endpoint = new EndpointDefinition
+        {
+            Route = "orders/list",
+            HttpMethod = "GET",
+            ConnectionName = "default",
+            ObjectName = "usp_list",
+            ResultMode = resultMode,
+            Delivery = Delivery(mode),
+            Cache = cached ? new CachePolicy { Enabled = true, TtlSeconds = 60 } : new CachePolicy(),
+            Logging = new EndpointLogging { Enabled = capturesResult, LogResult = capturesResult },
+        };
+
+        Assert.Equal(expected, engine.StreamsResponse(endpoint));
+    }
+
     /// <summary>An endpoint delivery policy naming just the mode.</summary>
     /// <param name="mode">The mode to set.</param>
     /// <returns>The policy.</returns>

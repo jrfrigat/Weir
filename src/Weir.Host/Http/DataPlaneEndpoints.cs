@@ -196,6 +196,16 @@ public static class DataPlaneEndpoints
 
             context.Response.ContentType = "application/json; charset=utf-8";
 
+            // A streamed body leaves as the rows are read, so ask a reverse proxy in front of Weir not to
+            // sit on it. nginx honours this per response; its own proxy buffering happens to pass chunks
+            // on promptly anyway, but its gzip filter does not - it holds a JSON body to the end unless the
+            // response is unbuffered. A buffered response is whole before its first byte, so it is left
+            // to the proxy's defaults.
+            if (engine.StreamsResponse(endpoint))
+            {
+                context.Response.Headers["X-Accel-Buffering"] = "no";
+            }
+
             // Compress per endpoint here, not in the generic middleware: the data plane is excluded from
             // it (see Program) because its routes are dynamic and its compression is a per-endpoint
             // decision. Null means the endpoint opts out or the caller accepts no coding Weir offers.

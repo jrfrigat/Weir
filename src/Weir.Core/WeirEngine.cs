@@ -220,7 +220,7 @@ public sealed class WeirEngine : IDisposable
                 context.CapturedParameters = CaptureParameters(binding.Values);
             }
 
-            var captureResult = logEnabled && endpoint.Logging.LogResult;
+            var captureResult = CapturesResult(endpoint, _settings.Current);
             var flushBytes = endpoint.Delivery.FlushBytes ?? _settings.Current.ResponseFlushBytes;
             // Capturing the result needs the whole body in hand, so it buffers no matter what the mode
             // says; the mode only gets to decide for endpoints that are not already forced.
@@ -373,7 +373,7 @@ public sealed class WeirEngine : IDisposable
                             var dbStart = Stopwatch.GetTimestamp();
                             await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
                             {
-                                result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
+                                result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: false, cancellationToken);
                             }
 
                             context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
@@ -392,7 +392,7 @@ public sealed class WeirEngine : IDisposable
                             // span to the DB phase and leave StreamingDurationMs at zero.
                             var dbStart = Stopwatch.GetTimestamp();
                             await using var execution = await connector.ExecuteAsync(request, cancellationToken);
-                            result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, cancellationToken);
+                            result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: true, cancellationToken);
                             context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                             metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                         }
@@ -581,7 +581,7 @@ public sealed class WeirEngine : IDisposable
                     // the MemoryStream it is filling.
                     result = await WeirResponseWriter.WriteAsync(
                         buffer, execution, endpoint, WriterOptions, maxRows,
-                        endpoint.Delivery.FlushBytes ?? settings.ResponseFlushBytes, cancellationToken);
+                        endpoint.Delivery.FlushBytes ?? settings.ResponseFlushBytes, flushWhenWaiting: false, cancellationToken);
                 }
 
                 var dbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
@@ -996,6 +996,31 @@ public sealed class WeirEngine : IDisposable
             return null;
         }
     }
+
+    /// <summary>
+    /// Whether a call to <paramref name="endpoint"/> writes its rows out as they are read, rather than
+    /// building the whole envelope first. False for an endpoint that caches or captures its result for the
+    /// request log - both need the whole body in hand - and for one whose delivery mode resolves to
+    /// <see cref="ResponseDeliveryMode.Full"/>. The host uses it to tell a reverse proxy in front of it
+    /// not to hold back a response that is meant to stream.
+    /// </summary>
+    /// <param name="endpoint">The endpoint about to be called.</param>
+    /// <returns>True when the response will stream.</returns>
+    public bool StreamsResponse(EndpointDefinition endpoint)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        var settings = _settings.Current;
+        return !endpoint.Cache.Enabled
+            && !CapturesResult(endpoint, settings)
+            && ResolveDelivery(endpoint, settings) == ResponseDeliveryMode.Stream;
+    }
+
+    /// <summary>Whether a call captures its result body for the request log, which forces it to buffer.</summary>
+    /// <param name="endpoint">The endpoint being called.</param>
+    /// <param name="settings">The current runtime settings.</param>
+    /// <returns>True when the result is captured.</returns>
+    private static bool CapturesResult(EndpointDefinition endpoint, WeirSystemSettings settings) =>
+        settings.RequestLogEnabled && endpoint.Logging.Enabled && endpoint.Logging.LogResult;
 
     /// <summary>
     /// Settles the delivery mode for one call: the endpoint's override if it has one, otherwise the

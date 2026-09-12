@@ -108,6 +108,40 @@ Setting it also forwards the scheme, which is what lets `Weir:Security:RequireHt
 TLS-terminating proxy (without it the proxy's plain-HTTP hop to Weir redirects forever) and keeps
 `https://` in the generated OpenAPI server URL.
 
+### Streaming through the proxy
+
+A streamed response (see [Response delivery](endpoints.md#response-delivery)) is only as prompt as the
+slowest hop that holds it. Measured with nginx 1.29 in front of Weir and a SQL Server procedure that
+sends four batches a second apart:
+
+| nginx configuration | Result |
+| :-- | :-- |
+| Defaults (`proxy_buffering on`, HTTP/1.0 upstream) | Streams: each batch arrives in its own second. |
+| Nginx Proxy Manager style (HTTP/1.1, `gzip on`, `Accept-Encoding` stripped) | Streams. |
+| `gzip on` with `gzip_types application/json` | Held the whole body to the end - until Weir started sending `X-Accel-Buffering: no`. |
+| `proxy_read_timeout` shorter than a pause in the procedure | Cut off mid-body. |
+
+So nginx's proxy buffering is not the problem it is often assumed to be: it passes chunks on as they
+arrive. Weir still sends `X-Accel-Buffering: no` on every streamed response - never on a buffered or
+cached one - because nginx's gzip filter does hold a response until it is unbuffered, and the header is
+what unbuffers it without touching the proxy's config. Behind nginx:
+
+- Keep `proxy_read_timeout` above the longest silence a streaming endpoint can have - the longest pause
+  inside a procedure, and before the first row. It is 60s by default (90s in Nginx Proxy Manager), and
+  it times the gap between two reads, not the whole response. Weir's own limit is
+  `RequestTimeoutSeconds`.
+- Do not add `proxy_ignore_headers X-Accel-Buffering`, or the header stops helping.
+- `proxy_http_version 1.1` keeps connections to Weir alive; streaming works on 1.0 too.
+- Nginx Proxy Manager sends `Accept-Encoding ""` to the upstream, so Weir never compresses behind it and
+  nginx compresses only `text/html` by default. To compress JSON, either let it through
+  (`proxy_set_header Accept-Encoding $http_accept_encoding;` in the host's custom configuration), or
+  enable `gzip_types application/json` in nginx - both stream.
+
+Any other proxy, CDN or API gateway has the same three levers: whether it buffers, whether it
+compresses by buffering, and how long it waits between chunks. Check yours with the sample client's
+`stream` command, once against Weir directly and once through the proxy
+([samples/README.md](../../samples/README.md#streaming-check)).
+
 ## Health probes
 
 - `/health/live` - liveness (process is up; no dependency checks). Safe for a Kubernetes liveness
