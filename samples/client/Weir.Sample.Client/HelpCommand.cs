@@ -41,6 +41,7 @@ internal static class HelpCommand
         general.AddColumn("description");
         general.AddRow("call <route> [[-X M]] [[-b JSON]]", "Call any endpoint and print the raw envelope.");
         general.AddRow("load [[options]]", "Load-test an endpoint (throughput and latency percentiles).");
+        general.AddRow("stream [[options]]", "Check a response streams end to end (demo: GET /api/stream).");
         general.AddRow("help", "Show this help.");
         general.AddRow("clear", "Clear the screen (interactive only).");
         general.AddRow("exit", "Leave the interactive shell.");
@@ -64,6 +65,17 @@ internal static class HelpCommand
         load.AddRow("-n, --requests <N>", "Run a fixed request count (overrides --duration).");
         load.AddRow("-w, --warmup <SECONDS>", "Warm-up window, results discarded (default: 0).");
         AnsiConsole.Write(load);
+
+        var stream = new Table { Border = TableBorder.Rounded, Title = new TableTitle("stream options") };
+        stream.AddColumn("option");
+        stream.AddColumn("description");
+        stream.AddRow("--batches <N>", "Batches the demo procedure sends (default: 5).");
+        stream.AddRow("--rows <N>", "Rows per batch (default: 500).");
+        stream.AddRow("--delay <MS>", "Pause between batches (default: 1000).");
+        stream.AddRow("--compress", "Send Accept-Encoding: br, gzip and time the compressed bytes.");
+        stream.AddRow("-r, --route <ROUTE>", "Watch any other route instead (with its own query string).");
+        stream.AddRow("--gap <MS>", "Silence that separates two bursts (default: a third of --delay).");
+        AnsiConsole.Write(stream);
 
         AnsiConsole.MarkupLine("[bold]Examples:[/]");
         AnsiConsole.MarkupLine("[grey]  weir-sample --url http://localhost:8080 --api-key weir_...   # interactive shell[/]");

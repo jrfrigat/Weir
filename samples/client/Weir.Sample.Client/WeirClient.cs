@@ -108,6 +108,27 @@ internal sealed class WeirClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// Sends one request and returns as soon as the response headers arrive, leaving the body unread, so
+    /// the caller can watch when its bytes turn up. The client never decompresses: with
+    /// <paramref name="acceptEncoding"/> set, the bytes read are the compressed ones, as they left the wire.
+    /// </summary>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="route">The route beneath <c>/api/</c> (may include a query string).</param>
+    /// <param name="acceptEncoding">The <c>Accept-Encoding</c> value to send, or null for none.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The response with its body still unread; the caller must dispose it.</returns>
+    public async Task<HttpResponseMessage> OpenAsync(HttpMethod method, string route, string? acceptEncoding, CancellationToken cancellationToken)
+    {
+        using var request = Build(method, route, null);
+        if (acceptEncoding is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Accept-Encoding", acceptEncoding);
+        }
+
+        return await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+    }
+
     /// <inheritdoc />
     public void Dispose() => _http.Dispose();
 

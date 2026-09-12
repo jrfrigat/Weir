@@ -8,6 +8,45 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **The sample client checks that a response really streams.** `weir-sample stream` calls an endpoint
+  and records when each piece of the body arrives, then says whether it streamed, was buffered, or was
+  cut off mid-way - run it once against Weir and once through the proxy in front of it. The demo
+  database gains `sales.StreamBatches` (`GET /api/stream`), which sends batches of rows a set pause
+  apart, so the difference is visible. See [samples/README.md](samples/README.md#streaming-check).
+
+### Changed
+
+- **A streamed response sends `X-Accel-Buffering: no`.** Measured with nginx in front of Weir: its
+  proxy buffering passes chunks on as they arrive, but its gzip filter held a JSON body to the end.
+  The header unbuffers the response in nginx without touching the proxy's configuration. Buffered and
+  cached responses do not carry it. `WeirEngine.StreamsResponse` tells a host which responses stream.
+- **A streamed response no longer holds rows back across a pause.** Rows a procedure produced before a
+  pause used to wait in the writer until the flush threshold filled - the next burst of rows, or the
+  end of the call - so a procedure sending small batches a second apart delivered its whole body at the
+  end. The writer now sends what it has whenever the reader must wait for the database: on a row read
+  that does not complete at once, and at every result-set boundary. The boundary flush is unconditional
+  because SqlClient's `NextResultAsync` waits out a pause synchronously and returns a completed task.
+  Throughput on a 100 000-row result is unchanged.
+- Flare 0.35.0. The Command Center theme now names the Visual Studio style family
+  (`ITheme.StyleFamilyId`): since Flare 0.34 the Visual Studio stylesheets are scoped to that family's
+  class, and without it the tab strip lost its IDE styling with no build warning. `index.html` passes
+  the theme to `flare-bootstrap.js`, which since 0.35 assumes none on a first visit. `FlareProgress` is
+  `FlareProgressLinear`, and the endpoint test drawer's checkbox names its `TValue`.
+- Dependencies: Microsoft.Extensions / ASP.NET Core 10.0.12, OpenTelemetry 1.18.0, Dapper 2.1.86,
+  Microsoft.Data.SqlClient 7.0.3, SQLitePCLRaw 3.0.5, StackExchange.Redis 3.2.0, Testcontainers 4.15.0,
+  Microsoft.NET.Test.Sdk 18.10.0, MinVer 8.0.0, Microsoft.SourceLink.GitHub 10.0.401.
+
+### Documentation
+
+- [Deployment](docs/en/deployment.md#streaming-through-the-proxy): what nginx does and does not do to
+  a streamed response, as measured, and what to set - `proxy_read_timeout` above the longest pause,
+  and how Nginx Proxy Manager's stripped `Accept-Encoding` disables Weir's compression.
+- [Endpoints](docs/en/endpoints.md#response-delivery): what the database decides before Weir sees a
+  row - SQL Server's TDS packets and `RAISERROR ... WITH NOWAIT`, and PL/pgSQL functions that build
+  their whole result before returning.
+
 ## [1.9.0] - 2026-09-06
 
 ### Added

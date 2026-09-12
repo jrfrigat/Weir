@@ -249,6 +249,47 @@ BEGIN
 END;
 GO
 
+-- Streaming: rows leave the server while the procedure is still running. Each batch is its own result
+-- set, followed by a pause, so a streamed response visibly arrives batch by batch and a buffered one (a
+-- proxy holding the body, or an endpoint set to Full) arrives all at once at the end.
+--
+-- SQL Server does not send a row the moment it is produced: results are packed into TDS packets
+-- (4-8 KB) and a packet leaves when it is full or the batch ends. RAISERROR ... WITH NOWAIT forces the
+-- partial packet out, which is what makes a small batch arrive before the pause instead of after it.
+-- A procedure that returns one large result with no pauses needs none of this - the packets fill.
+CREATE OR ALTER PROCEDURE sales.StreamBatches
+    @Batches      INT = 5,
+    @RowsPerBatch INT = 500,
+    @DelayMs      INT = 1000
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @Batches NOT BETWEEN 1 AND 100 OR @RowsPerBatch NOT BETWEEN 1 AND 10000 OR @DelayMs NOT BETWEEN 0 AND 10000
+        THROW 50020, 'Batches must be 1-100, RowsPerBatch 1-10000 and DelayMs 0-10000.', 1;
+
+    DECLARE @delay DATETIME = DATEADD(MILLISECOND, @DelayMs, CAST(0 AS DATETIME));
+    DECLARE @batch INT = 1;
+
+    WHILE @batch <= @Batches
+    BEGIN
+        SELECT TOP (@RowsPerBatch)
+               @batch AS Batch,
+               CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS INT) AS Seq,
+               SYSUTCDATETIME() AS ProducedAtUtc,
+               REPLICATE('x', 64) AS Payload
+        FROM sys.all_objects AS a CROSS JOIN sys.all_objects AS b;
+
+        RAISERROR('batch %d of %d sent', 0, 1, @batch, @Batches) WITH NOWAIT;
+
+        IF @batch < @Batches AND @DelayMs > 0
+            WAITFOR DELAY @delay;
+
+        SET @batch += 1;
+    END;
+END;
+GO
+
 /* ---- functions ---------------------------------------------------------- */
 
 -- Scalar function: the current price of a product.

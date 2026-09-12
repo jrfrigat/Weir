@@ -29,6 +29,7 @@ internal static class Dispatch
         // General.
         "call" => await CallCommand.RunAsync(session, args),
         "load" => await LoadCommand.RunAsync(session, args),
+        "stream" => await StreamCommand.RunAsync(session, args),
         "help" or "-h" or "--help" => HelpCommand.Run(),
         _ => Unknown(command),
     };

@@ -43,6 +43,8 @@ error handling with THROW.
    - `GET /api/customers/stats?customerId=1` (values only in `output`)
    - `POST /api/inventory/adjust` with body `{ "productId": 1, "delta": -5 }`
    - `GET /api/ping` (PRINT messages appear in `messages`)
+   - `GET /api/stream?batches=5&rowsPerBatch=500&delayMs=1000` (batches of rows with a pause between
+     them; see [Streaming check](#streaming-check))
 
 ## Steps
 
@@ -145,6 +147,33 @@ dotnet run -- load --route widgets -X POST -b '{"name":"Load","price":1.00}' -c 
 It preflights a single request first, so a bad URL, key or route fails fast instead of flooding the
 results. The tool is a single-process convenience check, not a substitute for a distributed
 benchmarking rig.
+
+### Streaming check
+
+The `stream` command checks that a response really streams through the whole chain - the database,
+Weir, and anything between Weir and the client. It calls the demo database's `GET /api/stream` (the
+`sales.StreamBatches` procedure sends batches of rows, each its own result set, with a pause between
+them) and records when each piece of the body arrives. A streamed response arrives in bursts spaced by
+the pause; one that something held back arrives in a single burst at the end.
+
+```sh
+# Directly against Weir, then through the proxy - and compare:
+dotnet run -- stream --url http://localhost:8080 --batches 5 --rows 500 --delay 1000
+dotnet run -- stream --url https://weir.example.com --batches 5 --rows 500 --delay 1000
+
+# The same with compression (times the compressed bytes, as they came off the wire):
+dotnet run -- stream --url https://weir.example.com --compress
+
+# Any other endpoint instead of the demo procedure:
+dotnet run -- stream --route "reports/export?year=2026"
+```
+
+It prints the headers that decide streaming (`Transfer-Encoding`, `Content-Encoding`,
+`X-Accel-Buffering`, `Server`), a table of bursts and a verdict: **Streamed** (exit 0), **Buffered**
+(1), **Cut off** (1 - the body stopped mid-way, usually a proxy read timeout shorter than a pause) or
+**Inconclusive** (2 - the response was too short to tell). If a response buffers, check the endpoint's
+delivery mode, caching and result logging first, then the proxy; see
+[Streaming through the proxy](../docs/en/deployment.md#streaming-through-the-proxy).
 
 ## A note on the seed format
 

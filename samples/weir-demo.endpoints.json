@@ -191,5 +191,24 @@
     "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
     "requiredScopes": [],
     "parameters": []
+  },
+  {
+    "route": "stream",
+    "httpMethod": "GET",
+    "connectionName": "demo",
+    "objectType": 0,
+    "schema": "sales",
+    "objectName": "StreamBatches",
+    "resultMode": 0,
+    "enabled": true,
+    "description": "Streaming check: batches of rows with a pause between them. Query: batches, rowsPerBatch, delayMs.",
+    "cache": { "enabled": false, "ttlSeconds": 0, "varyByParameters": [], "varyByApiKey": false },
+    "delivery": { "mode": 1 },
+    "requiredScopes": [],
+    "parameters": [
+      { "name": "batches", "dbParameterName": "Batches", "source": 1, "direction": 0, "dbType": 5, "required": false },
+      { "name": "rowsPerBatch", "dbParameterName": "RowsPerBatch", "source": 1, "direction": 0, "dbType": 5, "required": false },
+      { "name": "delayMs", "dbParameterName": "DelayMs", "source": 1, "direction": 0, "dbType": 5, "required": false }
+    ]
   }
 ]
