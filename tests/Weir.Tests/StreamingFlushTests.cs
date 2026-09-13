@@ -24,7 +24,7 @@ public class StreamingFlushTests
     public async Task A_Result_Set_Boundary_Sends_The_Set_Before_Asking_For_The_Next()
     {
         await using var streamed = new ChunkSpyStream();
-        await WriteAsync(streamed, "SELECT 1 AS id; SELECT 2 AS id;", flushWhenWaiting: true, slowReads: false);
+        await WriteAsync(streamed, "SELECT 1 AS id; SELECT 2 AS id;", flushWhenWaiting: true, readGate: null);
 
         // Every chunk before the last must hold a whole result set and nothing of the next one.
         Assert.True(streamed.Chunks.Count > 1, $"expected a write per result set, got {streamed.Chunks.Count}");
@@ -37,8 +37,11 @@ public class StreamingFlushTests
     [Fact]
     public async Task A_Row_Read_That_Has_To_Wait_Sends_What_Is_Pending()
     {
+        // Each read stays pending until something reaches the output, so it cannot finish before the writer
+        // looks at it. A read that merely yielded raced the writer's IsCompleted check: on a busy multi-core
+        // runner the continuation completed first, the read looked instant, and nothing was flushed.
         await using var streamed = new ChunkSpyStream();
-        await WriteAsync(streamed, "SELECT 1 AS id UNION ALL SELECT 2 UNION ALL SELECT 3;", flushWhenWaiting: true, slowReads: true);
+        await WriteAsync(streamed, "SELECT 1 AS id UNION ALL SELECT 2 UNION ALL SELECT 3;", flushWhenWaiting: true, readGate: streamed.NextWriteAsync);
 
         // Three small rows are nowhere near the threshold; only the waiting reads can have pushed them out.
         Assert.True(streamed.Chunks.Count >= 3, $"expected a write per waiting read, got {streamed.Chunks.Count}");
@@ -51,7 +54,7 @@ public class StreamingFlushTests
         // Filling a buffer gains nothing from early flushes, so the flag is off there and a small result
         // leaves in the single write at the end, pauses or not.
         await using var buffered = new ChunkSpyStream();
-        await WriteAsync(buffered, "SELECT 1 AS id; SELECT 2 AS id;", flushWhenWaiting: false, slowReads: true);
+        await WriteAsync(buffered, "SELECT 1 AS id; SELECT 2 AS id;", flushWhenWaiting: false, readGate: YieldAsync);
 
         Assert.Single(buffered.Chunks);
         AssertSameDocument(buffered);
@@ -61,24 +64,30 @@ public class StreamingFlushTests
     /// <param name="output">Where the envelope is written.</param>
     /// <param name="sql">The query; several statements produce several result sets.</param>
     /// <param name="flushWhenWaiting">The writer's flush-while-waiting switch.</param>
-    /// <param name="slowReads">Whether every row read yields before completing, like a read waiting on the network.</param>
+    /// <param name="readGate">
+    /// What every row read waits for before it reads, like a read waiting on the network; null reads at once.
+    /// </param>
     /// <returns>A task that completes when the envelope is written.</returns>
-    private static async Task WriteAsync(Stream output, string sql, bool flushWhenWaiting, bool slowReads)
+    private static async Task WriteAsync(Stream output, string sql, bool flushWhenWaiting, Func<Task>? readGate)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         DbDataReader reader = await command.ExecuteReaderAsync();
-        if (slowReads)
+        if (readGate is not null)
         {
-            reader = new YieldingReader(reader);
+            reader = new GatedReader(reader, readGate);
         }
 
         await using var execution = new ReaderExecution(reader);
         var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
         await WeirResponseWriter.WriteAsync(output, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, flushWhenWaiting, CancellationToken.None);
     }
+
+    /// <summary>A read gate that only yields: the read is asynchronous, but nothing decides when it finishes.</summary>
+    /// <returns>A task that completes after yielding the thread.</returns>
+    private static async Task YieldAsync() => await Task.Yield();
 
     /// <summary>Asserts the chunks join into one valid envelope: early flushes must not cost correctness.</summary>
     /// <param name="spy">The stream the envelope was written to.</param>
@@ -117,8 +126,26 @@ public class StreamingFlushTests
     /// <summary>Records each write as its own chunk, so a test can see where the writer flushed.</summary>
     private sealed class ChunkSpyStream : Stream
     {
+        /// <summary>
+        /// How long <see cref="NextWriteAsync"/> waits before giving up, so a writer that never flushes fails
+        /// the assertion instead of hanging the test.
+        /// </summary>
+        private static readonly TimeSpan WriteWaitLimit = TimeSpan.FromSeconds(1);
+
+        /// <summary>Completed by the next write; replaced by each <see cref="NextWriteAsync"/> call.</summary>
+        private TaskCompletionSource? _nextWrite;
+
         /// <summary>The writes, in order.</summary>
         public List<byte[]> Chunks { get; } = [];
+
+        /// <summary>Waits until something is written after this call, or until <see cref="WriteWaitLimit"/> passes.</summary>
+        /// <returns>A task that completes on the next write or on the time limit.</returns>
+        public async Task NextWriteAsync()
+        {
+            var next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref _nextWrite, next);
+            await Task.WhenAny(next.Task, Task.Delay(WriteWaitLimit));
+        }
 
         /// <inheritdoc />
         public override bool CanWrite => true;
@@ -144,6 +171,7 @@ public class StreamingFlushTests
             if (!buffer.IsEmpty)
             {
                 Chunks.Add(buffer.ToArray());
+                Interlocked.Exchange(ref _nextWrite, null)?.TrySetResult();
             }
         }
 
@@ -177,16 +205,17 @@ public class StreamingFlushTests
     }
 
     /// <summary>
-    /// A reader whose row reads yield before completing, the way a driver's read does when the next row
-    /// has not reached its buffer yet. Everything else passes straight through to the inner reader.
+    /// A reader whose row reads wait on a gate before reading, the way a driver's read waits when the next
+    /// row has not reached its buffer yet. Everything else passes straight through to the inner reader.
     /// </summary>
     /// <param name="inner">The real reader.</param>
-    private sealed class YieldingReader(DbDataReader inner) : DbDataReader
+    /// <param name="gate">Started by each row read; the read completes only after it does.</param>
+    private sealed class GatedReader(DbDataReader inner, Func<Task> gate) : DbDataReader
     {
         /// <inheritdoc />
         public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
         {
-            await Task.Yield();
+            await gate();
             return inner.Read();
         }
 
