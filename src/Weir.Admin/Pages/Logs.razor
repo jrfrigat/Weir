@@ -87,7 +87,7 @@
 </FlareStack>
 
 @* ===== Detail drawer ===== *@
-<FlareDrawer Open="@(_selected is not null)" OpenChanged="@(open => { if (!open) _selected = null; })" Anchor="DrawerAnchor.Right" Width="42rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
+<FlareDrawer Open="@(_selected is not null)" OpenChanged="@(open => { if (!open) _selected = null; })" Anchor="DrawerAnchor.Right" Width="min(42rem, 100vw)" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
     <HeaderContent>
         @if (_selected is not null)
         {

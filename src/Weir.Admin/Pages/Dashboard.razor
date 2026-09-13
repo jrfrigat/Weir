@@ -72,10 +72,12 @@
         </FlareStack>
     }
 
-    @* Readout + charts: a fixed 300px metrics rail (matching the design comp) beside charts that fill
-       the rest of the row (StretchLast). *@
-    <FlareStack Row StretchLast Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Start">
-        <FlareCard Variant="CardVariant.Outlined" Style="width:300px;flex:none;box-sizing:border-box;">
+    @* Readout + charts: a 300px metrics rail (matching the design comp) beside charts that fill the rest
+       of the row. The row wraps once the charts would drop below 20rem, and then each takes the full
+       width: the rail grows only when it is alone on its line, because the charts claim a thousand
+       times its share of any free space while they sit beside it. *@
+    <FlareStack Row Wrap="true" StretchLast Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Start">
+        <FlareCard Variant="CardVariant.Outlined" Style="flex:1 0 300px;box-sizing:border-box;">
             <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Dashboard_ServiceMetricsHeading</FlareText>
             <FlareDescriptionList>
                 <FlareDescriptionItem Label="@AdminStrings.Dashboard_P50Latency"><FlareText Mono="true">@Lat(_overview?.P50LatencyMs)</FlareText></FlareDescriptionItem>
@@ -92,7 +94,7 @@
             </FlareStack>
         </FlareCard>
 
-        <FlareStack Gap="FlareSpacing.Small" Style="min-width:0;">
+        <FlareStack Gap="FlareSpacing.Small" Style="min-width:0;flex:1000 1 20rem;">
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
                     <FlareText Typo="TypographyScale.LabelLarge" Mono="true">@AdminStrings.Dashboard_ThroughputChartTitle</FlareText>

@@ -198,7 +198,7 @@
 </FlareStack>
 
 @* ===== Editor drawer ===== *@
-<FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="44rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
+<FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="min(44rem, 100vw)" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
     <HeaderContent><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></HeaderContent>
     <ChildContent>
         @if (_editing is not null)
@@ -556,7 +556,7 @@
 </FlareDrawer>
 
 @* ===== Test drawer ===== *@
-<FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="44rem" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
+<FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="min(44rem, 100vw)" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
     <HeaderContent>
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
             <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Endpoints_Test</FlareText>

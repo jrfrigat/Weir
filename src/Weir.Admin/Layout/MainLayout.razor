@@ -20,7 +20,9 @@
                 <WeirMark Size="1.6rem" />
                 <FlareText Typo="TypographyScale.TitleMedium" Weight="FontWeight.Bold" Mono="true">weir</FlareText>
             </FlareStack>
-            <FlareLinkTabs>
+            @* Shrinks and scrolls sideways in a narrow bar, so the language picker and the account menu stay on
+               screen on a phone. FlareLinkTabs has no overflow mode of its own (unlike FlareTabs). *@
+            <FlareLinkTabs Style="flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;">
                 <FlareLinkTab Href="/" Match="NavMatchMode.Exact" Label="@AdminStrings.Nav_Dashboard" />
                 <FlareLinkTab Href="/endpoints" Label="@AdminStrings.Nav_Endpoints" />
                 <FlareLinkTab Href="/scopes" Label="@AdminStrings.Nav_Scopes" />

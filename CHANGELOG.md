@@ -29,11 +29,18 @@ All notable changes to this project are documented here. The format is based on
   that does not complete at once, and at every result-set boundary. The boundary flush is unconditional
   because SqlClient's `NextResultAsync` waits out a pause synchronously and returns a completed task.
   Throughput on a 100 000-row result is unchanged.
-- Flare 0.35.0. The Command Center theme now names the Visual Studio style family
+- Flare 0.37.0. The Command Center theme now names the Visual Studio style family
   (`ITheme.StyleFamilyId`): since Flare 0.34 the Visual Studio stylesheets are scoped to that family's
-  class, and without it the tab strip lost its IDE styling with no build warning. `index.html` passes
-  the theme to `flare-bootstrap.js`, which since 0.35 assumes none on a first visit. `FlareProgress` is
-  `FlareProgressLinear`, and the endpoint test drawer's checkbox names its `TValue`.
+  class, and only from 0.37 does the family class reach the element that holds the page, so the
+  Endpoints page tabs now draw as Visual Studio document tabs and menus take the theme's shadow.
+  `index.html` passes the theme to `flare-bootstrap.js`, which since 0.35 assumes none on a first
+  visit. `FlareProgress` is `FlareProgressLinear`, and the endpoint test drawer's checkbox names its
+  `TValue`. Text buttons are 2px narrower on each side (Flare 0.36 applies the theme's text padding),
+  and a closed drawer can no longer be tabbed into.
+- The admin on a phone: the drawers (endpoint editor, endpoint test, request log detail) fit the
+  screen instead of starting off its left edge, the route tabs in the top bar scroll sideways so the
+  language picker and the account menu stay reachable, and the dashboard's metrics card and charts
+  stack instead of squeezing the charts into a sliver.
 - Dependencies: Microsoft.Extensions / ASP.NET Core 10.0.12, OpenTelemetry 1.18.0, Dapper 2.1.86,
   Microsoft.Data.SqlClient 7.0.3, SQLitePCLRaw 3.0.5, StackExchange.Redis 3.2.0, Testcontainers 4.15.0,
   Microsoft.NET.Test.Sdk 18.10.0, MinVer 8.0.0, Microsoft.SourceLink.GitHub 10.0.401.
