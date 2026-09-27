@@ -14,10 +14,24 @@ namespace Weir.Tests;
 // one. Every other instance reloaded the new definition on its next poll but went on serving bodies
 // rendered from the old one until the TTL expired, so "a change never serves stale data" held on one
 // node out of N. The reload is where the news arrives, so the eviction belongs there too.
-public class CatalogRefreshEvictionTests
+public class CatalogRefreshEvictionTests : IDisposable
 {
     /// <summary>How long a test waits for a background tick before giving up.</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>Throwaway databases this test opened; each is removed when the test ends.</summary>
+    private readonly List<TempSqliteDatabase> _databases = [];
+
+    /// <summary>Removes the databases this test created.</summary>
+    public void Dispose()
+    {
+        foreach (var database in _databases)
+        {
+            database.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public async Task A_Definition_Edited_On_Another_Instance_Evicts_This_Instance_Cache()
@@ -113,7 +127,7 @@ public class CatalogRefreshEvictionTests
     /// <param name="cache">The cache to evict from.</param>
     /// <param name="store">The store to read purge stamps from; a throwaway one when not supplied.</param>
     /// <returns>The service, not yet started.</returns>
-    private static CatalogRefreshService Service(FakeCatalog catalog, RecordingCache cache, IControlPlaneStore? store = null) =>
+    private CatalogRefreshService Service(FakeCatalog catalog, RecordingCache cache, IControlPlaneStore? store = null) =>
         new(catalog, store ?? NewStore(), cache, Options.Create(new CatalogRefreshOptions { ReloadSeconds = 1 }), NullLogger<CatalogRefreshService>.Instance);
 
     /// <summary>
@@ -122,11 +136,11 @@ public class CatalogRefreshEvictionTests
     /// point of it - so the store is the part least worth stubbing out here.
     /// </summary>
     /// <returns>The initialized store.</returns>
-    private static SqliteControlPlaneStore NewStore()
+    private SqliteControlPlaneStore NewStore()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"weir-purge-{Guid.NewGuid():N}.db");
-        var options = Options.Create(new SqliteControlPlaneOptions { ConnectionString = $"Data Source={path}" });
-        var store = new SqliteControlPlaneStore(options, TimeProvider.System);
+        var database = new TempSqliteDatabase("weir-purge");
+        _databases.Add(database);
+        var store = new SqliteControlPlaneStore(Options.Create(database.Options), TimeProvider.System);
         store.InitializeAsync().GetAwaiter().GetResult();
         return store;
     }

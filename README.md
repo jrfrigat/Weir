@@ -32,7 +32,9 @@ mapping, caching, telemetry and serialization.
 - **Operable.** Runtime settings (data-plane limits, rate limits, audit retention) are edited from the
   admin panel without a restart; every admin action is audited; admin sessions are revocable; the admin
   is an installable PWA. It ships English and Russian, chosen per browser - see
-  [Admin UI](docs/en/admin-ui.md#language).
+  [Admin UI](docs/en/admin-ui.md#language). The endpoint API and the admin console can also be served
+  on separate ports, so an edge proxy publishes only the one it should - see
+  [Deployment](docs/en/deployment.md#splitting-the-two-surfaces-onto-separate-ports).
 
 ## The admin console
 

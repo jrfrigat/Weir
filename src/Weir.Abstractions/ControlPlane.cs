@@ -157,8 +157,16 @@ public interface IControlPlaneStore
 
     // ----- Audit -----------------------------------------------------------------------------
 
-    /// <summary>Appends an audit entry.</summary>
-    Task AppendAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Appends an audit entry and returns the stored record: the id the store assigned and the timestamp
+    /// it actually wrote. Callers that only record the action may ignore the result; the live audit feed
+    /// needs it, because an entry pushed to the dashboard has to carry the id the audit page orders and
+    /// de-duplicates by.
+    /// </summary>
+    /// <param name="entry">The entry to append.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored entry, with its store-assigned id and effective timestamp.</returns>
+    Task<AuditEntry> AppendAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>Queries the audit log.</summary>
     Task<IReadOnlyList<AuditEntry>> QueryAuditAsync(AuditQuery query, CancellationToken cancellationToken = default);

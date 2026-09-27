@@ -61,7 +61,7 @@ public class ApiKeyFloodGuardTests
     /// <summary>Boots the host against a throwaway SQLite control plane with a chosen failure budget.</summary>
     private sealed class HostFactory : WebApplicationFactory<Program>
     {
-        private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"weir-flood-{Guid.NewGuid():N}.db");
+        private readonly TempSqliteDatabase _db = new("weir-flood");
         private readonly int _threshold;
 
         /// <summary>Creates the factory.</summary>
@@ -73,7 +73,7 @@ public class ApiKeyFloodGuardTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("Weir:ControlPlane:ConnectionString", $"Data Source={_dbPath}");
+            builder.UseSetting("Weir:ControlPlane:ConnectionString", _db.ConnectionString);
             builder.UseSetting("Weir:Admin:Username", "admin");
             builder.UseSetting("Weir:Admin:Password", "admin-password");
             builder.UseSetting("Weir:Jwt:SigningKey", "flood-guard-test-signing-key-0123456789");
@@ -85,17 +85,7 @@ public class ApiKeyFloodGuardTests
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            try
-            {
-                if (File.Exists(_dbPath))
-                {
-                    File.Delete(_dbPath);
-                }
-            }
-            catch (IOException)
-            {
-                // Best-effort cleanup of the temp database file.
-            }
+            _db.Dispose();
         }
     }
 }

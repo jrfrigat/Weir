@@ -10,8 +10,21 @@ namespace Weir.Tests;
 // ParameterSource.Route exists to read what they capture. These cover resolving them and the precedence
 // rules between a literal route and a template that would also match. They run against the real SQLite
 // control plane rather than a stub, so the definitions travel the same path they do in production.
-public class EndpointCatalogRouteTests
+public class EndpointCatalogRouteTests : IDisposable
 {
+    /// <summary>Throwaway databases this test opened; each is removed when the test ends.</summary>
+    private readonly List<TempSqliteDatabase> _databases = [];
+
+    /// <summary>Removes the databases this test created.</summary>
+    public void Dispose()
+    {
+        foreach (var database in _databases)
+        {
+            database.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
     private static EndpointDefinition Endpoint(string method, string route) => new()
     {
         Route = route,
@@ -21,12 +34,11 @@ public class EndpointCatalogRouteTests
         Enabled = true,
     };
 
-    private static async Task<EndpointCatalog> Catalog(params EndpointDefinition[] endpoints)
+    private async Task<EndpointCatalog> Catalog(params EndpointDefinition[] endpoints)
     {
-        var path = Path.Combine(Path.GetTempPath(), $"weir-routes-{Guid.NewGuid():N}.db");
-        var store = new SqliteControlPlaneStore(
-            Options.Create(new SqliteControlPlaneOptions { ConnectionString = $"Data Source={path}" }),
-            TimeProvider.System);
+        var database = new TempSqliteDatabase("weir-routes");
+        _databases.Add(database);
+        var store = new SqliteControlPlaneStore(Options.Create(database.Options), TimeProvider.System);
         await store.InitializeAsync();
         foreach (var endpoint in endpoints)
         {

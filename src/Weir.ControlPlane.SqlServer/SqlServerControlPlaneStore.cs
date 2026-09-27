@@ -736,16 +736,20 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
     // ===== Audit =================================================================================
 
     /// <inheritdoc />
-    public async Task AppendAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+    public async Task<AuditEntry> AppendAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        var timestamp = entry.Timestamp == default ? _clock.GetUtcNow() : entry.Timestamp;
         await using var conn = await OpenAsync(cancellationToken);
-        await conn.ExecuteAsync(new CommandDefinition("""
+        // OUTPUT hands back the assigned id in the same statement, so a caller that has to name the row it
+        // just wrote (the live audit feed) pays no second round-trip for it.
+        var id = await conn.ExecuteScalarAsync<long>(new CommandDefinition("""
             INSERT INTO Audit (Timestamp, Category, Actor, Route, Outcome, StatusCode, DurationMs, Detail)
+            OUTPUT INSERTED.Id
             VALUES (@Timestamp, @Category, @Actor, @Route, @Outcome, @StatusCode, @DurationMs, @Detail);
             """, new
         {
-            Timestamp = Iso(entry.Timestamp == default ? _clock.GetUtcNow() : entry.Timestamp),
+            Timestamp = Iso(timestamp),
             entry.Category,
             entry.Actor,
             entry.Route,
@@ -754,6 +758,7 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
             entry.DurationMs,
             entry.Detail,
         }, cancellationToken: cancellationToken));
+        return entry with { Id = id, Timestamp = timestamp };
     }
 
     /// <inheritdoc />

@@ -6,6 +6,7 @@ using Weir.ControlPlane.Sqlite;
 using Weir.Contracts;
 using Weir.Host.Audit;
 using Weir.Host.Options;
+using Weir.Host.Realtime;
 using Xunit;
 
 namespace Weir.Tests;
@@ -15,8 +16,22 @@ namespace Weir.Tests;
 // shutdown began it abandoned whatever was still queued. That loss was also the one kind the drop
 // counter could not see - it only counts a full queue - so a redeploy quietly took the tail of the
 // audit with it and reported nothing.
-public class AuditDrainTests
+public class AuditDrainTests : IDisposable
 {
+    /// <summary>Throwaway databases this test opened; each is removed when the test ends.</summary>
+    private readonly List<TempSqliteDatabase> _databases = [];
+
+    /// <summary>Removes the databases this test created.</summary>
+    public void Dispose()
+    {
+        foreach (var database in _databases)
+        {
+            database.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     public async Task Entries_Queued_Before_Shutdown_Are_Written()
     {
@@ -43,6 +58,28 @@ public class AuditDrainTests
 
         var written = await store.QueryAuditAsync(new AuditQuery { Limit = 500 });
         Assert.Equal(200, written.Count);
+    }
+
+    [Fact]
+    public async Task Stored_Entries_Reach_The_Live_Feed_With_Their_Assigned_Id()
+    {
+        var store = await NewStoreAsync();
+        var published = new RecordingAuditPublisher();
+        using var auditor = NewAuditor(store, publisher: published);
+        await auditor.StartAsync(CancellationToken.None);
+
+        auditor.Enqueue(NewEntry(1));
+        auditor.Enqueue(NewEntry(2));
+        await auditor.StopAsync(CancellationToken.None);
+
+        // The live feed is handed exactly what was stored. The admin audit page orders its list and
+        // de-duplicates it by the id, so an entry published without one would be unusable - and the id can
+        // only come from the store, which is why AppendAuditAsync returns the stored row.
+        Assert.Equal(2, published.Entries.Count);
+        Assert.True(published.Entries[0].Id > 0, "the published entry should carry the store-assigned id");
+        Assert.True(published.Entries[1].Id > published.Entries[0].Id, "ids should be published in store order");
+        Assert.Equal("key-1", published.Entries[0].Actor);
+        Assert.Equal("key-2", published.Entries[1].Actor);
     }
 
     [Fact]
@@ -87,15 +124,15 @@ public class AuditDrainTests
     [Fact]
     public async Task An_Entry_That_Fails_To_Persist_Is_Counted_Rather_Than_Lost_Silently()
     {
-        var path = NewDbPath();
-        var store = await NewStoreAsync(path);
+        var database = NewDatabase();
+        var store = await NewStoreAsync(database);
         var failures = new CapturingLogger<DataPlaneAuditor>();
         using var auditor = NewAuditor(store, failures);
         await auditor.StartAsync(CancellationToken.None);
 
         // Take the table away so every write throws. The drain catches and carries on by design - a
         // failing store must not stall the queue - and the point here is that carrying on is recorded.
-        await using (var conn = new SqliteConnection($"Data Source={path}"))
+        await using (var conn = new SqliteConnection(database.ConnectionString))
         {
             await conn.OpenAsync();
             await using var drop = conn.CreateCommand();
@@ -114,19 +151,25 @@ public class AuditDrainTests
         Assert.Contains("audit", failures.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Builds a path for a throwaway control-plane database.</summary>
-    /// <returns>The file path.</returns>
-    private static string NewDbPath() =>
-        Path.Combine(Path.GetTempPath(), $"weir-audit-{Guid.NewGuid():N}.db");
-
-    /// <summary>Opens a throwaway SQLite control plane.</summary>
-    /// <param name="path">Where to put the database; a fresh path when omitted.</param>
-    /// <returns>The initialized store.</returns>
-    private static async Task<SqliteControlPlaneStore> NewStoreAsync(string? path = null)
+    /// <summary>Picks a throwaway database path and remembers it for cleanup.</summary>
+    /// <returns>The database.</returns>
+    private TempSqliteDatabase NewDatabase()
     {
-        var store = new SqliteControlPlaneStore(
-            Options.Create(new SqliteControlPlaneOptions { ConnectionString = $"Data Source={path ?? NewDbPath()}" }),
-            TimeProvider.System);
+        var database = new TempSqliteDatabase("weir-audit");
+        _databases.Add(database);
+        return database;
+    }
+
+    /// <summary>Opens a throwaway SQLite control plane on a fresh database.</summary>
+    /// <returns>The initialized store.</returns>
+    private async Task<SqliteControlPlaneStore> NewStoreAsync() => await NewStoreAsync(NewDatabase());
+
+    /// <summary>Opens a throwaway SQLite control plane on the given database.</summary>
+    /// <param name="database">The database to open.</param>
+    /// <returns>The initialized store.</returns>
+    private static async Task<SqliteControlPlaneStore> NewStoreAsync(TempSqliteDatabase database)
+    {
+        var store = new SqliteControlPlaneStore(Options.Create(database.Options), TimeProvider.System);
         await store.InitializeAsync();
         return store;
     }
@@ -136,9 +179,35 @@ public class AuditDrainTests
     /// <param name="logger">Where the auditor reports write failures; null discards them.</param>
     /// <returns>The auditor.</returns>
     private static DataPlaneAuditor NewAuditor(
-        SqliteControlPlaneStore store, ILogger<DataPlaneAuditor>? logger = null) =>
+        SqliteControlPlaneStore store, ILogger<DataPlaneAuditor>? logger = null, IAuditPublisher? publisher = null) =>
         new(store, Options.Create(new AuditOptions { DataPlane = true, QueueCapacity = 10_000 }),
+            publisher ?? new NoopAuditPublisher(),
             logger ?? NullLogger<DataPlaneAuditor>.Instance);
+
+    /// <summary>An audit publisher that discards entries: most of these tests are about the write, not the feed.</summary>
+    private sealed class NoopAuditPublisher : IAuditPublisher
+    {
+        /// <summary>Discards the stored entry.</summary>
+        /// <param name="entry">The stored entry.</param>
+        /// <returns>A completed task.</returns>
+        public Task PublishAsync(AuditEntry entry) => Task.CompletedTask;
+    }
+
+    /// <summary>An audit publisher that keeps what it was handed, so a test can check the live feed's input.</summary>
+    private sealed class RecordingAuditPublisher : IAuditPublisher
+    {
+        /// <summary>The entries published so far, in the order they arrived.</summary>
+        public List<AuditEntry> Entries { get; } = [];
+
+        /// <summary>Records the stored entry.</summary>
+        /// <param name="entry">The stored entry.</param>
+        /// <returns>A completed task.</returns>
+        public Task PublishAsync(AuditEntry entry)
+        {
+            Entries.Add(entry);
+            return Task.CompletedTask;
+        }
+    }
 
     /// <summary>Builds one audit entry.</summary>
     /// <param name="i">A discriminator for the actor.</param>

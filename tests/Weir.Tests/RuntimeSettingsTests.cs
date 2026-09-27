@@ -6,13 +6,29 @@ using Xunit;
 
 namespace Weir.Tests;
 
-public class RuntimeSettingsTests
+public class RuntimeSettingsTests : IDisposable
 {
-    private static SqliteControlPlaneStore NewStore()
+    /// <summary>Throwaway databases this test opened; each is removed when the test ends.</summary>
+    private readonly List<TempSqliteDatabase> _databases = [];
+
+    /// <summary>Removes the databases this test created.</summary>
+    public void Dispose()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"weir-settings-{Guid.NewGuid():N}.db");
-        var options = Options.Create(new SqliteControlPlaneOptions { ConnectionString = $"Data Source={path}" });
-        return new SqliteControlPlaneStore(options, TimeProvider.System);
+        foreach (var database in _databases)
+        {
+            database.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>Opens a store on a fresh throwaway database.</summary>
+    /// <returns>The store, not yet initialized.</returns>
+    private SqliteControlPlaneStore NewStore()
+    {
+        var database = new TempSqliteDatabase("weir-settings");
+        _databases.Add(database);
+        return new SqliteControlPlaneStore(Options.Create(database.Options), TimeProvider.System);
     }
 
     [Fact]

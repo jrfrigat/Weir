@@ -1,8 +1,12 @@
 @page "/audit"
 @attribute [Authorize]
 @inherits LocalizedPage
+@using Microsoft.AspNetCore.SignalR.Client
 @inject WeirApiClient Api
+@inject NavigationManager Nav
+@inject TokenStore Tokens
 @inject ISnackbarService Snackbar
+@implements IAsyncDisposable
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Audit_Title" Description="@AdminStrings.Audit_Description" />
@@ -59,11 +63,21 @@
 
 @code {
     private const int PageSize = 200;
+
+    /// <summary>
+    /// How many entries the page keeps in memory. The live feed prepends as events arrive, so without a cap
+    /// a long-lived tab would grow forever; the tail is dropped, which leaves the "load older" cursor
+    /// pointing at whatever is now the oldest row on screen.
+    /// </summary>
+    private const int MaxEntries = 2000;
+
     private List<AuditEntry>? _entries;
     private bool _hasMore;
     private bool _loadingMore;
+    private HubConnection? _hub;
+    private bool _disposed;
 
-    /// <summary>Loads the most recent audit entries (first keyset page).</summary>
+    /// <summary>Loads the most recent audit entries (first keyset page), then subscribes to the live feed.</summary>
     protected override async Task OnInitializedAsync()
     {
         try
@@ -77,6 +91,70 @@
             // error, instead of the loading spinner it would otherwise sit on forever.
             _entries = [];
             Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+        }
+
+        await ConnectHubAsync();
+    }
+
+    /// <summary>
+    /// Subscribes to the dashboard hub's live audit feed. The page stays usable without it - the initial
+    /// load and "load older" are plain HTTP - so a hub that cannot be reached costs the page its live
+    /// updates and nothing else, which is why there is no polling fallback here.
+    /// </summary>
+    private async Task ConnectHubAsync()
+    {
+        try
+        {
+            _hub = new HubConnectionBuilder()
+                .WithUrl(Nav.ToAbsoluteUri("hubs/dashboard"), options =>
+                    options.AccessTokenProvider = () => Tokens.GetAsync().AsTask())
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hub.On<AuditEntry>("audit", entry => InvokeAsync(() =>
+            {
+                // The whole update happens on the UI thread: the callback arrives on the SignalR client's
+                // thread, and the renderer reads this list while it draws.
+                if (_disposed)
+                {
+                    return;
+                }
+
+                Prepend(entry);
+                StateHasChanged();
+            }));
+
+            await _hub.StartAsync();
+        }
+        catch (Exception)
+        {
+            // The live feed is a convenience; the page remains readable from the page it already loaded.
+        }
+    }
+
+    /// <summary>
+    /// Puts one pushed entry at the top of the list. Entries are ordered by id descending, so an entry that
+    /// is not newer than the newest row on screen has already been loaded and is dropped: that is the whole
+    /// de-duplication, and it needs no id set.
+    /// </summary>
+    /// <param name="entry">The pushed entry.</param>
+    private void Prepend(AuditEntry entry)
+    {
+        if (_entries is not { } entries)
+        {
+            // The first page has not arrived yet; the load already running will include this entry.
+            return;
+        }
+
+        if (entries.Count > 0 && entry.Id <= entries[0].Id)
+        {
+            return;
+        }
+
+        entries.Insert(0, entry);
+        if (entries.Count > MaxEntries)
+        {
+            entries.RemoveRange(MaxEntries, entries.Count - MaxEntries);
         }
     }
 
@@ -143,5 +221,15 @@
         return o.Contains("den") || o.Contains("fail") || o.Contains("error") || o.Contains("403") || o.Contains("401")
             ? FlareColor.Error
             : FlareColor.OnSurfaceVariant;
+    }
+
+    /// <summary>Closes the hub connection when the page is navigated away from.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_hub is not null)
+        {
+            await _hub.DisposeAsync();
+        }
     }
 }

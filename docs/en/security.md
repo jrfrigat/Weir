@@ -200,6 +200,12 @@ to the file log (see [Configuration](configuration.md#logging)), each request ca
   they are kept is governed by the runtime `RequestLogRetentionDays` setting, and `RequestLogEnabled`
   turns the request log off entirely (see
   [Configuration](configuration.md#runtime-settings)).
+- The endpoint API and the admin surface can be put on separate ports (`Weir:Ports`), so an edge proxy
+  publishes only the one it should and the admin console never answers on the public port. Which
+  surface may answer is decided by the port a request arrived on, not by the `Host` header - a caller
+  cannot ask for the admin API on the public port - and a request of the wrong surface is refused with
+  404, which does not reveal that the surface exists somewhere else. See
+  [Deployment](deployment.md#splitting-the-two-surfaces-onto-separate-ports).
 - Security-relevant options are validated at startup, so a misconfiguration fails fast.
 - The shipped default connection string does not disable TLS certificate validation.
 

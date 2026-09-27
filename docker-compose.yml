@@ -11,8 +11,13 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+      # To keep the admin console off the public port, publish a second one here and name both ports
+      # in the environment below (see docs/en/deployment.md, "Splitting the two surfaces"):
+      #   - "8081:8081"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      # Weir__Ports__DataPlanePort: 8080
+      # Weir__Ports__AdminPort: 8081
       # Control-plane metadata (endpoints, keys, scopes, admins, audit), persisted on a volume.
       Weir__ControlPlane__ConnectionString: "Data Source=/data/weir-control.db"
       # The target data connection provider. The connection string and secrets are set in

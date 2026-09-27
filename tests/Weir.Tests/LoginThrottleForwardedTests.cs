@@ -100,14 +100,14 @@ public class LoginThrottleForwardedTests
     /// <param name="trustProxy">When true, names the loopback socket in Weir:Network:TrustedProxies.</param>
     private sealed class HostFactory(bool trustProxy) : WebApplicationFactory<Program>
     {
-        private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"weir-throttle-{Guid.NewGuid():N}.db");
+        private readonly TempSqliteDatabase _db = new("weir-throttle");
 
         /// <summary>Points the host at the throwaway database and sets the proxy trust under test.</summary>
         /// <param name="builder">The host builder to configure.</param>
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("Weir:ControlPlane:ConnectionString", $"Data Source={_dbPath}");
+            builder.UseSetting("Weir:ControlPlane:ConnectionString", _db.ConnectionString);
             builder.UseSetting("Weir:Admin:Username", "admin");
             builder.UseSetting("Weir:Admin:Password", "admin-password");
             builder.UseSetting("Weir:Jwt:SigningKey", "throttle-test-signing-key-0123456789");
@@ -122,17 +122,7 @@ public class LoginThrottleForwardedTests
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            try
-            {
-                if (File.Exists(_dbPath))
-                {
-                    File.Delete(_dbPath);
-                }
-            }
-            catch (IOException)
-            {
-                // Best-effort cleanup of the temp database file.
-            }
+            _db.Dispose();
         }
     }
 }

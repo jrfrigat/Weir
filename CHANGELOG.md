@@ -10,11 +10,30 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **The endpoint API and the admin surface can be served on separate ports.** `Weir:Ports` names one
+  for each (`AdminPort`, `DataPlanePort`) and `MainPort` for whichever of the two was not given one
+  (default: the port already in use, read from `ASPNETCORE_URLS`). With neither set nothing changes:
+  one listener, every surface, exactly as before. With either set Weir binds both listeners itself, so
+  `ASPNETCORE_URLS` no longer applies - the start logs that - and each surface answers only on its own
+  port, which is what lets an edge proxy publish the API and keep the admin console private.
+  `/health` answers on both. The surface is decided from the port a request arrived on, never from the
+  `Host` header a client supplies, and a request of the wrong surface gets a bodiless 404. Ports are
+  read at startup, like the file logging settings. See
+  [Configuration](docs/en/configuration.md#weirports) and
+  [Deployment](docs/en/deployment.md#splitting-the-two-surfaces-onto-separate-ports).
+
 - **The sample client checks that a response really streams.** `weir-sample stream` calls an endpoint
   and records when each piece of the body arrives, then says whether it streamed, was buffered, or was
   cut off mid-way - run it once against Weir and once through the proxy in front of it. The demo
   database gains `sales.StreamBatches` (`GET /api/stream`), which sends batches of rows a set pause
   apart, so the difference is visible. See [samples/README.md](samples/README.md#streaming-check).
+- **The audit page is a live feed.** New audit entries are pushed over the dashboard hub (a new `audit`
+  event) as they are stored, and the admin Audit page prepends them instead of being refreshed by hand.
+  `IControlPlaneStore.AppendAuditAsync` now returns the stored entry - the id and timestamp the store
+  assigned - because a pushed entry has to carry the id the page orders and de-duplicates by
+  (`INSERT ... RETURNING Id` / `OUTPUT INSERTED.Id`: one statement, no extra round-trip). Publishing is
+  best-effort: it does nothing when no dashboard is connected and never fails the audit write. Keyset
+  paging is untouched - "load older" still seeks from the oldest row on screen.
 
 ### Changed
 
@@ -29,21 +48,33 @@ All notable changes to this project are documented here. The format is based on
   that does not complete at once, and at every result-set boundary. The boundary flush is unconditional
   because SqlClient's `NextResultAsync` waits out a pause synchronously and returns a completed task.
   Throughput on a 100 000-row result is unchanged.
-- Flare 0.37.0. The Command Center theme now names the Visual Studio style family
-  (`ITheme.StyleFamilyId`): since Flare 0.34 the Visual Studio stylesheets are scoped to that family's
-  class, and only from 0.37 does the family class reach the element that holds the page, so the
-  Endpoints page tabs now draw as Visual Studio document tabs and menus take the theme's shadow.
-  `index.html` passes the theme to `flare-bootstrap.js`, which since 0.35 assumes none on a first
-  visit. `FlareProgress` is `FlareProgressLinear`, and the endpoint test drawer's checkbox names its
-  `TValue`. Text buttons are 2px narrower on each side (Flare 0.36 applies the theme's text padding),
-  and a closed drawer can no longer be tabbed into.
+- **The buffered response's stream comes from a pool.** `WeirEngine` fills the buffered body and each
+  cache fill from one `RecyclableMemoryStreamManager` (`Microsoft.IO.RecyclableMemoryStream`), so a
+  response past one 128 KB block no longer allocates a fresh large-object-heap buffer per request and
+  leaves it to the GC. The manager's free pools are bounded (16 MB of blocks, 32 MB of large buffers)
+  because the library's default keeps every returned buffer without limit. The body is still handed to
+  the client in a single write: the handover reads the pooled stream through `GetBuffer()`, which
+  materialises its blocks into one buffer - the buffer a plain `MemoryStream` held all along.
+  `ToArray()` on the cache path still copies, because the cached bytes must outlive the pooled stream.
+- Flare 0.42.0 (from 0.32.0). The Command Center theme names Visual Studio as its parent theme
+  (`ITheme.Base`, which replaced `ITheme.StyleFamilyId` in 0.42): since Flare 0.34 the Visual Studio
+  stylesheets are scoped to that theme's class, and the parent class reaches the element that holds the
+  page, so the Endpoints page tabs draw as Visual Studio document tabs and menus take the theme's
+  shadow. `FlareMenu`'s `Activator` is a typed slot since Flare 0.39 - its context carries the popup's
+  `aria-haspopup`, `aria-expanded` and `aria-controls`, which the caller spreads onto the element that
+  takes focus - so both menus in the console spread them on their button, and the account menu names its
+  context because `AuthorizeView` already binds one (`Context="menu"`). `index.html` passes the theme to
+  `flare-bootstrap.js`, which since 0.35 assumes none on a first visit. `FlareProgress` is
+  `FlareProgressLinear`, and the endpoint test drawer's checkbox names its `TValue`. Text buttons are
+  2px narrower on each side (Flare 0.36 applies the theme's text padding), and a closed drawer can no
+  longer be tabbed into.
 - The admin on a phone: the drawers (endpoint editor, endpoint test, request log detail) fit the
   screen instead of starting off its left edge, the route tabs in the top bar scroll sideways so the
   language picker and the account menu stay reachable, and the dashboard's metrics card and charts
   stack instead of squeezing the charts into a sliver.
-- Dependencies: Microsoft.Extensions / ASP.NET Core 10.0.12, OpenTelemetry 1.18.0, Dapper 2.1.86,
-  Microsoft.Data.SqlClient 7.0.3, SQLitePCLRaw 3.0.5, StackExchange.Redis 3.2.0, Testcontainers 4.15.0,
-  Microsoft.NET.Test.Sdk 18.10.0, MinVer 8.0.0, Microsoft.SourceLink.GitHub 10.0.401.
+- Dependencies: Microsoft.Extensions / ASP.NET Core 10.0.12, OpenTelemetry 1.19.0 / 1.19.1, Dapper 2.1.89,
+  Microsoft.Data.SqlClient 7.1.0, SQLitePCLRaw 3.0.5, StackExchange.Redis 3.3.1, Testcontainers 4.15.0,
+  Microsoft.NET.Test.Sdk 18.10.1, MinVer 8.0.0, Microsoft.SourceLink.GitHub 10.0.401.
 
 ### Documentation
 

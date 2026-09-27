@@ -8,6 +8,7 @@ docker compose up -d --force-recreate --build
 echo.
 echo Weir admin UI:  http://localhost:8080   (sign in: admin / admin-demo)
 echo Readiness:      http://localhost:8080/health/ready
+echo Split ports:    Weir__Ports__AdminPort serves the admin console on its own port (docs\en\deployment.md)
 echo Logs:           docker compose logs -f weir
 echo Stop:           docker compose down
 echo.

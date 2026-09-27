@@ -60,6 +60,39 @@ if (dataPlaneLimits.MaxRequestBodyBytes > 0)
     builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = dataPlaneLimits.MaxRequestBodyBytes);
 }
 
+// Optional split of the two surfaces onto listeners of their own (Weir:Ports): the endpoint API on
+// one port, the admin surface (admin API, dashboard hub and admin PWA) on another, so an edge proxy
+// can publish one and not the other. With neither port set nothing here changes: the host listens
+// wherever ASPNETCORE_URLS says and serves every surface from that one port.
+var portRouting = builder.Configuration.GetSection(PortRoutingOptions.SectionName).Get<PortRoutingOptions>()
+    ?? new PortRoutingOptions();
+builder.Services.AddOptions<PortRoutingOptions>()
+    .Bind(builder.Configuration.GetSection(PortRoutingOptions.SectionName))
+    .Validate(
+        o => PortRouting.IsValidPort(o.AdminPort) && PortRouting.IsValidPort(o.DataPlanePort) && PortRouting.IsValidPort(o.MainPort),
+        "Weir:Ports entries must each be a port between 1 and 65535.")
+    .ValidateOnStart();
+
+var portSplit = default(PortSplit);
+if (portRouting.Enabled)
+{
+    // Both listeners are bound here deliberately. As soon as a listener is configured in code,
+    // Kestrel stops using the addresses from ASPNETCORE_URLS, so the surface that was not split off
+    // would silently lose its listener too. The port it keeps is read from those URLs.
+    var mainPort = portRouting.MainPort
+        ?? PortRoutingOptions.ResolveMainPort(builder.Configuration[WebHostDefaults.ServerUrlsKey]);
+    portSplit = PortRouting.Resolve(portRouting, mainPort);
+
+    builder.WebHost.ConfigureKestrel(kestrel =>
+    {
+        kestrel.ListenAnyIP(portSplit.DataPlanePort);
+        if (portSplit.AdminPort != portSplit.DataPlanePort)
+        {
+            kestrel.ListenAnyIP(portSplit.AdminPort);
+        }
+    });
+}
+
 // The control-plane store is selectable: SQLite (default, single-node), or a shared server database
 // (PostgreSQL or SQL Server) for high-availability deployments where several instances run against one
 // control database.
@@ -380,12 +413,19 @@ builder.Services.AddResponseCompression(options =>
 });
 
 // Real-time dashboard: a SignalR hub the admin PWA subscribes to, plus a background broadcaster that
-// pushes metric and health snapshots so the dashboard no longer polls.
+// pushes metric and health snapshots so the dashboard no longer polls. The same hub carries the live
+// audit feed, which the audit writer publishes to as entries are stored.
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<DashboardClientTracker>();
+builder.Services.AddSingleton<IAuditPublisher, AuditPublisher>();
 builder.Services.AddHostedService<DashboardBroadcaster>();
 
 var app = builder.Build();
+
+if (portSplit.Filters)
+{
+    Weir.Host.Log.PortSplitActive(app.Logger, portSplit.DataPlanePort, portSplit.AdminPort);
+}
 
 await WeirStartup.InitializeAsync(app);
 
@@ -416,6 +456,11 @@ app.Use(async (context, next) =>
 
 // One structured summary line per request (method, path, status, elapsed) at Information level.
 app.UseSerilogRequestLogging();
+
+// Refuse a surface on a port it does not belong to (Weir:Ports), before anything serves it: before
+// the admin PWA's static files and fallback, so the data-plane port answers no admin page, and
+// before authentication, so a refusal does not say whether the route behind it exists.
+app.UseWeirPortRouting(portSplit);
 
 // Everything but the data plane compresses through the generic middleware (the admin API, the served
 // PWA, health). The data plane (/api) is excluded and compresses itself, per endpoint, in

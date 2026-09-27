@@ -46,14 +46,14 @@ public class RouteEnumerationTests : IClassFixture<RouteEnumerationTests.HostFac
     /// <summary>Boots the host against a throwaway SQLite control plane.</summary>
     public sealed class HostFactory : WebApplicationFactory<Program>
     {
-        private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"weir-routes-{Guid.NewGuid():N}.db");
+        private readonly TempSqliteDatabase _db = new("weir-routes");
 
         /// <summary>Points the host at the throwaway database.</summary>
         /// <param name="builder">The host builder to configure.</param>
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("Weir:ControlPlane:ConnectionString", $"Data Source={_dbPath}");
+            builder.UseSetting("Weir:ControlPlane:ConnectionString", _db.ConnectionString);
             builder.UseSetting("Weir:Admin:Username", "admin");
             builder.UseSetting("Weir:Admin:Password", "admin-password");
             builder.UseSetting("Weir:Jwt:SigningKey", "route-enum-test-signing-key-0123456789");
@@ -64,17 +64,7 @@ public class RouteEnumerationTests : IClassFixture<RouteEnumerationTests.HostFac
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            try
-            {
-                if (File.Exists(_dbPath))
-                {
-                    File.Delete(_dbPath);
-                }
-            }
-            catch (IOException)
-            {
-                // Best-effort cleanup of the temp database file.
-            }
+            _db.Dispose();
         }
     }
 }

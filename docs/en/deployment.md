@@ -142,6 +142,62 @@ compresses by buffering, and how long it waits between chunks. Check yours with 
 `stream` command, once against Weir directly and once through the proxy
 ([samples/README.md](../../samples/README.md#streaming-check)).
 
+## Splitting the two surfaces onto separate ports
+
+One port carries everything by default: the endpoint API, the admin API, the dashboard hub, the admin
+PWA and health. That is fine behind a proxy that publishes the whole origin, but it also means
+"publish the API" and "publish the admin console" cannot be two different decisions - an operator who
+wants the console reachable for themselves has to expose it to the internet with it.
+
+`Weir:Ports` separates them (every key is described in
+[Configuration](configuration.md#weirports)):
+
+```json
+{
+  "Weir": {
+    "Ports": { "AdminPort": 8081, "DataPlanePort": 8080 }
+  }
+}
+```
+
+The same thing in compose:
+
+```yaml
+services:
+  weir:
+    ports:
+      - "8080:8080"   # the endpoint API: publish this one
+      - "8081:8081"   # the admin console: keep this one private
+    environment:
+      Weir__Ports__DataPlanePort: 8080
+      Weir__Ports__AdminPort: 8081
+```
+
+Point the proxy at port 8080 only - the way an nginx proxy manager setup gives its own admin UI and
+its published applications separate ports - and reach 8081 over a VPN, a private network or a
+port-forward. The console is one origin: the PWA it serves and the admin API it calls sit on the same
+port, so it needs no extra CORS configuration.
+
+What to know:
+
+- **The default is one port, unchanged.** With no `Weir:Ports` value the host listens where
+  `ASPNETCORE_URLS` says and serves every surface there, so an existing deployment needs no change.
+- **Setting a port makes Weir bind both listeners itself**, so `ASPNETCORE_URLS` stops applying and
+  the surface without a port keeps `Weir:Ports:MainPort` (the port read from those URLs, then 8080).
+  The start logs both ports and says that the variable is ignored.
+- **Health follows both.** `/health`, `/health/live` and `/health/ready` answer on either port, so a
+  Kubernetes probe keeps working whichever of the two it names.
+- **A request of the wrong surface gets 404**, decided by the port it arrived on and not by the
+  `Host` header a client supplies - so no caller can talk its way onto the admin surface.
+- **gRPC over cleartext still needs its own port** (see [Transports](transports.md#grpc)): the
+  data-plane port carries HTTP and the WebSocket door, and a dedicated gRPC listener stays reachable
+  on the data-plane side of the split.
+- **TLS is terminated at the proxy.** The listeners Weir binds for the split are plain HTTP, which is
+  how Weir is deployed anyway.
+
+Two containers instead of two ports is possible - each with its own port published - but it is not
+required, and it changes nothing about what each surface is allowed to answer.
+
 ## Health probes
 
 - `/health/live` - liveness (process is up; no dependency checks). Safe for a Kubernetes liveness

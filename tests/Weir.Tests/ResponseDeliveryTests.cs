@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Text.Json;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Core;
@@ -33,6 +34,25 @@ public class ResponseDeliveryTests
 
         // Buffered first, then copied: the client sees the whole response or a clean error, never half.
         Assert.Equal(1, output.Writes);
+    }
+
+    [Fact]
+    public async Task A_Body_Past_One_Block_Is_Handed_Over_Whole_And_In_One_Write()
+    {
+        // The buffered body is assembled in a pooled stream whose blocks are 128 KB, and this endpoint's
+        // 3000-row response is past that, so the body spans several blocks. The handover reads the stream
+        // through GetBuffer(), which materialises the blocks into one contiguous buffer; this checks the
+        // whole document survived that (nothing lost at a block boundary) and still went out in one write.
+        await using var output = new WriteCountingStream();
+        await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full));
+
+        Assert.True(output.Total > 128 * 1024, $"the body should span more than one block, was {output.Total} bytes");
+        Assert.Equal(1, output.Writes);
+
+        using var document = JsonDocument.Parse(output.Bytes);
+        var rows = document.RootElement.GetProperty("data")[0];
+        Assert.Equal(3000, rows.GetArrayLength());
+        Assert.Equal("row-2999-" + new string('x', 64), rows[2999].GetProperty("text").GetString());
     }
 
     [Fact]
@@ -167,14 +187,20 @@ public class ResponseDeliveryTests
             output);
     }
 
-    /// <summary>Counts writes without touching the bytes; a buffered response arrives as exactly one.</summary>
+    /// <summary>Counts writes and keeps the bytes, so a buffered body can be checked whole.</summary>
     private sealed class WriteCountingStream : Stream
     {
+        /// <summary>Everything written so far.</summary>
+        private readonly MemoryStream _received = new();
+
         /// <summary>How many separate writes reached the stream.</summary>
         public int Writes { get; private set; }
 
         /// <summary>Total bytes written.</summary>
         public long Total { get; private set; }
+
+        /// <summary>The bytes written, in order.</summary>
+        public byte[] Bytes => _received.ToArray();
 
         /// <inheritdoc />
         public override bool CanWrite => true;
@@ -192,22 +218,22 @@ public class ResponseDeliveryTests
         public override long Position { get => Total; set => throw new NotSupportedException(); }
 
         /// <inheritdoc />
-        public override void Write(byte[] buffer, int offset, int count) => Note(count);
+        public override void Write(byte[] buffer, int offset, int count) => Note(buffer.AsSpan(offset, count));
 
         /// <inheritdoc />
-        public override void Write(ReadOnlySpan<byte> buffer) => Note(buffer.Length);
+        public override void Write(ReadOnlySpan<byte> buffer) => Note(buffer);
 
         /// <inheritdoc />
         public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            Note(buffer.Length);
+            Note(buffer.Span);
             return ValueTask.CompletedTask;
         }
 
         /// <inheritdoc />
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            Note(count);
+            Note(buffer.AsSpan(offset, count));
             return Task.CompletedTask;
         }
 
@@ -226,16 +252,17 @@ public class ResponseDeliveryTests
         public override void SetLength(long value) => throw new NotSupportedException();
 
         /// <summary>Records one write.</summary>
-        /// <param name="count">Bytes in this write.</param>
-        private void Note(int count)
+        /// <param name="bytes">The bytes of this write.</param>
+        private void Note(ReadOnlySpan<byte> bytes)
         {
-            if (count == 0)
+            if (bytes.Length == 0)
             {
                 return;
             }
 
             Writes++;
-            Total += count;
+            Total += bytes.Length;
+            _received.Write(bytes);
         }
     }
 

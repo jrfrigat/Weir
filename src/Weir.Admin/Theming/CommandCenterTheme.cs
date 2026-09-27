@@ -14,8 +14,14 @@ public sealed class CommandCenterTheme : ITheme
     /// <summary>Stable theme id (also the <c>flare-theme-{Id}</c> CSS class suffix).</summary>
     public const string ThemeId = "command-center";
 
-    /// <summary>The Visual Studio base stylesheets are reused so components render correctly.</summary>
-    private static readonly IReadOnlyList<string> VsStyleAssets = new VisualStudioTheme().StyleAssets;
+    /// <summary>
+    /// The Visual Studio theme this one is built on: the design whose geometry and stylesheets the
+    /// Command Center reuses. One instance serves both <see cref="Base"/> and the assets listed below.
+    /// </summary>
+    private static readonly VisualStudioTheme VisualStudioBase = new();
+
+    /// <summary>The base theme's stylesheets are reused so components render correctly.</summary>
+    private static readonly IReadOnlyList<string> VsStyleAssets = VisualStudioBase.StyleAssets;
 
     /// <inheritdoc />
     public string Id => ThemeId;
@@ -24,11 +30,13 @@ public sealed class CommandCenterTheme : ITheme
     public string DisplayName => "Command Center";
 
     /// <summary>
-    /// The Visual Studio family: its stylesheets are <c>@scope</c>d to <c>flare-theme-visualstudio</c>
-    /// (Flare 0.34+), so without this second root class the reused <see cref="StyleAssets"/> would match
-    /// nothing and every component would lose the IDE geometry.
+    /// The Visual Studio theme this one is built on (Flare 0.42 replaced the old <c>StyleFamilyId</c>
+    /// with a named parent). The root then carries one <c>flare-theme-{id}</c> class per generation of
+    /// the chain, and because the Visual Studio stylesheets are <c>@scope</c>d to
+    /// <c>flare-theme-visualstudio</c> (Flare 0.34+), dropping the parent would make the reused
+    /// <see cref="StyleAssets"/> match nothing and every component would lose the IDE geometry.
     /// </summary>
-    public string StyleFamilyId => VisualStudioTheme.ThemeId;
+    public ITheme? Base => VisualStudioBase;
 
     /// <inheritdoc />
     public DesignTokens Design => VisualStudio.DesignReference;

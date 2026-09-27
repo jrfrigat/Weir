@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.IO;
 using Weir.Abstractions;
 using Weir.Contracts;
 
@@ -80,6 +81,25 @@ public sealed class WeirEngine : IDisposable
 
     /// <summary>Runtime-tunable settings; the row cap is read from here on each call.</summary>
     private readonly IRuntimeSettings _settings;
+
+    /// <summary>
+    /// Pools the response-body streams this engine fills. The buffered path's body and each cache fill's
+    /// body come from here, and disposing the stream returns its buffers to the pool instead of dropping
+    /// them for the garbage collector: a response larger than about 85 KB no longer makes a fresh
+    /// large-object-heap buffer on every call. One manager per engine (the engine is a singleton).
+    /// </summary>
+    private readonly RecyclableMemoryStreamManager _streams = new(
+        new RecyclableMemoryStreamManager.Options
+        {
+            // The library's default for both is 0, which means "keep every returned buffer, unbounded".
+            // Weir bounds its response cache the same way, so the pool gets a bound too: once these totals
+            // are reached, buffers handed back are dropped rather than retained.
+            MaximumSmallPoolFreeBytes = 16 * 1024 * 1024,
+            MaximumLargePoolFreeBytes = 32 * 1024 * 1024,
+        });
+
+    /// <summary>Tag on every stream taken from the pool, so pool diagnostics can name its source.</summary>
+    private const string StreamTag = "weir-response";
 
     /// <summary>Per-connection bulkhead and circuit breaker, applied around each database execution.</summary>
     private readonly DataConnectionGuards _guards = new();
@@ -366,7 +386,7 @@ public sealed class WeirEngine : IDisposable
                         // the delivery mode asks for it; otherwise write straight to the output.
                         if (bufferResponse)
                         {
-                            var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
+                            var buffer = _streams.GetStream(StreamTag, BufferCapacityFor(endpoint.Id));
                             pending = buffer;
                             // DB phase: execute and drain all rows into the buffer. Streaming to the client
                             // is measured separately below, so the two phases do not overlap.
@@ -408,9 +428,14 @@ public sealed class WeirEngine : IDisposable
 
                 if (pending is not null)
                 {
+                    // Hand the whole body over in one write, as a plain MemoryStream's copy did: a
+                    // buffered response goes out as a unit, never in pieces. GetBuffer() returns the
+                    // body's pooled buffer directly when it fitted a single block, and materialises one
+                    // contiguous pooled buffer otherwise - which is the buffer a MemoryStream held anyway.
+                    // Copying the stream instead would chunk the write, because a block-backed stream
+                    // reads out one block at a time.
                     var streamStart = Stopwatch.GetTimestamp();
-                    pending.Position = 0;
-                    await pending.CopyToAsync(output, cancellationToken);
+                    await output.WriteAsync(pending.GetBuffer().AsMemory(0, (int)pending.Length), cancellationToken);
                     context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                 }
             }
@@ -570,7 +595,7 @@ public sealed class WeirEngine : IDisposable
         {
             try
             {
-                using var buffer = new MemoryStream(BufferCapacityFor(endpoint.Id));
+                using var buffer = _streams.GetStream(StreamTag, BufferCapacityFor(endpoint.Id));
                 var dbStart = Stopwatch.GetTimestamp();
                 WeirResponseWriter.WriteResult result;
                 await using (var execution = await connector.ExecuteAsync(request, cancellationToken))

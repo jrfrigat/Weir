@@ -29,6 +29,12 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to write a data-plane audit entry.")]
     public static partial void AuditWriteFailed(ILogger logger, Exception exception);
 
+    /// <summary>Logs that a stored audit entry could not be pushed to connected dashboards.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to push an audit entry to the dashboard hub.")]
+    public static partial void AuditPublishFailed(ILogger logger, Exception exception);
+
     /// <summary>Logs that data-plane audit entries were dropped because the queue was full.</summary>
     /// <param name="logger">The logger.</param>
     /// <param name="totalDropped">The cumulative number of dropped entries since start.</param>
@@ -186,4 +192,18 @@ internal static partial class Log
     /// <param name="route">The endpoint route.</param>
     [LoggerMessage(Level = LogLevel.Error, Message = "Sync failed for endpoint {endpointId} ({route}) during bulk sync.")]
     public static partial void BulkSyncEndpointFailed(ILogger logger, Exception exception, Guid endpointId, string route);
+
+    /// <summary>Logs that the two Weir surfaces were bound to separate listeners.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="dataPlanePort">The port the data plane answers on.</param>
+    /// <param name="adminPort">The port the admin surface answers on.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Weir:Ports splits the surfaces onto separate listeners: the data plane answers on {dataPlanePort} and the admin surface on {adminPort}. Weir binds both listeners itself, so ASPNETCORE_URLS is ignored.")]
+    public static partial void PortSplitActive(ILogger logger, int dataPlanePort, int adminPort);
+
+    /// <summary>Logs that a request was refused because its surface does not belong on the port it arrived on.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="path">The requested path.</param>
+    /// <param name="localPort">The local port the request arrived on.</param>
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Refused a request to {path} on port {localPort}: that surface is bound to another listener.")]
+    public static partial void PortRequestRefused(ILogger logger, string path, int localPort);
 }

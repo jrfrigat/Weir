@@ -9,16 +9,35 @@ namespace Weir.Tests;
 
 // These tests open a real SQLite database, so they also verify that the patched SQLitePCLRaw
 // (pinned to resolve NU1903) works correctly at runtime with Microsoft.Data.Sqlite.
-public class SqliteControlPlaneStoreTests
+public class SqliteControlPlaneStoreTests : IDisposable
 {
-    private static SqliteControlPlaneStore NewStore() => NewStore(out _);
+    /// <summary>Throwaway databases this test opened; each is removed when the test ends.</summary>
+    private readonly List<TempSqliteDatabase> _databases = [];
 
-    private static SqliteControlPlaneStore NewStore(out string connectionString)
+    /// <summary>Removes the databases this test created.</summary>
+    public void Dispose()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"weir-test-{Guid.NewGuid():N}.db");
-        connectionString = $"Data Source={path}";
-        var options = Options.Create(new SqliteControlPlaneOptions { ConnectionString = connectionString });
-        return new SqliteControlPlaneStore(options, TimeProvider.System);
+        foreach (var database in _databases)
+        {
+            database.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>Opens a store on a fresh throwaway database.</summary>
+    /// <returns>The store, not yet initialized.</returns>
+    private SqliteControlPlaneStore NewStore() => NewStore(out _);
+
+    /// <summary>Opens a store on a fresh throwaway database.</summary>
+    /// <param name="connectionString">Receives the connection string, for tests that open their own connection.</param>
+    /// <returns>The store, not yet initialized.</returns>
+    private SqliteControlPlaneStore NewStore(out string connectionString)
+    {
+        var database = new TempSqliteDatabase("weir-test");
+        _databases.Add(database);
+        connectionString = database.ConnectionString;
+        return new SqliteControlPlaneStore(Options.Create(database.Options), TimeProvider.System);
     }
 
     [Fact]

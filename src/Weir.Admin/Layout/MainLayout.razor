@@ -41,9 +41,12 @@
             </FlareIconButton>
             <AuthorizeView>
                 <Authorized>
+                    @* FlareMenu's Activator is a typed slot (Flare 0.39+): its context carries the ARIA attributes
+                       the activator element has to spread, and its implicit name clashes with the enclosing
+                       AuthorizeView's, so it is named here and `context` stays the AuthenticationState. *@
                     <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="@AdminStrings.Layout_AccountMenuAriaLabel">
-                        <Activator>
-                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
+                        <Activator Context="menu">
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" @attributes="menu.Attributes">
                                 <ChildContent>@context.User.Identity?.Name</ChildContent>
                                 <TrailingIcon><FlareIconView Value="@FlareIcons.ExpandMore" Size="1.05rem" /></TrailingIcon>
                             </FlareButton>

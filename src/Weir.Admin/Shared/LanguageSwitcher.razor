@@ -5,8 +5,11 @@
 @inherits LocalizedPage
 
 <FlareMenu Anchor="MenuAnchor.BottomRight" AriaLabel="@AdminStrings.Layout_LanguageMenuAriaLabel">
+    @* FlareMenu's Activator is a typed slot (Flare 0.39+): the popup's ARIA attributes live in its
+       context and have to land on the focusable element, which is the button here - the menu's own
+       wrapper is a plain div that announces nothing. *@
     <Activator>
-        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm">
+        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" @attributes="context.Attributes">
             <LeadingIcon><FlareIconView Value="@MaterialDesign3Icons.Regular.Translate" Size="1.05rem" /></LeadingIcon>
             <ChildContent>@Lang.CurrentCulture.ToUpperInvariant()</ChildContent>
         </FlareButton>

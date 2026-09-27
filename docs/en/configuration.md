@@ -90,6 +90,44 @@ Notes worth knowing before setting any of it:
   `MaxSize` be the ceiling.
 - The configured pool is reported (read-only, no connection string) by `GET /admin/api/connections`.
 
+### `Weir:Ports`
+
+Optional split of Weir's two surfaces onto listeners of their own, so the endpoint API and the admin
+surface can sit behind different network policies - the way an admin interface and a published
+application each listen on their own port behind a proxy.
+
+| Key | Default | Meaning |
+| :-- | :-- | :-- |
+| AdminPort | (unset) | Port the admin surface answers on: `/admin/api`, the `/hubs` dashboard hub and the admin PWA (its static files and the index fallback). |
+| DataPlanePort | (unset) | Port the endpoint API answers on: `/api`, the `/ws` session and gRPC. |
+| MainPort | (unset) | Port a surface keeps when the other one was given its own. Unset reads it from the configured URLs (the first `http` address), then falls back to `8080`. |
+
+- **Both unset (the default) changes nothing.** The host listens wherever `ASPNETCORE_URLS` says and
+  serves every surface from that one port.
+- **Setting either port turns the split on.** Weir then binds both listeners itself, so
+  `ASPNETCORE_URLS` no longer applies and the surface that was not given a port keeps `MainPort` (or
+  the port read from those URLs). Starting in this mode logs the two ports and that fact.
+- Admin requests are answered only on `AdminPort`, data-plane requests on any other port.
+  `/health`, `/health/live` and `/health/ready` answer on both, so a probe works wherever it points.
+- The decision comes from the port a request arrived on, never from the `Host` header, which the
+  client supplies. A request of the wrong surface gets `404` with no body, exactly as an unknown
+  route would - it is not told that the surface exists elsewhere.
+- Ports are read at startup, like the file logging settings: changing them needs a restart, and they
+  are not shown on the admin **Settings** screen.
+- The listeners Weir binds are plain HTTP. Terminate TLS at the proxy, as described in
+  [Deployment](deployment.md#splitting-the-two-surfaces-onto-separate-ports).
+
+```json
+{
+  "Weir": {
+    "Ports": { "AdminPort": 8081, "DataPlanePort": 8080 }
+  }
+}
+```
+
+In a container, publish both ports (`-p 8080:8080 -p 8081:8081`): the data-plane port is the public
+one, and the admin port is the one your proxy, VPN or firewall keeps private.
+
 ### `Weir:Admin`
 
 | Key | Default | Meaning |

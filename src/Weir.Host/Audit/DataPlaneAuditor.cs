@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Host.Options;
+using Weir.Host.Realtime;
 
 namespace Weir.Host.Audit;
 
@@ -28,6 +29,7 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
 {
     private readonly Channel<AuditEntry> _channel;
     private readonly IControlPlaneStore _store;
+    private readonly IAuditPublisher _publisher;
     private readonly ILogger<DataPlaneAuditor> _logger;
 
     /// <summary>Cumulative number of audit entries dropped because the queue was full.</summary>
@@ -43,14 +45,16 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
     /// <summary>The dropped count last surfaced in a warning, so only new drops are reported.</summary>
     private long _lastReportedDrops;
 
-    /// <summary>Creates the auditor from the control-plane store, options and a logger.</summary>
+    /// <summary>Creates the auditor from the control-plane store, options, the audit publisher and a logger.</summary>
     /// <param name="store">The control-plane store audit entries are written to.</param>
     /// <param name="options">The audit options.</param>
+    /// <param name="publisher">Pushes a stored entry to connected dashboards.</param>
     /// <param name="logger">The logger.</param>
-    public DataPlaneAuditor(IControlPlaneStore store, IOptions<AuditOptions> options, ILogger<DataPlaneAuditor> logger)
+    public DataPlaneAuditor(IControlPlaneStore store, IOptions<AuditOptions> options, IAuditPublisher publisher, ILogger<DataPlaneAuditor> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         _store = store;
+        _publisher = publisher;
         _logger = logger;
         Enabled = options.Value.DataPlane;
         var capacity = options.Value.QueueCapacity <= 0 ? 10_000 : options.Value.QueueCapacity;
@@ -149,7 +153,10 @@ public sealed class DataPlaneAuditor : BackgroundService, IDataPlaneAuditor
         {
             // CancellationToken.None deliberately: an entry taken off the queue is one Weir has accepted
             // responsibility for, and cancelling its write would drop it after the fact.
-            await _store.AppendAuditAsync(entry, CancellationToken.None);
+            var stored = await _store.AppendAuditAsync(entry, CancellationToken.None);
+            // Hand the stored entry to the live feed. Publishing never throws and does nothing when no
+            // dashboard is connected, so it cannot turn a successful write into a counted failure.
+            await _publisher.PublishAsync(stored);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

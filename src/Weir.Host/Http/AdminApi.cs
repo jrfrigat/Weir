@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Core;
 using Weir.Host.Options;
+using Weir.Host.Realtime;
 using Weir.Host.Security;
 using ConnectionInfo = Weir.Contracts.ConnectionInfo;
 
@@ -28,25 +30,30 @@ public static class AdminApi
     {
         var admin = app.MapGroup("/admin/api").RequireAuthorization();
 
-        MapAuth(admin);
-        MapEndpoints(admin);
-        MapKeys(admin);
-        MapScopes(admin);
-        MapAdmins(admin);
+        // Resolved once and closed over by the route handlers below, so a route that records an audit entry
+        // hands it to the live feed without every handler having to take the publisher as a parameter.
+        var publisher = app.Services.GetRequiredService<IAuditPublisher>();
+
+        MapAuth(admin, publisher);
+        MapEndpoints(admin, publisher);
+        MapKeys(admin, publisher);
+        MapScopes(admin, publisher);
+        MapAdmins(admin, publisher);
         MapAudit(admin);
         MapRequestLog(admin);
         MapMetrics(admin);
-        MapSettings(admin);
-        MapExport(admin);
+        MapSettings(admin, publisher);
+        MapExport(admin, publisher);
         MapIntrospection(admin);
-        MapSync(admin);
-        MapCache(admin);
+        MapSync(admin, publisher);
+        MapCache(admin, publisher);
         return app;
     }
 
     /// <summary>Maps the control-plane backup/export route (AdminOnly, audited).</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapExport(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapExport(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         // A portable, secret-free snapshot of the control-plane configuration for backup or migration
         // between environments. Excludes API-key and password hashes by design; full disaster recovery
@@ -65,7 +72,7 @@ public static class AdminApi
                 Settings = settings.Current,
             };
 
-            await AuditActionAsync(store, clock, user, "control-plane.export", $"{export.Endpoints.Count} endpoints");
+            await AuditActionAsync(store, publisher, clock, user, "control-plane.export", $"{export.Endpoints.Count} endpoints");
 
             // Return as a downloadable attachment (indented for human review), not an inline body.
             var bytes = JsonSerializer.SerializeToUtf8Bytes(export, ExportJson);
@@ -76,7 +83,8 @@ public static class AdminApi
 
     /// <summary>Maps the runtime-settings routes: read for any admin, update for full admins (audited).</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapSettings(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapSettings(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapGet("/settings", (IRuntimeSettings settings, IOptions<WeirDataPlaneOptions> options, IOptions<WeirLoggingOptions> logging) =>
         {
@@ -115,7 +123,7 @@ public static class AdminApi
             await settings.UpdateAsync(update, cancellationToken);
             var securityLog = loggerFactory.CreateLogger("Weir.Security");
             Log.SettingsChanged(securityLog, user.Identity?.Name);
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Timestamp = clock.GetUtcNow(),
                 Category = "settings.update",
@@ -167,7 +175,8 @@ public static class AdminApi
 
     /// <summary>Maps authentication routes.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapAuth(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapAuth(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapPost("/auth/login", async (LoginRequest request, HttpContext http, IControlPlaneStore store, JwtTokenService jwt, IOptions<JwtOptions> jwtOptions, IOptions<AdminSecurityOptions> adminOptions, ILoginThrottle throttle, TimeProvider clock, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
@@ -177,7 +186,7 @@ public static class AdminApi
             if (await throttle.IsLockedAsync(client, cancellationToken))
             {
                 Log.LoginLockedOut(logger, client);
-                await store.AppendAuditAsync(new AuditEntry
+                await AppendAuditAsync(store, publisher, new AuditEntry
                 {
                     Category = "admin.login",
                     Actor = request.Username,
@@ -205,7 +214,7 @@ public static class AdminApi
             {
                 await throttle.RecordFailureAsync(client, cancellationToken);
                 Log.LoginFailed(logger, request.Username, client);
-                await store.AppendAuditAsync(new AuditEntry
+                await AppendAuditAsync(store, publisher, new AuditEntry
                 {
                     Category = "admin.login",
                     Actor = request.Username,
@@ -217,7 +226,7 @@ public static class AdminApi
 
             await throttle.ResetAsync(client, cancellationToken);
             await store.TouchAdminLoginAsync(admin.Id, clock.GetUtcNow(), cancellationToken);
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "admin.login",
                 Actor = admin.Username,
@@ -297,7 +306,7 @@ public static class AdminApi
             // account's refresh tokens and personal access tokens so a leaked one cannot mint new access tokens.
             await store.RevokeRefreshTokensForAdminAsync(admin.Id, clock.GetUtcNow());
             await store.RevokeAdminTokensForAdminAsync(admin.Id);
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "admin.password.self",
                 Actor = username,
@@ -350,7 +359,7 @@ public static class AdminApi
 
             var (plainText, prefix, hash) = AdminTokenGenerator.Generate();
             var info = await store.CreateAdminTokenAsync(adminId, request.Name.Trim(), request.ExpiresAt, hash, prefix);
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "account.token.created",
                 Actor = user.Identity?.Name,
@@ -369,7 +378,7 @@ public static class AdminApi
             }
 
             await store.RevokeAdminTokenAsync(id, adminId);
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "account.token.revoked",
                 Actor = user.Identity?.Name,
@@ -421,16 +430,35 @@ public static class AdminApi
         };
     }
 
+    /// <summary>
+    /// Persists an audit entry and pushes the stored record to any connected dashboard, so the audit page
+    /// shows the action as it happens. Every audit write in this file goes through here or through
+    /// <see cref="AuditActionAsync(IControlPlaneStore, IAuditPublisher, TimeProvider, ClaimsPrincipal, string, string?)"/>,
+    /// which is what keeps the live feed complete.
+    /// </summary>
+    /// <param name="store">The control-plane store.</param>
+    /// <param name="publisher">Pushes the stored entry to connected dashboards.</param>
+    /// <param name="entry">The entry to append.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that completes when the entry is written and handed to the hub.</returns>
+    private static async Task AppendAuditAsync(
+        IControlPlaneStore store, IAuditPublisher publisher, AuditEntry entry, CancellationToken cancellationToken = default)
+    {
+        var stored = await store.AppendAuditAsync(entry, cancellationToken);
+        await publisher.PublishAsync(stored);
+    }
+
     /// <summary>Appends an admin-action audit entry recording the actor and the affected resource.</summary>
     /// <param name="store">The control-plane store.</param>
+    /// <param name="publisher">Pushes the stored entry to connected dashboards.</param>
     /// <param name="clock">Clock for the timestamp.</param>
     /// <param name="user">The acting admin.</param>
     /// <param name="category">The action category (for example <c>endpoint.update</c>).</param>
     /// <param name="detail">A non-secret description of the affected resource (route, scope, username).</param>
-    /// <returns>A task that completes when the entry is written.</returns>
+    /// <returns>A task that completes when the entry is written and handed to the hub.</returns>
     private static Task AuditActionAsync(
-        IControlPlaneStore store, TimeProvider clock, ClaimsPrincipal user, string category, string? detail) =>
-        store.AppendAuditAsync(new AuditEntry
+        IControlPlaneStore store, IAuditPublisher publisher, TimeProvider clock, ClaimsPrincipal user, string category, string? detail) =>
+        AppendAuditAsync(store, publisher, new AuditEntry
         {
             Timestamp = clock.GetUtcNow(),
             Category = category,
@@ -489,7 +517,8 @@ public static class AdminApi
 
     /// <summary>Maps endpoint CRUD. Endpoint changes reload the in-memory catalog.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapEndpoints(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapEndpoints(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapGet("/endpoints", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetEndpointsAsync()));
@@ -516,7 +545,7 @@ public static class AdminApi
 
             await catalog.LoadAsync();
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
-            await AuditActionAsync(store, clock, user, "endpoint.upsert", DescribeEndpoint(saved));
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.upsert", DescribeEndpoint(saved));
             return Results.Ok(saved);
         }).RequireAuthorization("AdminOnly");
 
@@ -539,7 +568,7 @@ public static class AdminApi
 
             await catalog.LoadAsync();
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
-            await AuditActionAsync(store, clock, user, "endpoint.update", DescribeEndpoint(saved));
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.update", DescribeEndpoint(saved));
             return Results.Ok(saved);
         }).RequireAuthorization("AdminOnly");
 
@@ -554,7 +583,7 @@ public static class AdminApi
                 await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(existing.Route));
             }
 
-            await AuditActionAsync(store, clock, user, "endpoint.delete", existing is null ? id.ToString() : DescribeEndpoint(existing));
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.delete", existing is null ? id.ToString() : DescribeEndpoint(existing));
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
 
@@ -576,7 +605,7 @@ public static class AdminApi
             }
 
             await catalog.LoadAsync();
-            await AuditActionAsync(store, clock, user, "endpoint.import", $"{imported} endpoint(s)");
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.import", $"{imported} endpoint(s)");
             return Results.Ok(new { imported });
         }).RequireAuthorization("AdminOnly");
 
@@ -590,7 +619,7 @@ public static class AdminApi
                 return Results.NotFound();
             }
 
-            await AuditActionAsync(store, clock, user, "endpoint.invoke", DescribeEndpoint(endpoint));
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.invoke", DescribeEndpoint(endpoint));
 
             // The admin console posts a flat { parameterName: value } object. Route each value to its
             // parameter's source so query / header / claim parameters are exercised too, not just body.
@@ -688,7 +717,8 @@ public static class AdminApi
 
     /// <summary>Maps API-key management. The plaintext key is returned once on creation.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapKeys(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapKeys(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapGet("/keys", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetApiKeysAsync()));
@@ -698,7 +728,7 @@ public static class AdminApi
             var (plainText, prefix, hash) = ApiKeyGenerator.Generate();
             var info = await store.CreateApiKeyAsync(request, hash, prefix);
             authenticator.Invalidate();
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "key.created",
                 Actor = user.Identity?.Name,
@@ -714,7 +744,7 @@ public static class AdminApi
             await store.RevokeApiKeyAsync(id);
             // Evict the auth cache so the revoked key stops authenticating immediately, not after the TTL.
             authenticator.Invalidate();
-            await store.AppendAuditAsync(new AuditEntry
+            await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "key.revoked",
                 Actor = user.Identity?.Name,
@@ -728,7 +758,8 @@ public static class AdminApi
 
     /// <summary>Maps scope management.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapScopes(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapScopes(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapGet("/scopes", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetScopesAsync()));
@@ -736,21 +767,22 @@ public static class AdminApi
         group.MapPost("/scopes", async (Scope scope, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
         {
             await store.UpsertScopeAsync(scope);
-            await AuditActionAsync(store, clock, user, "scope.upsert", scope.Name);
+            await AuditActionAsync(store, publisher, clock, user, "scope.upsert", scope.Name);
             return Results.Ok(scope);
         }).RequireAuthorization("AdminOnly");
 
         group.MapDelete("/scopes/{name}", async (string name, IControlPlaneStore store, ClaimsPrincipal user, TimeProvider clock) =>
         {
             await store.DeleteScopeAsync(name);
-            await AuditActionAsync(store, clock, user, "scope.delete", name);
+            await AuditActionAsync(store, publisher, clock, user, "scope.delete", name);
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
     }
 
     /// <summary>Maps admin-account management.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapAdmins(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapAdmins(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         group.MapGet("/admins", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetAdminsAsync()));
@@ -774,7 +806,7 @@ public static class AdminApi
             }
 
             var created = await store.CreateAdminAsync(request.Username, PasswordHasher.Hash(request.Password, adminOptions.Value.PasswordIterations), request.Role);
-            await AuditActionAsync(store, clock, user, "admin.create", $"{request.Username} ({request.Role})");
+            await AuditActionAsync(store, publisher, clock, user, "admin.create", $"{request.Username} ({request.Role})");
             return Results.Ok(created);
         }).RequireAuthorization("AdminOnly");
 
@@ -788,7 +820,7 @@ public static class AdminApi
             await store.UpdateAdminPasswordAsync(id, PasswordHasher.Hash(request.Password, adminOptions.Value.PasswordIterations));
             await store.RevokeRefreshTokensForAdminAsync(id, clock.GetUtcNow());
             await store.RevokeAdminTokensForAdminAsync(id);
-            await AuditActionAsync(store, clock, user, "admin.password_reset", id.ToString());
+            await AuditActionAsync(store, publisher, clock, user, "admin.password_reset", id.ToString());
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
 
@@ -806,7 +838,7 @@ public static class AdminApi
             }
 
             await store.UpdateAdminRoleAsync(id, request.Role);
-            await AuditActionAsync(store, clock, user, "admin.role_changed", $"{id} -> {request.Role}");
+            await AuditActionAsync(store, publisher, clock, user, "admin.role_changed", $"{id} -> {request.Role}");
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
 
@@ -818,7 +850,7 @@ public static class AdminApi
             }
 
             await store.UpdateAdminEnabledAsync(id, request.Enabled);
-            await AuditActionAsync(store, clock, user, request.Enabled ? "admin.enabled" : "admin.disabled", id.ToString());
+            await AuditActionAsync(store, publisher, clock, user, request.Enabled ? "admin.enabled" : "admin.disabled", id.ToString());
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
     }
@@ -1053,7 +1085,8 @@ public static class AdminApi
 
     /// <summary>Maps the "sync from database" endpoints that reconcile endpoint parameters with the DB.</summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapSync(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapSync(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         // Synchronize a single endpoint's parameters with its target object.
         group.MapPost("/endpoints/{id:guid}/sync", async (
@@ -1082,7 +1115,7 @@ public static class AdminApi
                     await catalog.LoadAsync(cancellationToken);
                 }
 
-                await AuditActionAsync(store, clock, user, "endpoint.sync", DescribeSync(result));
+                await AuditActionAsync(store, publisher, clock, user, "endpoint.sync", DescribeSync(result));
                 return Results.Ok(result);
             }
             catch (Exception ex)
@@ -1154,7 +1187,7 @@ public static class AdminApi
             }
 
             var changed = results.Count(r => r.Status == "updated");
-            await AuditActionAsync(store, clock, user, "endpoint.sync",
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.sync",
                 $"{results.Count} endpoint(s), {changed} changed" + (results.Count > 0 && results.Count <= 5 ? ": " + string.Join("; ", results.Select(DescribeSync)) : string.Empty));
             return Results.Ok(results);
         }).RequireAuthorization("AdminOnly");
@@ -1167,7 +1200,8 @@ public static class AdminApi
     /// on the next call.
     /// </summary>
     /// <param name="group">The admin route group.</param>
-    private static void MapCache(RouteGroupBuilder group)
+    /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
+    private static void MapCache(RouteGroupBuilder group, IAuditPublisher publisher)
     {
         // Purge one endpoint's cached responses by id (the admin UI per-row "Purge cache" action).
         group.MapPost("/endpoints/{id:guid}/cache/purge", async (
@@ -1182,7 +1216,7 @@ public static class AdminApi
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(endpoint.Route), cancellationToken);
             // Empties this instance's cache above; the stamp is what tells the others to empty theirs.
             await store.RecordCachePurgeAsync([endpoint.Route], clock.GetUtcNow(), cancellationToken);
-            await AuditActionAsync(store, clock, user, "cache.purge", $"route {endpoint.Route}");
+            await AuditActionAsync(store, publisher, clock, user, "cache.purge", $"route {endpoint.Route}");
             return Results.Ok(new CachePurgeResult { MatchedEndpoints = 1, PurgedRoutes = [endpoint.Route] });
         }).RequireAuthorization("AdminOnly");
 
@@ -1219,7 +1253,7 @@ public static class AdminApi
 
             // Empties this instance's cache above; the stamps are what tell the others to empty theirs.
             await store.RecordCachePurgeAsync(routes, clock.GetUtcNow(), cancellationToken);
-            await AuditActionAsync(store, clock, user, "cache.purge",
+            await AuditActionAsync(store, publisher, clock, user, "cache.purge",
                 DescribePurge(route, connection, schema, objectName, provider, routes.Count));
             return Results.Ok(new CachePurgeResult { MatchedEndpoints = selected.Count, PurgedRoutes = routes });
         }).RequireAuthorization("AdminOnly");
