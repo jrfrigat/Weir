@@ -26,8 +26,9 @@ docker compose up --build
 # Windows: double-click run-docker-compose.bat
 ```
 
-The host serves both the JSON API and the admin PWA on the same origin (default
-`http://localhost:8080` in the container, `http://localhost:5000` for `dotnet run`).
+The compose file runs the two surfaces on ports of their own: the endpoint API on
+`http://localhost:8080` and the admin console on `http://localhost:8081` (keep that one private);
+`dotnet run` serves everything on one origin, `http://localhost:5000`.
 
 ## 2. Configure a data connection
 

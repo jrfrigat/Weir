@@ -94,7 +94,9 @@ Notes worth knowing before setting any of it:
 
 Optional split of Weir's two surfaces onto listeners of their own, so the endpoint API and the admin
 surface can sit behind different network policies - the way an admin interface and a published
-application each listen on their own port behind a proxy.
+application each listen on their own port behind a proxy. The `docker-compose.yml` in this repository
+turns it on (8080 for the endpoint API, 8081 for the admin console); the keys below are how it is
+changed.
 
 | Key | Default | Meaning |
 | :-- | :-- | :-- |
@@ -125,8 +127,9 @@ application each listen on their own port behind a proxy.
 }
 ```
 
-In a container, publish both ports (`-p 8080:8080 -p 8081:8081`): the data-plane port is the public
-one, and the admin port is the one your proxy, VPN or firewall keeps private.
+In a container, publish both ports (`-p 8080:8080 -p 8081:8081`), as the `docker-compose.yml` in this
+repository does: the data-plane port is the public one, and the admin port is the one your proxy, VPN or
+firewall keeps private.
 
 ### `Weir:Admin`
 

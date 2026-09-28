@@ -152,12 +152,14 @@ Content-Type: application/json
 
 ```sh
 docker pull ghcr.io/jrfrigat/weir:latest      # или закреплённый тег :X.Y.Z
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   ghcr.io/jrfrigat/weir:latest
-# Откройте http://localhost:8080
+# Endpoint API:  http://localhost:8080
+# Админка:       http://localhost:8081   (публикуйте этот порт только для себя)
 ```
 
 Тома, compose и высокую доступность см. в [Деплое](docs/ru/deployment.md).
@@ -187,7 +189,8 @@ dotnet run --project src/Weir.Host
 
 ```sh
 docker compose up -d --build   # Windows: run-docker-compose.bat
-# Откройте http://localhost:8080
+# Endpoint API:  http://localhost:8080
+# Админка:       http://localhost:8081   (compose-файл разделяет поверхности; этот порт держите закрытым)
 ```
 
 ## Контрибьютинг и безопасность

@@ -3,7 +3,8 @@
 > [Русский](../ru/deployment.md) - [Configuration](configuration.md) - [Getting Started](getting-started.md)
 
 Weir is a single deployable: one ASP.NET Core host that serves the JSON API and the Blazor WASM
-admin PWA from the same origin. It targets .NET 10.
+admin PWA. The two surfaces can sit on one port, or on two with `Weir:Ports` - the docker-compose file
+in this repository splits them. It targets .NET 10.
 
 ## Docker image
 
@@ -17,10 +18,11 @@ the version and `latest`. Pull it instead of building:
 
 ```sh
 docker pull ghcr.io/jrfrigat/weir:latest        # or a pinned ghcr.io/jrfrigat/weir:X.Y.Z
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   ghcr.io/jrfrigat/weir:latest
 ```
 
@@ -28,15 +30,19 @@ Pin a version tag in production; `latest` is a moving target. To build the image
 
 ```sh
 docker build -f build/Dockerfile -t weir:latest .
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   weir:latest
-# Open http://localhost:8080
+# Endpoint API:   http://localhost:8080
+# Admin console:  http://localhost:8081   (publish this one privately)
 ```
 
-The container listens on port 8080. Mount a volume for the SQLite control-plane if you want its
+The container listens on 8080 (the endpoint API) and 8081 (the admin console) when the ports are set as
+in the examples above - the compose file in this repository does exactly that. Without `Weir:Ports` it
+listens only on 8080. Mount a volume for the SQLite control-plane if you want its
 metadata (endpoints, keys, scopes, admins, audit, settings) to persist across container recreation,
 and point `Weir__ControlPlane__ConnectionString` at it, e.g. `Data Source=/data/weir-control.db` with
 a volume mounted at `/data`.
@@ -55,7 +61,8 @@ override file is git-ignored; edit it with your values.
 ```sh
 docker compose up -d --build
 # Windows: run-docker-compose.bat
-# Open http://localhost:8080
+# Endpoint API:   http://localhost:8080
+# Admin console:  http://localhost:8081   (keep this one private)
 ```
 
 The control-plane SQLite is persisted in the `weir-data` volume.
@@ -160,7 +167,8 @@ wants the console reachable for themselves has to expose it to the internet with
 }
 ```
 
-The same thing in compose:
+**The `docker-compose.yml` in this repository ships exactly that**: a `docker compose up` publishes
+both ports and sets both values, so the API answers on 8080 and the admin console on 8081.
 
 ```yaml
 services:
@@ -181,7 +189,8 @@ port, so it needs no extra CORS configuration.
 What to know:
 
 - **The default is one port, unchanged.** With no `Weir:Ports` value the host listens where
-  `ASPNETCORE_URLS` says and serves every surface there, so an existing deployment needs no change.
+  `ASPNETCORE_URLS` says and serves every surface there, so an existing deployment needs no change -
+  the compose file in this repository is what opts in.
 - **Setting a port makes Weir bind both listeners itself**, so `ASPNETCORE_URLS` stops applying and
   the surface without a port keeps `Weir:Ports:MainPort` (the port read from those URLs, then 8080).
   The start logs both ports and says that the variable is ignored.

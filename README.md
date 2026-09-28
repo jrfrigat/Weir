@@ -149,12 +149,14 @@ Two things ship from a release (a pushed `v*` tag):
 
 ```sh
 docker pull ghcr.io/jrfrigat/weir:latest      # or a pinned :X.Y.Z tag
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   ghcr.io/jrfrigat/weir:latest
-# Open http://localhost:8080
+# Endpoint API:   http://localhost:8080
+# Admin console:  http://localhost:8081   (publish this one privately)
 ```
 
 See [Deployment](docs/en/deployment.md) for volumes, compose and high-availability.
@@ -183,7 +185,8 @@ Requires the **.NET 10** SDK. Or run Weir in Docker (it connects to a SQL Server
 
 ```sh
 docker compose up -d --build   # Windows: run-docker-compose.bat
-# Open http://localhost:8080
+# Endpoint API:   http://localhost:8080
+# Admin console:  http://localhost:8081   (the compose file splits the two surfaces; keep this one private)
 ```
 
 ## Contributing and security

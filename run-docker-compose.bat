@@ -6,9 +6,10 @@ REM   - The connection string and credentials in docker-compose.override.yml are
 REM   - SQL Server accepts TCP connections on port 1433 and the Windows firewall allows them.
 docker compose up -d --force-recreate --build
 echo.
-echo Weir admin UI:  http://localhost:8080   (sign in: admin / admin-demo)
-echo Readiness:      http://localhost:8080/health/ready
-echo Split ports:    Weir__Ports__AdminPort serves the admin console on its own port (docs\en\deployment.md)
+echo Weir API:       http://localhost:8080            (data plane; the surface to publish)
+echo Weir admin UI:  http://localhost:8081            (sign in: admin / admin-demo; keep this port private)
+echo Readiness:      http://localhost:8080/health/ready   (health answers on both ports)
+echo Split ports:    two surfaces on two ports - docs\en\deployment.md, run-docker-compose.bat
 echo Logs:           docker compose logs -f weir
 echo Stop:           docker compose down
 echo.

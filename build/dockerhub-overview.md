@@ -4,18 +4,20 @@ Thin, high-performance HTTP gateway over MSSQL and PostgreSQL. Call an endpoint,
 procedure or function and streams the result back as JSON. Metadata-driven, with a Blazor admin PWA.
 Built on .NET 10.
 
-This image is the whole application: the ASP.NET Core host plus the admin PWA (served from the same
-origin). It connects to a SQL Server / PostgreSQL that you provide; it does not bundle a database.
+This image is the whole application: the ASP.NET Core host plus the admin PWA it serves. It connects to
+a SQL Server / PostgreSQL that you provide; it does not bundle a database.
 
 ## Run
 
 ```sh
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=a-strong-password \
   -e Weir__Jwt__SigningKey=a-stable-secret \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   frigat/weir:latest
-# Open http://localhost:8080
+# Endpoint API:   http://localhost:8080
+# Admin console:  http://localhost:8081   (publish this one privately)
 ```
 
 Persist the SQLite control-plane metadata (endpoints, keys, scopes, admins, audit, settings) on a volume:

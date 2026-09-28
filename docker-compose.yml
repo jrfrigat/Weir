@@ -9,15 +9,18 @@ services:
       dockerfile: build/Dockerfile
     image: weir:latest
     restart: unless-stopped
+    # Two surfaces, two ports: 8080 is the endpoint API and the surface to publish, 8081 is the admin
+    # console and the one to keep private behind a proxy, a VPN or a firewall. The second published
+    # port and the two Weir__Ports__ values below belong together - without the values the host serves
+    # every surface on 8080 and the 8081 mapping carries nothing. See docs/en/deployment.md,
+    # "Splitting the two surfaces onto separate ports".
     ports:
-      - "8080:8080"
-      # To keep the admin console off the public port, publish a second one here and name both ports
-      # in the environment below (see docs/en/deployment.md, "Splitting the two surfaces"):
-      #   - "8081:8081"
+      - "8080:8080"   # endpoint API: publish this one
+      - "8081:8081"   # admin console: keep this one private
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      # Weir__Ports__DataPlanePort: 8080
-      # Weir__Ports__AdminPort: 8081
+      Weir__Ports__DataPlanePort: 8080
+      Weir__Ports__AdminPort: 8081
       # Control-plane metadata (endpoints, keys, scopes, admins, audit), persisted on a volume.
       Weir__ControlPlane__ConnectionString: "Data Source=/data/weir-control.db"
       # The target data connection provider. The connection string and secrets are set in

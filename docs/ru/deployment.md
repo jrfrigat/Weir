@@ -2,8 +2,9 @@
 
 > [English](../en/deployment.md) - [Конфигурация](configuration.md) - [Начало работы](getting-started.md)
 
-Weir - единый деплой: один хост ASP.NET Core, отдающий JSON API и Blazor WASM PWA-админку с одного
-origin. Таргет - .NET 10.
+Weir - единый деплой: один хост ASP.NET Core, отдающий JSON API и Blazor WASM PWA-админку. Обе
+поверхности могут жить на одном порту или на двух при `Weir:Ports` - compose-файл в этом репозитории
+их разделяет. Таргет - .NET 10.
 
 ## Docker-образ
 
@@ -17,10 +18,11 @@ origin. Таргет - .NET 10.
 
 ```sh
 docker pull ghcr.io/jrfrigat/weir:latest        # или закреплённый ghcr.io/jrfrigat/weir:X.Y.Z
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=надёжный-пароль \
   -e Weir__Jwt__SigningKey=стабильный-секрет \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   ghcr.io/jrfrigat/weir:latest
 ```
 
@@ -28,15 +30,19 @@ docker run -p 8080:8080 \
 
 ```sh
 docker build -f build/Dockerfile -t weir:latest .
-docker run -p 8080:8080 \
+docker run -p 8080:8080 -p 8081:8081 \
   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True" \
   -e Weir__Admin__Username=admin -e Weir__Admin__Password=надёжный-пароль \
   -e Weir__Jwt__SigningKey=стабильный-секрет \
+  -e Weir__Ports__DataPlanePort=8080 -e Weir__Ports__AdminPort=8081 \
   weir:latest
-# Откройте http://localhost:8080
+# Endpoint API:  http://localhost:8080
+# Админка:       http://localhost:8081   (публикуйте этот порт только для себя)
 ```
 
-Контейнер слушает порт 8080. Смонтируйте volume для SQLite control-plane, если хотите, чтобы его
+Контейнер слушает 8080 (endpoint API) и 8081 (админку), когда порты заданы как в примерах выше -
+compose-файл в этом репозитории делает именно так. Без `Weir:Ports` он слушает только 8080.
+Смонтируйте volume для SQLite control-plane, если хотите, чтобы его
 метаданные (эндпоинты, ключи, скоупы, админы, аудит, настройки) сохранялись при пересоздании
 контейнера, и направьте `Weir__ControlPlane__ConnectionString` на него, например
 `Data Source=/data/weir-control.db` с volume, смонтированным в `/data`.
@@ -55,7 +61,8 @@ Server, который вы предоставляете. Машинно-спе�
 ```sh
 docker compose up -d --build
 # Windows: run-docker-compose.bat
-# Откройте http://localhost:8080
+# Endpoint API:  http://localhost:8080
+# Админка:       http://localhost:8081   (этот порт держите закрытым)
 ```
 
 SQLite control-plane сохраняется в volume `weir-data`.
@@ -161,7 +168,8 @@ SQLite control-plane сохраняется в volume `weir-data`.
 }
 ```
 
-То же самое в compose:
+**`docker-compose.yml` в этом репозитории включает это сам**: `docker compose up` публикует оба порта
+и задаёт оба значения, поэтому API отвечает на 8080, а админка - на 8081.
 
 ```yaml
 services:
@@ -183,7 +191,7 @@ services:
 
 - **По умолчанию один порт, и это не меняется.** Без значений `Weir:Ports` хост слушает там, где
   сказано в `ASPNETCORE_URLS`, и отдаёт все поверхности там же, поэтому существующему развёртыванию
-  менять ничего не нужно.
+  менять ничего не нужно - разделение включает compose-файл в этом репозитории.
 - **Задание порта заставляет Weir поднять оба слушателя самому**, поэтому `ASPNETCORE_URLS` перестаёт
   применяться, а поверхность без своего порта сохраняет `Weir:Ports:MainPort` (порт, прочитанный из
   этих URL, иначе 8080). При старте в лог пишутся оба порта и то, что переменная игнорируется.

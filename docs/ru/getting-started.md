@@ -26,8 +26,9 @@ docker compose up --build
 # Windows: двойной клик по run-docker-compose.bat
 ```
 
-Хост отдаёт и JSON API, и PWA-админку с одного origin (по умолчанию `http://localhost:8080` в
-контейнере и `http://localhost:5000` при `dotnet run`).
+Compose-файл поднимает поверхности на своих портах: endpoint API на `http://localhost:8080`, админка на
+`http://localhost:8081` (этот порт держите закрытым); `dotnet run` отдаёт всё с одного origin -
+`http://localhost:5000`.
 
 ## 2. Настройка подключения к данным
 
