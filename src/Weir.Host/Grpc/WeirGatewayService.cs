@@ -5,6 +5,7 @@ using Grpc.Core;
 using Microsoft.AspNetCore.Http;
 using Weir.Contracts;
 using Weir.Core;
+using Weir.Host.Audit;
 using Weir.Host.Http;
 using Weir.Host.Security;
 
@@ -25,14 +26,17 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
 {
     private readonly IApiKeyAuthenticator _authenticator;
     private readonly DataPlaneDispatcher _dispatcher;
+    private readonly IDataPlaneAuditor _auditor;
 
     /// <summary>Creates the service over the shared data-plane collaborators.</summary>
     /// <param name="authenticator">API-key authenticator, applied to the call's metadata.</param>
     /// <param name="dispatcher">The shared data-plane call path.</param>
-    public WeirGatewayService(IApiKeyAuthenticator authenticator, DataPlaneDispatcher dispatcher)
+    /// <param name="auditor">Auditor, so a call refused before the dispatcher still leaves a record.</param>
+    public WeirGatewayService(IApiKeyAuthenticator authenticator, DataPlaneDispatcher dispatcher, IDataPlaneAuditor auditor)
     {
         _authenticator = authenticator;
         _dispatcher = dispatcher;
+        _auditor = auditor;
     }
 
     /// <summary>Calls an endpoint and returns the whole envelope in one message.</summary>
@@ -88,16 +92,9 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
         // resolved, throttled and cached.
         var http = context.GetHttpContext();
         var auth = await _authenticator.AuthenticateAsync(http, context.CancellationToken);
-        if (auth.Status == ApiKeyAuthStatus.RateLimited)
-        {
-            throw new RpcException(new Status(StatusCode.ResourceExhausted,
-                "Too many unauthenticated requests. Try again later."));
-        }
-
         if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
-            throw new RpcException(new Status(StatusCode.Unauthenticated,
-                "A valid API key is required in the \"x-api-key\" or \"authorization\" metadata."));
+            throw RefuseAuthentication(auth.Status, request.Route);
         }
 
         if (string.IsNullOrWhiteSpace(request.Route))
@@ -144,6 +141,28 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
             Query = request.Query.Count == 0 ? EmptyValueSource.Instance : new MapValueSource(request.Query),
             Header = new GrpcMetadataValueSource(context.RequestHeaders),
         };
+    }
+
+    /// <summary>
+    /// Turns a failed authentication into the refusal the caller sees, recording it first: this refusal
+    /// never reaches the dispatcher, which is the only other place an audit entry is written, so without
+    /// it a rejected gRPC call would leave no trace while the same refusal against /api fills the audit.
+    /// </summary>
+    /// <param name="status">The authentication outcome; never <see cref="ApiKeyAuthStatus.Authenticated"/>.</param>
+    /// <param name="route">The route the caller asked for, when it named one.</param>
+    /// <returns>The exception to throw.</returns>
+    internal RpcException RefuseAuthentication(ApiKeyAuthStatus status, string? route)
+    {
+        if (status == ApiKeyAuthStatus.RateLimited)
+        {
+            DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status429TooManyRequests);
+            return new RpcException(new Status(StatusCode.ResourceExhausted,
+                "Too many unauthenticated requests. Try again later."));
+        }
+
+        DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status401Unauthorized);
+        return new RpcException(new Status(StatusCode.Unauthenticated,
+            "A valid API key is required in the \"x-api-key\" or \"authorization\" metadata."));
     }
 
     /// <summary>Turns a dispatcher failure into the gRPC status a caller should see.</summary>

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Weir.Abstractions;
 using Weir.Contracts;
@@ -27,7 +29,7 @@ public interface IRuntimeSettings
 }
 
 /// <summary>Default <see cref="IRuntimeSettings"/> backed by the control-plane store.</summary>
-public sealed class RuntimeSettings : IRuntimeSettings
+public sealed partial class RuntimeSettings : IRuntimeSettings
 {
     /// <summary>JSON options for the persisted settings document.</summary>
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -38,13 +40,19 @@ public sealed class RuntimeSettings : IRuntimeSettings
     /// <summary>The current snapshot; published atomically by reference on each update.</summary>
     private volatile WeirSystemSettings _current;
 
+    /// <summary>Logger for a stored document that cannot be parsed; defaults to a no-op logger.</summary>
+    private readonly ILogger<RuntimeSettings> _logger;
+
     /// <summary>Creates the service, seeding the snapshot from the bound data-plane options.</summary>
     /// <param name="store">The control-plane store.</param>
     /// <param name="options">The bound data-plane options used as the seed / default values.</param>
-    public RuntimeSettings(IControlPlaneStore store, IOptions<WeirDataPlaneOptions> options)
+    /// <param name="logger">Logger that reports a stored document that cannot be parsed; defaults to a no-op logger.</param>
+    public RuntimeSettings(
+        IControlPlaneStore store, IOptions<WeirDataPlaneOptions> options, ILogger<RuntimeSettings>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         _store = store;
+        _logger = logger ?? NullLogger<RuntimeSettings>.Instance;
         var seed = options.Value;
         _current = new WeirSystemSettings
         {
@@ -81,9 +89,11 @@ public sealed class RuntimeSettings : IRuntimeSettings
                 _current = stored;
             }
         }
-        catch (JsonException)
+        catch (JsonException exception)
         {
-            // A malformed document must not prevent startup; keep the seeded defaults.
+            // A malformed document must not prevent startup; keep the seeded defaults. Say so, because
+            // otherwise the operator sees the seeded values and cannot tell them from the stored ones.
+            LogSettingsParseFailed(exception);
         }
     }
 
@@ -94,4 +104,9 @@ public sealed class RuntimeSettings : IRuntimeSettings
         await _store.SaveSettingsJsonAsync(JsonSerializer.Serialize(settings, Json), cancellationToken);
         _current = settings;
     }
+
+    /// <summary>Logs that a stored settings document could not be parsed and the seeded defaults are in force.</summary>
+    /// <param name="exception">The parse failure.</param>
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Stored runtime settings could not be parsed; the seeded defaults are in use until the document is fixed.")]
+    private partial void LogSettingsParseFailed(Exception exception);
 }

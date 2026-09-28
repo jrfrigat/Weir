@@ -47,6 +47,20 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     /// <summary>Whether <see cref="Dispose"/> has run.</summary>
     private bool _disposed;
 
+    /// <summary>
+    /// Raised every time a prefix is purged. The engine reads it before running a query it means to cache
+    /// and again before storing the result: without it a purge that landed while the query was in flight
+    /// was undone by the store that followed, and the invalidated entry came back with stale bytes for a
+    /// whole TTL.
+    /// </summary>
+    private long _purgeStamp;
+
+    /// <summary>
+    /// How many prefixes have been purged so far. Only ever compared against an earlier reading, to answer
+    /// "did a purge happen under my feet"; the number itself carries no meaning.
+    /// </summary>
+    public long PurgeStamp => Interlocked.Read(ref _purgeStamp);
+
     /// <summary>Creates the cache, sizing its backing store from the current runtime settings.</summary>
     /// <param name="settings">The runtime settings supplying <see cref="WeirSystemSettings.ResponseCacheMaxBytes"/>.</param>
     public MemoryResponseCache(IRuntimeSettings settings)
@@ -121,6 +135,9 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
             }
         }
 
+        // Raised whether or not anything was evicted: a purge of a prefix nothing is stored under yet must
+        // still be visible to a fill already in flight, because that fill would put the old body there.
+        Interlocked.Increment(ref _purgeStamp);
         return ValueTask.CompletedTask;
     }
 

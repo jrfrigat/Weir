@@ -4,34 +4,39 @@ using Weir.Core;
 namespace Weir.Host.Security;
 
 /// <summary>
-/// Caps how many unresolved API keys a single caller address may present in a short window, so a flood
-/// of random keys cannot turn each request into a control-plane database lookup.
+/// Caps how many unresolved credentials - data-plane API keys and admin personal access tokens - a
+/// single caller address may present in a short window, so a flood of random values cannot turn each
+/// request into a control-plane database lookup.
 /// </summary>
 public interface IApiKeyFloodGuard
 {
     /// <summary>
-    /// Whether the caller has already spent its budget of unresolved keys in the current window and
-    /// should be refused before the next database lookup.
+    /// Whether the caller has already spent its budget of unresolved credentials in the current window
+    /// and should be refused before the next database lookup.
     /// </summary>
     /// <param name="caller">The caller's address.</param>
     /// <returns>True when the caller is over budget.</returns>
     bool ShouldBlock(string caller);
 
-    /// <summary>Records that the caller presented one key that did not resolve.</summary>
+    /// <summary>Records that the caller presented one credential that did not resolve.</summary>
     /// <param name="caller">The caller's address.</param>
     void RecordFailure(string caller);
 }
 
 /// <summary>
-/// Default <see cref="IApiKeyFloodGuard"/>. Counts unresolved-key attempts per caller address in a
-/// fixed one-minute window and reports a caller over the runtime <see
-/// cref="Weir.Contracts.WeirSystemSettings.ApiKeyFailureThreshold"/> as blocked.
+/// Default <see cref="IApiKeyFloodGuard"/>. Counts unresolved-credential attempts per caller address
+/// in a fixed one-minute window and reports a caller over the runtime <see
+/// cref="Weir.Contracts.WeirSystemSettings.ApiKeyFailureThreshold"/> as blocked. Both surfaces share
+/// this one guard and this one threshold, because a key and an admin personal access token are each a
+/// value an attacker can invent and both paths reach the store once per presentation.
 /// <para>
-/// The counter is keyed by caller address, not by key, and that is the whole point. A resolved key is
-/// held in the authenticator's short-lived cache, so a legitimate client hits the database once and
-/// then not again; an unknown key is never cached, so without this guard every one of a million random
-/// keys would query the store. Keying by key would not help - each fresh random key misses a
-/// per-key negative cache too - and would itself be an unbounded allocation. The set of caller
+/// The counter is keyed by caller address, not by value, and that is the whole point. On the data
+/// plane a resolved key is held in the authenticator's short-lived cache, so a legitimate client hits
+/// the database once and then not again; an unknown key is never cached, so without this guard every
+/// one of a million random keys would query the store. The admin token path caches nothing at all
+/// (revocation has to bite immediately), so there every unknown token queries the store too - the same
+/// unbounded stream. Keying by value would not help - each fresh random value misses a per-value
+/// negative cache too - and would itself be an unbounded allocation. The set of caller
 /// addresses is bounded by the real TCP peers reaching the node, and is bounded here again by a hard
 /// cap on tracked callers.
 /// </para>

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Weir.Abstractions;
 using Weir.Contracts;
@@ -19,19 +20,53 @@ namespace Weir.Core;
 internal static class TableRequestBinder
 {
     /// <summary>Query-string key carrying the free-text search.</summary>
-    private const string SearchKey = "search";
+    internal const string SearchKey = "search";
 
     /// <summary>Query-string key carrying the 1-based page number.</summary>
-    private const string PageKey = "page";
+    internal const string PageKey = "page";
 
     /// <summary>Query-string key carrying the page size.</summary>
-    private const string PageSizeKey = "pageSize";
+    internal const string PageSizeKey = "pageSize";
 
     /// <summary>Query-string key carrying an explicit sort column.</summary>
-    private const string SortKey = "sort";
+    internal const string SortKey = "sort";
 
     /// <summary>Query-string key carrying the sort direction ("asc" or "desc").</summary>
-    private const string SortDirectionKey = "sortDir";
+    internal const string SortDirectionKey = "sortDir";
+
+    /// <summary>The bound-value key the resolved ordering is exported under, so a cache key varies by it.</summary>
+    internal const string SortValuesKey = "__sort";
+
+    /// <summary>
+    /// The request names this binder fills in itself. A filter declared under one of them would be
+    /// overwritten here, and because the cache key is built from these same values, two calls differing
+    /// only in that filter would key one entry and one caller would be served the other's body.
+    /// <see cref="EndpointValidation"/> refuses such a filter when the endpoint is saved, and this is the
+    /// list it checks against.
+    /// </summary>
+    private static readonly string[] ReservedRequestNames =
+        [SearchKey, PageKey, PageSizeKey, SortKey, SortDirectionKey, SortValuesKey];
+
+    /// <summary>Whether a name belongs to the request format rather than to an endpoint's own filters.</summary>
+    /// <param name="name">A filter's request name.</param>
+    /// <returns>True when this binder fills that name in itself.</returns>
+    internal static bool IsReservedRequestName(string? name)
+    {
+        if (name is null)
+        {
+            return false;
+        }
+
+        foreach (var reserved in ReservedRequestNames)
+        {
+            if (string.Equals(reserved, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Resolves one dictionary read from the request, and the values it should be cached by.
@@ -68,7 +103,7 @@ internal static class TableRequestBinder
             }
 
             filters.Add(new DictionaryFilterValue { Filter = filter, Value = value, Values = list });
-            values[name] = list is null ? value : string.Join(",", list.Select(Format));
+            values[name] = list is null ? value : EncodeList(list);
         }
 
         var search = ReadString(invocation, SearchKey);
@@ -110,7 +145,7 @@ internal static class TableRequestBinder
 
         if (orderBy.Count > 0)
         {
-            values["__sort"] = string.Join(",", orderBy.Select(s => s.Column + (s.Descending ? " desc" : string.Empty)));
+            values[SortValuesKey] = string.Join(",", orderBy.Select(s => s.Column + (s.Descending ? " desc" : string.Empty)));
         }
 
         return (query, values);
@@ -443,7 +478,46 @@ internal static class TableRequestBinder
     private static string RowKey(int index) =>
         "rows[" + index.ToString(CultureInfo.InvariantCulture) + "]";
 
-    /// <summary>Renders a filter value for the cache key.</summary>
-    private static string Format(object? value) =>
-        value is null ? string.Empty : Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+    /// <summary>
+    /// Renders an IN filter's values for the bound-value map, which is what the cache key is built from.
+    /// Each element is type-tagged like every other bound value and the separator is escaped inside it,
+    /// so a single value holding a comma cannot pass for two values and a null cannot pass for an empty
+    /// string. The result is also what the request log shows, so it stays readable for ordinary values
+    /// (for example <c>s:a,s:b</c>).
+    /// </summary>
+    /// <param name="values">The filter's values, in the order the caller sent them.</param>
+    /// <returns>One string that round-trips the list's shape.</returns>
+    private static string EncodeList(IReadOnlyList<object?> values)
+    {
+        var builder = new StringBuilder();
+
+        // Indexed rather than foreach-ed, so a list of one scalar allocates nothing beyond the result.
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(',');
+            }
+
+            AppendEscaped(builder, CacheKey.Encode(values[i]));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>Appends an encoded element with the escape character and the element separator escaped.</summary>
+    /// <param name="builder">Target builder.</param>
+    /// <param name="text">The encoded element.</param>
+    private static void AppendEscaped(StringBuilder builder, string text)
+    {
+        foreach (var character in text)
+        {
+            if (character is '\\' or ',')
+            {
+                builder.Append('\\');
+            }
+
+            builder.Append(character);
+        }
+    }
 }

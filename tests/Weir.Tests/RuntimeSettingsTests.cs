@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Weir.Contracts;
 using Weir.ControlPlane.Sqlite;
@@ -60,5 +61,40 @@ public class RuntimeSettingsTests : IDisposable
         await second.InitializeAsync();
         Assert.Equal(9, second.Current.MaxRows);
         Assert.Equal(12, second.Current.RequestTimeoutSeconds);
+    }
+
+    [Fact]
+    public async Task A_Corrupt_Stored_Document_Is_Reported_And_Leaves_The_Seed()
+    {
+        var store = NewStore();
+        await store.InitializeAsync();
+        await store.SaveSettingsJsonAsync("{ not valid json");
+
+        var logger = new CapturingLogger();
+        var settings = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions { MaxRows = 5 }), logger);
+        await settings.InitializeAsync();
+
+        // The broken document must not stop startup, but it must not pass silently either: the operator
+        // has to be able to tell the seeded values from the stored ones.
+        Assert.Equal(5, settings.Current.MaxRows);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Warning);
+    }
+
+    /// <summary>An <see cref="ILogger{TCategoryName}"/> that records every message it is handed, for asserting on the log.</summary>
+    private sealed class CapturingLogger : ILogger<RuntimeSettings>
+    {
+        /// <summary>The captured entries, in the order they were written.</summary>
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        /// <inheritdoc />
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        /// <inheritdoc />
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        /// <inheritdoc />
+        public void Log<TState>(
+            LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
     }
 }

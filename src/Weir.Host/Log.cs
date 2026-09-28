@@ -104,6 +104,13 @@ internal static partial class Log
     /// <param name="caller">The caller's address.</param>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Caller {caller} refused: too many unresolved API keys.")]
     public static partial void ApiKeyFlood(ILogger logger, string caller);
+    /// <summary>Logs that a caller presented too many unresolved admin access tokens and was refused pre-lookup (security event).</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="caller">The caller's address.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Caller {caller} refused: too many unresolved admin access tokens.")]
+    public static partial void AdminTokenFlood(ILogger logger, string caller);
+
+
 
     /// <summary>Logs that the distributed (Redis) rate limiter backend was unavailable; requests fail open.</summary>
     /// <param name="logger">The logger.</param>
@@ -123,11 +130,25 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Warning, Message = "Periodic endpoint-catalog reload failed; keeping the previous snapshot.")]
     public static partial void CatalogReloadFailed(ILogger logger, Exception exception);
 
-    /// <summary>Logs that the configured bootstrap admin password was rejected by the password policy.</summary>
+    /// <summary>Logs that no bootstrap admin credentials were configured, so no admin is created at start.</summary>
+    /// <param name="logger">The logger.</param>
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No bootstrap admin credentials configured; no admin account is created at start.")]
+    public static partial void BootstrapNotConfigured(ILogger logger);
+
+    /// <summary>Logs that bootstrap was skipped because the control plane already holds admin accounts.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="admins">How many admin accounts already exist.</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Bootstrap admin skipped: the control plane already has {admins} admin account(s).")]
+    public static partial void BootstrapSkipped(ILogger logger, int admins);
+
+    /// <summary>
+    /// Logs that the configured bootstrap admin password was rejected while the control plane holds no
+    /// admin at all, so nobody can sign in until it is fixed.
+    /// </summary>
     /// <param name="logger">The logger.</param>
     /// <param name="reason">Why the password was rejected.</param>
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Bootstrap admin not created: {reason} Set a stronger Weir:Admin:Password.")]
-    public static partial void BootstrapPasswordRejected(ILogger logger, string reason);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Bootstrap admin not created: {reason} No admin account exists, so nobody can sign in. Set a stronger Weir:Admin:Password or create an admin another way.")]
+    public static partial void BootstrapPasswordRejectedNoAdmins(ILogger logger, string reason);
 
     /// <summary>Logs that a plugin was loaded and registered.</summary>
     /// <param name="logger">The logger.</param>

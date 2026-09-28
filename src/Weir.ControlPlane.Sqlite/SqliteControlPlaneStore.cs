@@ -81,6 +81,10 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             "CREATE TABLE IF NOT EXISTS SchemaMigrations (Version INTEGER PRIMARY KEY, Checksum TEXT NOT NULL, AppliedAt TEXT NOT NULL);");
         var version = await conn.ExecuteScalarAsync<long>("PRAGMA user_version;");
 
+        // A store migrated by a newer Weir is refused before its checksums are read: the version being ahead
+        // is the decisive fact, and a build that will not start has no reason to verify the prefix it knows.
+        ControlPlaneSchema.EnsureNotAheadOf((int)version, SqliteSchema.Migrations.Length, "SQLite");
+
         // Verify (or backfill) the checksum of each already-applied migration. A mismatch means a shipped
         // migration was edited or the history was tampered with, so fail fast instead of trusting the schema.
         await VerifyOrBackfillChecksumsAsync(conn, (int)version, cancellationToken);

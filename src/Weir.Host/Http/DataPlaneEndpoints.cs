@@ -20,6 +20,40 @@ public static class DataPlaneEndpoints
     /// <summary>The HTTP methods the data plane answers on.</summary>
     private static readonly string[] Methods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
+    /// <summary>
+    /// Carries the status the audit entry must record when the response header cannot: a call the caller
+    /// hung up on never wrote one, and one already streaming cannot be changed. Set only on those paths.
+    /// </summary>
+    private static readonly object AuditStatusKey = new();
+
+    /// <summary>
+    /// The status the audit entry records for this request. The response header says what was sent, which
+    /// is not the same as what happened - a call the caller hung up on never wrote a header and would
+    /// otherwise read as a 200 Ok - so a status recorded by <see cref="RecordCancellation"/> wins.
+    /// </summary>
+    /// <param name="context">The HTTP context.</param>
+    /// <returns>The status to record.</returns>
+    internal static int AuditStatus(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return context.Items.TryGetValue(AuditStatusKey, out var recorded) && recorded is int recordedStatus
+            ? recordedStatus
+            : context.Response.StatusCode;
+    }
+
+    /// <summary>
+    /// Records what the audit must say about a call that was cancelled, because the response header
+    /// cannot carry it. Every other outcome keeps its existing behaviour.
+    /// </summary>
+    /// <param name="context">The HTTP context.</param>
+    /// <param name="gatewayTimeout">True when Weir's own timeout fired rather than the caller cancelling.</param>
+    internal static void RecordCancellation(HttpContext context, bool gatewayTimeout)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Items[AuditStatusKey] =
+            gatewayTimeout ? StatusCodes.Status504GatewayTimeout : DataPlaneDispatcher.ClientClosedRequest;
+    }
+
     /// <summary>Maps the catch-all data-plane route <c>/api/{**route}</c>.</summary>
     /// <param name="endpoints">The endpoint route builder.</param>
     /// <returns>The same route builder, for chaining.</returns>
@@ -68,7 +102,10 @@ public static class DataPlaneEndpoints
         {
             if (auditor.Enabled)
             {
-                var status = context.Response.StatusCode;
+                // The response header says what was sent, which is not the same as what happened: a call
+                // the caller hung up on never wrote a header at all and would otherwise be recorded as a
+                // 200 Ok. AuditStatus prefers what HandleCoreAsync recorded over the header.
+                var status = AuditStatus(context);
                 auditor.Enqueue(new AuditEntry
                 {
                     Category = "endpoint.call",
@@ -177,16 +214,25 @@ public static class DataPlaneEndpoints
         JsonDocument? body = null;
         try
         {
-            if (HasJsonBody(context.Request))
+            var bodyRead = await ReadBodyAsync(context.Request, cancellationToken);
+            if (bodyRead.UnsupportedContentType)
             {
-                body = await JsonDocument.ParseAsync(context.Request.Body, default, cancellationToken);
+                // The body was not read at all. Naming the Content-Type that arrived is the point: the
+                // alternative is to drop the body silently and answer with a missing parameter, which
+                // sends the caller looking in the wrong place.
+                await ProblemResults.WriteAsync(context, StatusCodes.Status415UnsupportedMediaType,
+                    "Unsupported media type",
+                    $"The request body was not read because Content-Type is {DescribeContentType(context.Request)}, not JSON. Send the parameters as a JSON body with Content-Type application/json.");
+                return key.Prefix;
             }
+
+            body = bodyRead.Body;
 
             var invocation = new WeirInvocation
             {
                 Endpoint = endpoint,
                 Body = body?.RootElement ?? default,
-                HasBody = body is not null,
+                HasBody = bodyRead.HasBody,
                 Query = new QueryValueSource(context.Request.Query),
                 Route = match.RouteValues,
                 Header = new HeaderValueSource(context.Request.Headers),
@@ -231,6 +277,19 @@ public static class DataPlaneEndpoints
                 await ProblemResults.WriteAsync(context, StatusCodes.Status504GatewayTimeout, "Request timeout",
                     "The request exceeded the configured time limit.");
             }
+            else
+            {
+                // The caller hung up. There is nobody left to answer, but the audit must not read the
+                // untouched 200 header as success: the call did not finish.
+                RecordCancellation(context, gatewayTimeout: false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The response had already started, so nothing can be written over it - but the audit still
+            // has to record what happened, and the exception carries on exactly as it did before.
+            RecordCancellation(context, timeoutCts is { IsCancellationRequested: true } && !context.RequestAborted.IsCancellationRequested);
+            throw;
         }
         catch (WeirValidationException ex) when (!context.Response.HasStarted)
         {
@@ -332,15 +391,142 @@ public static class DataPlaneEndpoints
         };
     }
 
-    /// <summary>Determines whether the request carries a JSON body worth parsing.</summary>
+    /// <summary>Determines whether the request declares a JSON content type.</summary>
     /// <param name="request">The HTTP request.</param>
-    /// <returns>True if a JSON body should be read.</returns>
+    /// <returns>True when <c>Content-Type</c> names JSON.</returns>
+    private static bool IsJsonContentType(HttpRequest request) =>
+        request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    /// <summary>The <c>Content-Type</c> as it arrived, or a placeholder when the request named none.</summary>
+    /// <param name="request">The HTTP request.</param>
+    /// <returns>The content type to name in a message.</returns>
+    private static string DescribeContentType(HttpRequest request) =>
+        request.ContentType is { Length: > 0 } contentType ? contentType : "(none)";
+
+    /// <summary>
+    /// Whether the request carries a body when it declared no <c>Content-Length</c>. That case is either
+    /// chunked transfer or HTTP/2, where the body is bounded by the stream ending rather than by a
+    /// number, so one byte is read to tell an empty body from a non-empty one.
+    /// </summary>
+    /// <param name="request">The HTTP request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when at least one byte of body is waiting.</returns>
     /// <remarks>
-    /// A missing <c>Content-Length</c> (HTTP chunked transfer) still carries a body, so only a length
-    /// of exactly zero is treated as bodyless. This lets chunked JSON POST/PUT requests bind their
-    /// body parameters instead of being silently dropped.
+    /// The probed byte is consumed, and that is safe only because of where this is called from: the
+    /// caller answers 415 and discards the body. It is never called on the JSON path.
     /// </remarks>
-    private static bool HasJsonBody(HttpRequest request) =>
-        (request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) ?? false) &&
-        request.ContentLength is not 0;
+    private static async ValueTask<bool> HasUndeclaredBodyAsync(HttpRequest request, CancellationToken cancellationToken)
+    {
+        if (request.ContentLength is { } length)
+        {
+            return length > 0;
+        }
+
+        var probe = new byte[1];
+        return await request.Body.ReadAsync(probe, cancellationToken) > 0;
+    }
+
+    /// <summary>What reading a data-plane request body produced.</summary>
+    /// <param name="Body">The parsed JSON document, or null when the request carried no body.</param>
+    /// <param name="HasBody">Whether a body was present and parsed.</param>
+    /// <param name="UnsupportedContentType">Whether a body arrived whose <c>Content-Type</c> is not JSON.</param>
+    internal readonly record struct BodyReadResult(JsonDocument? Body, bool HasBody, bool UnsupportedContentType);
+
+    /// <summary>
+    /// Reads the request body, telling apart the three things it can be: no body at all, a JSON body, or
+    /// a body that declared some other media type.
+    /// </summary>
+    /// <param name="request">The HTTP request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The outcome of reading the body.</returns>
+    /// <remarks>
+    /// An empty body is not malformed JSON, and a chunked request that sends no bytes at all reaches the
+    /// parser as an empty stream - exactly like a malformed one. The bytes read are counted so the two
+    /// can be told apart: a parse failure with nothing read is "no body", and only a failure with bytes
+    /// read is a caller mistake. Counting rather than buffering keeps the body off the heap and leaves
+    /// the parse indifferent to a body that arrives over several reads.
+    /// </remarks>
+    internal static async ValueTask<BodyReadResult> ReadBodyAsync(HttpRequest request, CancellationToken cancellationToken)
+    {
+        if (IsJsonContentType(request))
+        {
+            var counting = new CountingStream(request.Body);
+            try
+            {
+                return new BodyReadResult(
+                    await JsonDocument.ParseAsync(counting, default, cancellationToken), true, false);
+            }
+            catch (JsonException) when (counting.BytesRead == 0)
+            {
+                // Nothing arrived: no body, not a malformed one.
+                return new BodyReadResult(null, false, false);
+            }
+        }
+
+        return await HasUndeclaredBodyAsync(request, cancellationToken)
+            ? new BodyReadResult(null, false, true)
+            : new BodyReadResult(null, false, false);
+    }
+
+    /// <summary>
+    /// Counts the bytes read through it, so a caller can tell an empty request body from a malformed one
+    /// after a parse has failed for both. Read-only: writing and seeking are not supported.
+    /// </summary>
+    /// <param name="inner">The stream being read.</param>
+    private sealed class CountingStream(Stream inner) : Stream
+    {
+        /// <summary>Bytes handed out so far.</summary>
+        public long BytesRead { get; private set; }
+
+        /// <inheritdoc />
+        public override bool CanRead => inner.CanRead;
+
+        /// <inheritdoc />
+        public override bool CanSeek => false;
+
+        /// <inheritdoc />
+        public override bool CanWrite => false;
+
+        /// <inheritdoc />
+        public override long Length => inner.Length;
+
+        /// <inheritdoc />
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        /// <inheritdoc />
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = inner.Read(buffer, offset, count);
+            BytesRead += read;
+            return read;
+        }
+
+        /// <inheritdoc />
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = await inner.ReadAsync(buffer, cancellationToken);
+            BytesRead += read;
+            return read;
+        }
+
+        /// <inheritdoc />
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(new Memory<byte>(buffer, offset, count), cancellationToken).AsTask();
+
+        /// <inheritdoc />
+        public override void Flush() => inner.Flush();
+
+        /// <inheritdoc />
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 }

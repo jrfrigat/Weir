@@ -225,6 +225,40 @@ public class TableRequestBinderTests
         Assert.Equal(7, Assert.Single(query.Filters).Value);
     }
 
+    [Fact]
+    public void Dictionary_KeysOneValueHoldingACommaApartFromTwoValues()
+    {
+        var policy = new DictionaryPolicy
+        {
+            LabelColumn = "Name",
+            Filters = [new DictionaryFilter { Column = "Code", Operator = DictionaryOperator.In }],
+        };
+
+        var (_, one) = TableRequestBinder.BindDictionary(
+            Invocation(Dictionary(policy), """{"Code":["a,b"]}"""));
+        var (_, two) = TableRequestBinder.BindDictionary(
+            Invocation(Dictionary(policy), """{"Code":["a","b"]}"""));
+
+        Assert.NotEqual(one["Code"], two["Code"]);
+    }
+
+    [Fact]
+    public void Dictionary_KeysANullInAnInListApartFromAnEmptyElement()
+    {
+        var policy = new DictionaryPolicy
+        {
+            LabelColumn = "Name",
+            Filters = [new DictionaryFilter { Column = "Code", Operator = DictionaryOperator.In }],
+        };
+
+        var (_, withNull) = TableRequestBinder.BindDictionary(
+            Invocation(Dictionary(policy), """{"Code":[null]}"""));
+        var (_, withEmpty) = TableRequestBinder.BindDictionary(
+            Invocation(Dictionary(policy), """{"Code":[""]}"""));
+
+        Assert.NotEqual(withNull["Code"], withEmpty["Code"]);
+    }
+
     // ===== Imports ================================================================================
 
     private static ImportPolicy TwoColumns(ImportMode mode = ImportMode.Insert, int maxRows = 0) => new()

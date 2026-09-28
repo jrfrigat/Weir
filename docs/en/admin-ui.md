@@ -12,6 +12,12 @@ PWA (see [Install](#install-pwa)).
 Live overview, streamed over a real-time connection (a SignalR hub) so it reflects service state
 without polling; if the hub is unreachable it falls back to periodic HTTP polling:
 
+The hub handshake carries the access token in the `access_token` query parameter, because a WebSocket
+cannot send an `Authorization` header. A URL is not a safe place for a secret: configure the reverse
+proxy in front of the admin surface so that it does not write the query string of `/hubs` to its access
+log and does not pass it on in `Referer`. If the proxy cannot be configured that way, do not publish the
+hub - the dashboard falls back to polling and keeps working without it.
+
 - **Data connections** (top): one card per target database with a health dot (green / red), its
   provider, probe latency, and - when a connection is down - the error text inline, so a broken or
   misconfigured database is obvious at a glance.

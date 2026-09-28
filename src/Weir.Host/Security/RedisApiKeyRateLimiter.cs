@@ -11,7 +11,8 @@ namespace Weir.Host.Security;
 /// A distributed per-API-key rate limiter backed by Redis, so a limit is enforced across every instance
 /// in an HA deployment rather than N times over (once per instance). Uses an atomic fixed-window counter:
 /// one <c>INCR</c> per request against a per-key, per-minute key with a short TTL. If Redis is unreachable
-/// the limiter fails open (allows the request) and logs a warning, favouring availability over a hard
+/// - or the check fails for any other reason short of the request being cancelled - the limiter fails
+/// open (allows the request) and logs a warning, favouring availability over a hard
 /// limit - a rate limiter should not take the whole data plane down when its backend is briefly gone.
 /// </summary>
 public sealed class RedisApiKeyRateLimiter : IApiKeyRateLimiter
@@ -74,9 +75,16 @@ public sealed class RedisApiKeyRateLimiter : IApiKeyRateLimiter
 
             return count <= limit;
         }
-        catch (RedisException ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Fail open: a transient Redis outage must not reject all traffic.
+            // Fail open: a Redis outage, and equally any other failure of the check itself (a disposed
+            // multiplexer while the host is shutting down, a client configuration error, an unexpected
+            // exception from the driver), must not reject all traffic. The check is a convenience in
+            // front of the database; it is not worth a 500 on an otherwise healthy request.
+            //
+            // A cancelled request is deliberately not caught: the caller has already gone away, and
+            // answering "allowed" would both spend work on a request nobody wants and swallow the
+            // cancellation the caller is expecting.
             Log.RateLimiterBackendUnavailable(_logger, ex);
             return true;
         }

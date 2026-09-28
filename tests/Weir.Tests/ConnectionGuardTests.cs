@@ -34,6 +34,28 @@ public class ConnectionGuardTests
     }
 
     [Fact]
+    public void A_Limit_Change_Keeps_A_Held_Permit_Usable_And_Applies_The_New_Limit()
+    {
+        using var guard = new ConnectionGuard();
+
+        // Hold the only slot at limit 1, then change the limit to 2. The held permit belongs to the
+        // retired semaphore, which must not be disposed while it still carries a permit, so releasing it
+        // afterwards has to be fine. The resized semaphore governs the arrivals that follow.
+        var held = guard.Enter(1);
+        var first = guard.Enter(2);
+        var second = guard.Enter(2);
+        Assert.Throws<WeirConnectionUnavailableException>(() => guard.Enter(2));
+
+        first.Dispose();
+        second.Dispose();
+        held.Dispose();
+
+        // With every permit back the retired semaphore is idle, so the next change disposes it and the
+        // guard keeps serving the newest limit.
+        using var third = guard.Enter(3);
+    }
+
+    [Fact]
     public void Breaker_Trips_After_Threshold_And_Blocks()
     {
         using var guard = new ConnectionGuard();

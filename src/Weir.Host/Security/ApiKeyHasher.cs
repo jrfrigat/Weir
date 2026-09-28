@@ -4,8 +4,17 @@ using System.Text;
 namespace Weir.Host.Security;
 
 /// <summary>
-/// Hashes API keys for storage and lookup. Keys are high-entropy random secrets, so a fast SHA-256
-/// digest is sufficient (a slow password hash is not needed here).
+/// Hashes API keys for storage and lookup. A plain SHA-256 digest, with no salt and no server-side
+/// pepper, is the right tool here only because of one invariant: a key is always generated, never
+/// chosen. <see cref="ApiKeyGenerator"/> draws 32 bytes from the CSPRNG, so the input space is 2^256
+/// and an offline search over a leaked digest cannot succeed.
+/// <para>
+/// That invariant is load-bearing. If a key ever becomes settable - a "bring your own key" field, an
+/// import of operator-supplied values, a shorter generator - a low-entropy key would make the stored
+/// digest equivalent to the plaintext, and a control-plane leak would hand the key over. Any such
+/// change has to move this hasher to a keyed digest (HMAC-SHA256 with a server secret) in the same
+/// step, and accept the migration that implies.
+/// </para>
 /// </summary>
 public static class ApiKeyHasher
 {

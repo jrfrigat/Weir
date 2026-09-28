@@ -10,6 +10,11 @@ accounts for the management UI.
 - A client authenticates with an API key in the `X-Api-Key` header or as a `Bearer` token.
 - Keys look like `wk_live_<random>`. Only a SHA-256 hash and a short non-secret prefix are stored;
   the plaintext is shown once at creation and never persisted.
+- A key is always generated; nothing lets you supply one. The stored hash is a plain SHA-256 with no
+  salt and no server secret, which is safe only while that holds: a low-entropy, operator-chosen key
+  would make the stored digest equivalent to the plaintext, so a leak of the control plane would hand
+  the key over. Any feature that lets a key be chosen or imported has to move this hash to
+  HMAC-SHA256 with a server secret in the same step.
 - Each key carries a set of scopes. An endpoint declares `RequiredScopes`; the request is allowed
   only if the key holds all of them. An endpoint with no required scopes accepts any enabled key.
 - Keys can be disabled (revoked) and can carry an optional expiry.

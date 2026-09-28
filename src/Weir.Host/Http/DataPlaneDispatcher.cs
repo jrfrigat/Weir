@@ -78,9 +78,10 @@ public sealed class DataPlaneDispatcher
     /// <summary>
     /// The caller hung up before the answer was ready. Nginx's 499 rather than an invented number: it is
     /// the one code operators already read as "nobody was left to send this to", and it is only ever
-    /// logged - by definition there is no one to send it to.
+    /// logged - by definition there is no one to send it to. Internal rather than private so the HTTP
+    /// handler records the same number in its audit entry instead of inventing a second one.
     /// </summary>
-    private const int ClientClosedRequest = 499;
+    internal const int ClientClosedRequest = 499;
 
     private readonly IEndpointCatalog _catalog;
     private readonly WeirEngine _engine;
@@ -141,6 +142,39 @@ public sealed class DataPlaneDispatcher
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Records a refusal that happened before the call reached this dispatcher: an authentication failure
+    /// on a transport that authenticates its own handshake. Without it the two doors that check the key
+    /// before calling in would refuse without leaving a trace, while HTTP records every request - so a
+    /// flood of rejected handshakes would be invisible in the audit.
+    /// </summary>
+    /// <param name="auditor">The auditor to enqueue with. A no-op when auditing is switched off.</param>
+    /// <param name="transport">Which door refused, recorded as the entry's detail.</param>
+    /// <param name="route">The route the caller asked for, when the door knows it.</param>
+    /// <param name="status">The HTTP-shaped status the caller was refused with.</param>
+    public static void EnqueueRefusal(IDataPlaneAuditor auditor, EndpointTransports transport, string? route, int status)
+    {
+        ArgumentNullException.ThrowIfNull(auditor);
+        if (!auditor.Enabled)
+        {
+            return;
+        }
+
+        auditor.Enqueue(new AuditEntry
+        {
+            Category = "endpoint.call",
+            // No key was resolved, so there is no prefix to name: null is the truth here, where a
+            // placeholder would read as a key that exists.
+            Actor = null,
+            Route = route,
+            StatusCode = status,
+            Outcome = OutcomeCodes.Error,
+            // The call never reached the engine, so there is no duration to report.
+            DurationMs = 0,
+            Detail = TransportName(transport),
+        });
     }
 
     /// <summary>The call itself, without the audit bookkeeping around it.</summary>

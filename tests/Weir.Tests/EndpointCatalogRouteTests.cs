@@ -155,4 +155,21 @@ public class EndpointCatalogRouteTests : IDisposable
         Assert.True(match.RouteValues.TryGet("id", out var id));
         Assert.Equal("a-b", id);
     }
+
+    [Fact]
+    public async Task Equally_Specific_Overlapping_Templates_Resolve_Deterministically()
+    {
+        // a/{x}/b and a/b/{y} have two literals each and both match a/b/b. List.Sort is unstable, so
+        // without a tie-break the winner would depend on the sort's implementation - the same request
+        // could land on different endpoints across processes or after a reload. The catalog breaks the
+        // tie by signature, so the shape that sorts first ("a/b/{}" before "a/{}/b") wins.
+        var catalog = await Catalog(Endpoint("GET", "a/{x}/b"), Endpoint("GET", "a/b/{y}"));
+
+        Assert.True(catalog.TryResolve("GET", "a/b/b", out var first));
+        Assert.Equal("a/b/{y}", first.Endpoint.Route);
+
+        await catalog.LoadAsync();
+        Assert.True(catalog.TryResolve("GET", "a/b/b", out var afterReload));
+        Assert.Equal(first.Endpoint.Route, afterReload.Endpoint.Route);
+    }
 }

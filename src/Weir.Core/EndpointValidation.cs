@@ -78,6 +78,15 @@ public static class EndpointValidation
             {
                 Add(errors, nameof(policy.Filters), "A filter needs a column.");
             }
+
+            // The binder fills this name in itself, so the filter's value would be overwritten in the
+            // values the cache key is built from: two calls differing only in this filter would key one
+            // entry, and one caller would be served the other's body.
+            if (TableRequestBinder.IsReservedRequestName(filter.RequestName))
+            {
+                Add(errors, nameof(policy.Filters),
+                    $"Filter '{filter.RequestName}' uses a name the request format reserves for itself. Rename the filter.");
+            }
         }
 
         foreach (var sort in policy.OrderBy)

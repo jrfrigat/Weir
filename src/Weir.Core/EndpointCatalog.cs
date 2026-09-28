@@ -105,8 +105,22 @@ public sealed partial class EndpointCatalog : IEndpointCatalog
         foreach (var (method, forMethod) in templates)
         {
             // Most specific first: a template with more literal segments wins over a looser one, so
-            // orders/{id}/lines is tried before orders/{id}/{part}.
-            forMethod.Sort(static (a, b) => b.LiteralCount.CompareTo(a.LiteralCount));
+            // orders/{id}/lines is tried before orders/{id}/{part}. Equally specific templates are
+            // ordered deterministically - by signature, then by endpoint id - because List.Sort is not
+            // stable and two shapes can overlap on a real path (a/{x}/b and a/b/{y} both match a/b/b):
+            // without the tie-break the winner would depend on the sort's implementation, so the same
+            // request could land on different endpoints across processes and after a reload.
+            forMethod.Sort(static (a, b) =>
+            {
+                var bySpecificity = b.LiteralCount.CompareTo(a.LiteralCount);
+                if (bySpecificity != 0)
+                {
+                    return bySpecificity;
+                }
+
+                var bySignature = string.Compare(a.Signature, b.Signature, StringComparison.OrdinalIgnoreCase);
+                return bySignature != 0 ? bySignature : a.Endpoint.Id.CompareTo(b.Endpoint.Id);
+            });
             Bucket(byMethod, method).Templates = [.. forMethod];
         }
 

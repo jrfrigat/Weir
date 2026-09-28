@@ -88,6 +88,14 @@ public sealed class InMemoryMetricsAggregator : IMetricsAggregator, IWeirCallObs
             // new entries so unbounded route parameters cannot grow memory without limit. Calls to an
             // untracked route still count towards the service-wide totals, they just get no per-route
             // breakdown. A route that is already tracked keeps recording even once the cap is reached.
+            //
+            // This cap is deliberately soft. The count check and the GetOrAdd below are not one atomic
+            // step, so under concurrency the dictionary can briefly hold a few entries more than
+            // MaxTrackedRoutes: each racing thread that reads a count below the cap may add one. The
+            // overshoot is bounded by the number of concurrent inserts and does not keep growing, so the
+            // memory bound this exists for holds. Enforcing the figure exactly would need a lock or an
+            // Interlocked guard on every recorded call - a cost on the request hot path for a number that
+            // changes nothing - so the soft cap is kept on purpose.
             if (_endpoints.Count < MaxTrackedRoutes)
             {
                 stats = _endpoints.GetOrAdd(context.Route, static _ => new EndpointStats());

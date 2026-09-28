@@ -205,6 +205,13 @@ required, and it changes nothing about what each surface is allowed to answer.
 - `/health/ready` - readiness (control plane reachable, data connections probed).
 - `/health` - the aggregate, for humans and simple setups.
 
+Point automated probes at `/health/live` and `/health/ready`. The aggregate `/health` runs the same
+checks as `/health/ready`, and the control-plane check reads the store on every call. Like the rest of
+the health surface it is unauthenticated and sits behind no rate limiter, so a high-frequency probe
+against it is a high-frequency load on the control-plane database - use it for a manual look, not for a
+probe loop. The same applies to the probe interval on `/health/ready`, which is also a control-plane
+query.
+
 ## High availability
 
 Run several instances behind a load balancer:

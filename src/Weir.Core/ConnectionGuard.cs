@@ -60,14 +60,21 @@ internal sealed class ConnectionGuard : IDisposable
     /// <returns>A disposable permit to release when the execution completes.</returns>
     public ConnectionPermit Enter(int concurrencyLimit)
     {
-        var semaphore = ResolveSemaphore(concurrencyLimit);
-        if (semaphore is not null && !semaphore.Wait(0))
+        // Acquire under the same lock that resolves the semaphore: a permit must not be taken outside it,
+        // or a thread that resolved the previous semaphore could call Wait on it just after a limit
+        // change disposed that semaphore as idle. Wait(0) does not block, and ResolveSemaphore takes this
+        // lock on every call anyway, so folding the acquisition in adds no new contention.
+        lock (_sync)
         {
-            throw new WeirConnectionUnavailableException(
-                "The data connection is at its concurrency limit. Retry shortly.");
-        }
+            var semaphore = ResolveSemaphore(concurrencyLimit);
+            if (semaphore is not null && !semaphore.Wait(0))
+            {
+                throw new WeirConnectionUnavailableException(
+                    "The data connection is at its concurrency limit. Retry shortly.");
+            }
 
-        return new ConnectionPermit(semaphore);
+            return new ConnectionPermit(semaphore);
+        }
     }
 
     /// <summary>Records a successful execution, closing the breaker and clearing the failure run.</summary>
@@ -139,8 +146,22 @@ internal sealed class ConnectionGuard : IDisposable
             {
                 // Rebuild on a limit change. In-flight permits hold their own semaphore reference and
                 // release it correctly; only new arrivals use the resized one.
+                var previous = _semaphore;
+                var previousLimit = _limit;
                 _semaphore = new SemaphoreSlim(limit, limit);
                 _limit = limit;
+
+                // Dispose the previous semaphore when nothing holds a permit on it (its count is back at
+                // the full limit), which is the usual case when the limit changes on an idle connection.
+                // A semaphore still carrying permits is left alone: its holders will Release() it and a
+                // disposed instance would throw for them - and it has nothing to release either, because
+                // it holds an unmanaged handle only once AvailableWaitHandle has been touched while this
+                // guard only ever waits with the non-blocking Wait(0). The GC reclaims it once the last
+                // permit returns.
+                if (previous is not null && previous.CurrentCount == previousLimit)
+                {
+                    previous.Dispose();
+                }
             }
 
             return _semaphore;

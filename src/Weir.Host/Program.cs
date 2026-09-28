@@ -328,6 +328,9 @@ builder.Services.AddAuthentication(options =>
         {
             // WebSockets cannot send an Authorization header, so the SignalR client passes the token as
             // an access_token query parameter on the hub handshake; read it there for hub connections only.
+            // The token therefore travels in the URL, which a reverse proxy logs by default: it must be
+            // configured not to log the query string for /hubs nor pass it on in Referer (see
+            // docs/en/admin-ui.md, "Dashboard").
             OnMessageReceived = context =>
             {
                 var accessToken = context.Request.Query["access_token"];
@@ -441,11 +444,11 @@ if (networkOptions.Enabled)
 // so a single call can be traced across the file logs. Runs first so all downstream logs carry it.
 app.Use(async (context, next) =>
 {
-    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault();
-    if (string.IsNullOrWhiteSpace(correlationId))
-    {
-        correlationId = context.TraceIdentifier;
-    }
+    // The header is caller input, so it is normalized before it reaches the logs or the response: a line
+    // break would forge a second line in a text log, and an unbounded value would ride along in every log
+    // event for the request. An unusable value falls back to the request's own trace identifier.
+    var correlationId = CorrelationId.Normalize(context.Request.Headers["X-Correlation-ID"].FirstOrDefault())
+        ?? context.TraceIdentifier;
 
     context.Response.Headers["X-Correlation-ID"] = correlationId;
     using (LogContext.PushProperty("CorrelationId", correlationId))

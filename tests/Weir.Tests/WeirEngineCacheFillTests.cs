@@ -191,10 +191,14 @@ public class WeirEngineCacheFillTests
         public Task UpdateAsync(WeirSystemSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private static WeirInvocation NewInvocation(bool coalesce = true) => new()
+    /// <summary>Builds a cache-eligible invocation against the test endpoint.</summary>
+    /// <param name="coalesce">Whether the endpoint's cache policy coalesces concurrent misses.</param>
+    /// <param name="endpointId">The id to call under; the default is the id an unsaved definition carries.</param>
+    private static WeirInvocation NewInvocation(bool coalesce = true, Guid endpointId = default) => new()
     {
         Endpoint = new EndpointDefinition
         {
+            Id = endpointId,
             Route = "orders/list",
             HttpMethod = "GET",
             ConnectionName = "default",
@@ -246,6 +250,13 @@ public class WeirEngineCacheFillTests
         // Exactly one caller executed; the others were served the bytes it produced.
         Assert.Equal(callers - 1, results.Count(r => r.CacheHit));
         Assert.All(results, r => Assert.Equal(results[0].ETag, r.ETag));
+
+        // And every caller that lost the registration race released the fill it had built instead of leaving
+        // its cancellation source to the finalizer. The losers are released as they lose; the engine releases
+        // the owner's fill once the store attempt lands, which can be a moment after the callers have their
+        // bytes - hence the range. Before the fix only that last one was ever released: the count was 1
+        // however large the burst was.
+        Assert.InRange(engine.DisposedFillCount, callers - 1, callers);
     }
 
     [Fact]
@@ -319,6 +330,64 @@ public class WeirEngineCacheFillTests
         Assert.NotEqual(0, waiterOutput.Length);
         Assert.True(metadata.CacheHit);
         Assert.NotNull(metadata.ETag);
+    }
+
+    [Fact]
+    public async Task A_Purge_During_A_Fill_Stops_That_Fill_From_Restoring_What_It_Invalidated()
+    {
+        // The finding: the invalidation ran while the query was still in flight, so the key it meant to
+        // remove did not exist yet and the store that followed put the pre-purge body back for a whole TTL.
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        using var cache = new MemoryResponseCache(new FixedSettings());
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+
+        using var firstOutput = new MemoryStream();
+        var first = engine.ExecuteAsync(NewInvocation(), firstOutput);
+        await connector.Started.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The invalidation lands here: the fill has run its query but has not stored anything yet.
+        await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix("orders/list"));
+
+        gate.SetResult();
+        await first.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The caller that owned the fill still gets its body; the entry itself is not admitted, so the next
+        // call has to ask the database again rather than being served pre-purge bytes. That call coalesces
+        // nothing on purpose: the fill stays registered until its store attempt lands, and a joining caller
+        // would be served from the fill itself - which says nothing about whether the entry was admitted.
+        using var secondOutput = new MemoryStream();
+        var second = await engine.ExecuteAsync(NewInvocation(coalesce: false), secondOutput).WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.NotEqual(0, firstOutput.Length);
+        Assert.Equal(2, connector.Executions);
+        Assert.False(second.CacheHit);
+    }
+
+    [Fact]
+    public async Task A_Fill_With_No_Purge_Is_Stored_And_Served_From_The_Cache()
+    {
+        // The control for the test above. Without it, a store that never admitted anything would pass that
+        // test and look exactly like the fix.
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        using var cache = new MemoryResponseCache(new FixedSettings());
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+
+        using var firstOutput = new MemoryStream();
+        var first = engine.ExecuteAsync(NewInvocation(), firstOutput);
+        await connector.Started.WaitAsync(TimeSpan.FromSeconds(10));
+        gate.SetResult();
+        await first.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using var secondOutput = new MemoryStream();
+        var second = await engine.ExecuteAsync(NewInvocation(coalesce: false), secondOutput).WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.NotEqual(0, firstOutput.Length);
+        Assert.Equal(1, connector.Executions);
+        Assert.True(second.CacheHit);
     }
 
     [Fact]
@@ -406,6 +475,33 @@ public class WeirEngineCacheFillTests
         // a freshly hashed copy of the same bytes.
         Assert.Equal(ResponseETag.Compute(second.ToArray()), metadata.ETag);
         Assert.NotEqual(0, first.Length);
+    }
+
+    /// <summary>
+    /// The size hint is keyed by endpoint id and written on every buffered response, so a catalog whose
+    /// composition churns - an endpoint edited, deleted and re-imported, each import minting a fresh id -
+    /// must not leave one dead entry behind per id for the life of the process. The map is held to an
+    /// explicit limit instead: past it the older half is dropped, which is what this drives past.
+    /// </summary>
+    [Fact]
+    public async Task Size_Hints_Stay_Bounded_As_Endpoints_Churn()
+    {
+        var connector = new SizedConnector();
+        using var engine = new WeirEngine(
+            new ParameterBinder(), new SingleRegistry(), [connector], new NeverHitsCache(), [], new FixedSettings());
+
+        // Twice the cap plus one, every call under an id the catalog has not served before. The endpoint is
+        // cache-eligible, so each call goes through the buffered fill path and records a hint of its own.
+        var churn = (WeirEngine.MaxBufferHints * 2) + 1;
+        for (var i = 0; i < churn; i++)
+        {
+            using var output = new MemoryStream();
+            await engine.ExecuteAsync(NewInvocation(endpointId: Guid.NewGuid()), output);
+            Assert.NotEqual(0, output.Length);
+        }
+
+        // One entry per id served here would be 2049; the map is bounded instead.
+        Assert.InRange(engine.BufferHintCount, 1, WeirEngine.MaxBufferHints);
     }
 
     [Fact]

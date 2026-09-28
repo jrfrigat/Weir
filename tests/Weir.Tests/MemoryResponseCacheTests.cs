@@ -64,6 +64,42 @@ public class MemoryResponseCacheTests
     }
 
     /// <summary>
+    /// The stamp exists so a purge that lands while a query is in flight stays visible to the store that
+    /// follows it; this pins that it moves on a purge and on nothing else.
+    /// </summary>
+    [Fact]
+    public async Task PurgeStamp_RisesOnAPurgeAndOnNothingElse()
+    {
+        using var cache = NewCache();
+        var before = cache.PurgeStamp;
+
+        await cache.SetAsync("weir:orders/get:aaa", Entry(1), TimeSpan.FromMinutes(5));
+        await cache.GetAsync("weir:orders/get:aaa");
+        await cache.RemoveAsync("weir:orders/get:aaa");
+
+        Assert.Equal(before, cache.PurgeStamp);
+
+        await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix("orders/get"));
+
+        Assert.NotEqual(before, cache.PurgeStamp);
+    }
+
+    /// <summary>
+    /// The case the finding turns on: the fill has not stored anything yet, so the purge removes no key at
+    /// all - and would leave no trace if the stamp only moved when something was evicted.
+    /// </summary>
+    [Fact]
+    public async Task PurgeStamp_RisesForAPrefixNothingIsStoredUnder()
+    {
+        using var cache = NewCache();
+        var before = cache.PurgeStamp;
+
+        await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix("orders/get"));
+
+        Assert.NotEqual(before, cache.PurgeStamp);
+    }
+
+    /// <summary>
     /// The bound is the whole point: storing past it must evict, not grow. Without a bound every entry
     /// survives, which is exactly the unbounded-growth failure this guards against.
     /// </summary>

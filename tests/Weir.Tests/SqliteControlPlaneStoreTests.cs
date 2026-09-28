@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using Weir.Abstractions;
@@ -67,6 +68,41 @@ public class SqliteControlPlaneStoreTests : IDisposable
         var reopened = new SqliteControlPlaneStore(
             Options.Create(new SqliteControlPlaneOptions { ConnectionString = connectionString }), TimeProvider.System);
         await Assert.ThrowsAsync<ControlPlaneMigrationException>(() => reopened.InitializeAsync());
+    }
+
+    [Fact]
+    public async Task A_Schema_Migrated_By_A_Newer_Weir_Is_Refused()
+    {
+        var store = NewStore(out var connectionString);
+        await store.InitializeAsync();
+
+        // Move the recorded schema version past the migrations this build ships, which is what running a
+        // newer Weir against the database and then rolling the image back leaves behind. The store has just
+        // applied every migration it ships, so the version it recorded is that count.
+        long applied;
+        long ahead;
+        await using (var conn = new SqliteConnection(connectionString))
+        {
+            await conn.OpenAsync();
+            await using (var read = conn.CreateCommand())
+            {
+                read.CommandText = "PRAGMA user_version;";
+                applied = (long)(await read.ExecuteScalarAsync())!;
+            }
+
+            ahead = applied + 1;
+            await using var write = conn.CreateCommand();
+            write.CommandText = $"PRAGMA user_version = {ahead}";
+            await write.ExecuteNonQueryAsync();
+        }
+
+        var reopened = new SqliteControlPlaneStore(
+            Options.Create(new SqliteControlPlaneOptions { ConnectionString = connectionString }), TimeProvider.System);
+        var exception = await Assert.ThrowsAsync<ControlPlaneMigrationException>(() => reopened.InitializeAsync());
+
+        // The message reports the version, which is the check that runs before the checksums are read.
+        Assert.Contains(ahead.ToString(CultureInfo.InvariantCulture), exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SQLite", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

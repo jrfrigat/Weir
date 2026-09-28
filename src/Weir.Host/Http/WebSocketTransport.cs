@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Core;
+using Weir.Host.Audit;
 using Weir.Host.Security;
 
 namespace Weir.Host.Http;
@@ -52,6 +53,7 @@ public static class WebSocketTransport
     /// <param name="context">The HTTP context of the handshake.</param>
     /// <param name="authenticator">API-key authenticator, applied to the handshake request.</param>
     /// <param name="dispatcher">The shared data-plane call path.</param>
+    /// <param name="auditor">Auditor, so a handshake refused before the dispatcher still leaves a record.</param>
     /// <param name="limits">Data-plane limits (the request body cap).</param>
     /// <param name="loggerFactory">Factory for the security logger.</param>
     /// <returns>A task that completes when the session ends.</returns>
@@ -59,6 +61,7 @@ public static class WebSocketTransport
         HttpContext context,
         IApiKeyAuthenticator authenticator,
         DataPlaneDispatcher dispatcher,
+        IDataPlaneAuditor auditor,
         IOptions<WeirDataPlaneOptions> limits,
         ILoggerFactory loggerFactory)
     {
@@ -77,6 +80,10 @@ public static class WebSocketTransport
         if (auth.Status == ApiKeyAuthStatus.RateLimited)
         {
             Log.ApiKeyFlood(loggerFactory.CreateLogger("Weir.Security"), context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+            // The dispatcher is never reached on this path, so without this the refusal would leave no
+            // trace while the same flood against /api fills the audit.
+            DataPlaneDispatcher.EnqueueRefusal(auditor, EndpointTransports.WebSocket, context.Request.Path.Value,
+                StatusCodes.Status429TooManyRequests);
             await ProblemResults.WriteAsync(context, StatusCodes.Status429TooManyRequests, "Too many requests",
                 "Too many unauthenticated requests. Try again later.", retryAfterSeconds: 60);
             return;
@@ -85,6 +92,8 @@ public static class WebSocketTransport
         if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
             context.Response.Headers.WWWAuthenticate = "ApiKey";
+            DataPlaneDispatcher.EnqueueRefusal(auditor, EndpointTransports.WebSocket, context.Request.Path.Value,
+                StatusCodes.Status401Unauthorized);
             await ProblemResults.WriteAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized",
                 "A valid API key is required.");
             return;

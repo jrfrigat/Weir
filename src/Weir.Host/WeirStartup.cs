@@ -37,32 +37,44 @@ public static class WeirStartup
         Log.Initialized(logger);
     }
 
-    /// <summary>Creates the bootstrap admin account when none exists and credentials are configured.</summary>
+    /// <summary>
+    /// Creates the bootstrap admin account when none exists and credentials are configured. Every exit
+    /// leaves a log entry, so an operator can tell a deliberate skip from a configuration mistake - the
+    /// silent skip used to leave a host with no admin and no explanation.
+    /// </summary>
     /// <param name="store">The control-plane store.</param>
     /// <param name="options">The bootstrap credentials.</param>
     /// <param name="passwordIterations">The configured PBKDF2 work factor.</param>
     /// <param name="logger">Logger for startup messages.</param>
     /// <returns>A task that completes when the check finishes.</returns>
-    private static async Task BootstrapAdminAsync(
+    internal static async Task BootstrapAdminAsync(
         IControlPlaneStore store, AdminBootstrapOptions options, int passwordIterations, ILogger logger)
     {
         var username = options.Username;
         var password = options.Password;
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
+            // Nothing configured: the first admin is created some other way. Say so, so a typo in the
+            // setting name is distinguishable from a deliberate choice.
+            Log.BootstrapNotConfigured(logger);
             return;
         }
 
         var admins = await store.GetAdminsAsync();
         if (admins.Count > 0)
         {
+            // Say why bootstrap did not run: otherwise an operator who changed Weir:Admin cannot tell
+            // from the logs that the account was never created and looks for the fault elsewhere.
+            Log.BootstrapSkipped(logger, admins.Count);
             return;
         }
 
         // Hold the bootstrap account to the same strength policy as accounts created through the API.
         if (PasswordPolicy.Validate(password) is { } reason)
         {
-            Log.BootstrapPasswordRejected(logger, reason);
+            // Reaching here means the control plane holds no admin, so a rejected password leaves the
+            // host with nobody able to sign in. That is an error, not a warning.
+            Log.BootstrapPasswordRejectedNoAdmins(logger, reason);
             return;
         }
 

@@ -6,11 +6,14 @@ using Xunit;
 
 namespace Weir.Tests;
 
-// An unknown API key is never cached, so every request bearing one queries the control-plane store.
-// A flood of random keys therefore turns into a lookup per request - a database-exhaustion DoS that
-// needs no valid credential. The flood guard caps how many unresolved keys one caller address may
-// spend per minute; past that it is refused with 429 before the lookup, so the store sees a bounded
-// number of misses per caller no matter how hard the caller pushes.
+// An unknown credential is never cached, so every request bearing one queries the control-plane store:
+// on the data plane an unknown API key, and on the admin surface an unknown personal access token (the
+// admin path caches nothing, so a token that resolves is looked up every time as well, but only an
+// unknown one is an unbounded stream). A flood of random values therefore turns into a lookup per
+// request - a database-exhaustion DoS that needs no valid credential. The flood guard caps how many
+// unresolved credentials one caller address may spend per minute; past that it is refused with 429
+// before the lookup, so the store sees a bounded number of misses per caller no matter how hard the
+// caller pushes.
 public class ApiKeyFloodGuardTests
 {
     [Fact]
@@ -45,6 +48,36 @@ public class ApiKeyFloodGuardTests
             var response = await Attempt(client, $"bad-key-{i}");
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
+    }
+
+    [Fact]
+    public async Task A_Caller_Flooding_Unknown_Admin_Tokens_Is_Refused_After_Its_Budget()
+    {
+        using var factory = new HostFactory(threshold: 3);
+        var client = factory.CreateClient();
+
+        // The admin token path shares this budget and this window. Three unknown tokens are ordinary
+        // failed auth (401); the fourth is refused before a lookup (429), so an unauthenticated caller
+        // cannot drive one store lookup per invented token through the admin door either.
+        for (var i = 0; i < 3; i++)
+        {
+            var failed = await AttemptAdminToken(client, $"weadm_{Guid.NewGuid():N}");
+            Assert.Equal(HttpStatusCode.Unauthorized, failed.StatusCode);
+        }
+
+        var blocked = await AttemptAdminToken(client, $"weadm_{Guid.NewGuid():N}");
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+    }
+
+    /// <summary>Sends one admin-API request bearing the given personal access token.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="token">The raw token to present.</param>
+    /// <returns>The response.</returns>
+    private static async Task<HttpResponseMessage> AttemptAdminToken(HttpClient client, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/admin/api/endpoints");
+        request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
+        return await client.SendAsync(request);
     }
 
     /// <summary>Sends one data-plane request bearing the given API key.</summary>

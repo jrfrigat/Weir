@@ -24,6 +24,29 @@ Run the host locally (serves the JSON API and the admin PWA on the same origin):
 dotnet run --project src/Weir.Host
 ```
 
+### Container integration tests
+
+Three suites talk to real database containers and are opt-in: they run only when `WEIR_CONTAINER_TESTS`
+is set to `1`, and they need a working Docker daemon (Testcontainers starts a PostgreSQL container, a
+SQL Server container and a database for the end-to-end suite).
+
+- `PostgresControlPlaneStoreIntegrationTests` - the PostgreSQL control-plane store.
+- `SqlServerControlPlaneStoreIntegrationTests` - the SQL Server control-plane store.
+- `DataPlaneEndToEndIntegrationTests` - a data-plane call from the HTTP door through to the database.
+
+```sh
+# bash
+WEIR_CONTAINER_TESTS=1 dotnet test -c Release
+```
+
+```powershell
+# PowerShell
+$env:WEIR_CONTAINER_TESTS = '1'; dotnet test -c Release
+```
+
+A plain `dotnet test` leaves these suites out, so a green local run does not exercise the PostgreSQL or
+SQL Server paths. CI sets the variable because the runner provides Docker; see `.github/workflows/ci.yml`.
+
 ## Conventions
 
 Weir keeps a strict, consistent style. Before making a change, read the golden rules in

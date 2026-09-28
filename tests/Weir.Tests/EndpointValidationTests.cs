@@ -93,6 +93,51 @@ public class EndpointValidationTests
         Assert.Contains("DefaultPageSize", errors.Keys);
     }
 
+    [Theory]
+    [InlineData("search")]
+    [InlineData("page")]
+    [InlineData("pageSize")]
+    [InlineData("sort")]
+    [InlineData("sortDir")]
+    [InlineData("__sort")]
+    [InlineData("Page")]
+    [InlineData("SEARCH")]
+    public void Dictionary_FilterNamedAfterARequestFormatKeyIsRefused(string name)
+    {
+        // The binder writes its own values under these names, so a filter using one would lose its value -
+        // and with it the only thing that told two cache keys apart.
+        var errors = EndpointValidation.Validate(Endpoint(
+            EndpointOperation.Dictionary, DbObjectType.Table,
+            dictionary: new DictionaryPolicy
+            {
+                LabelColumn = "Name",
+                Filters = [new DictionaryFilter { Column = "Category", ParameterName = name }],
+            }));
+
+        Assert.Contains("Filters", errors.Keys);
+        Assert.Contains(name, errors["Filters"][0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Dictionary_FilterNameThatOnlyResemblesARequestKeyIsFine()
+    {
+        // The refusal above must not be so broad that it catches names that merely read similarly.
+        var errors = EndpointValidation.Validate(Endpoint(
+            EndpointOperation.Dictionary, DbObjectType.Table,
+            dictionary: new DictionaryPolicy
+            {
+                LabelColumn = "Name",
+                Filters =
+                [
+                    new DictionaryFilter { Column = "Category", ParameterName = "category" },
+                    new DictionaryFilter { Column = "SearchText", ParameterName = "query" },
+                    new DictionaryFilter { Column = "PageNo", ParameterName = "pageNumber" },
+                ],
+            }));
+
+        Assert.Empty(errors);
+    }
+
     [Fact]
     public void Import_NeedsAPolicy()
     {

@@ -123,6 +123,11 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
                 version = 0;
             }
 
+            // A store migrated by a newer Weir is refused before its checksums are read: the version being
+            // ahead is the decisive fact, and a build that will not start has no reason to verify the
+            // prefix it knows.
+            ControlPlaneSchema.EnsureNotAheadOf(version.Value, SqlServerSchema.Migrations.Length, "SQL Server");
+
             // Verify (or backfill) the checksum of each already-applied migration; a mismatch means a
             // shipped migration was edited or the history was tampered with, so fail fast.
             await VerifyOrBackfillChecksumsAsync(conn, version.Value, cancellationToken);

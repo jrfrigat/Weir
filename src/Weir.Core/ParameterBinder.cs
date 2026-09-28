@@ -307,6 +307,14 @@ public sealed class ParameterBinder : IParameterBinder
         var rows = new List<IReadOnlyList<object?>>();
         var maxTvpRows = MaxTvpRows;
 
+        // Column names resolved to cell indices once for the whole table: every row then maps its own
+        // properties to columns in a single pass, with no dictionary built per row.
+        var columnIndex = new Dictionary<string, int>(columns.Count, StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < columns.Count; i++)
+        {
+            columnIndex[columns[i].Name] = i;
+        }
+
         if (invocation.HasBody && invocation.Body.ValueKind == JsonValueKind.Object &&
             invocation.Body.TryGetProperty(definition.Name, out var array) && array.ValueKind == JsonValueKind.Array)
         {
@@ -323,23 +331,19 @@ public sealed class ParameterBinder : IParameterBinder
                 // identifier case, and clients that serialize bodies with a camelCase naming
                 // policy would otherwise send {"id": 8} against a column declared as "Id",
                 // silently binding NULL into a NOT NULL TVP column.
-                Dictionary<string, JsonElement>? rowProperties = null;
+                var cells = new object?[columns.Count];
                 if (rowElement.ValueKind == JsonValueKind.Object)
                 {
-                    rowProperties = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                    // One pass over the row's own properties against the column index built for the whole
+                    // table. A dictionary per row would allocate one dictionary, plus a JsonElement copy
+                    // each, for every row - and a TVP can carry many thousands.
                     foreach (var property in rowElement.EnumerateObject())
                     {
-                        rowProperties[property.Name] = property.Value;
+                        if (columnIndex.TryGetValue(property.Name, out var cellIndex))
+                        {
+                            cells[cellIndex] = ValueCoercion.FromJson(property.Value, columns[cellIndex].DbType);
+                        }
                     }
-                }
-
-                var cells = new object?[columns.Count];
-                for (var i = 0; i < columns.Count; i++)
-                {
-                    var column = columns[i];
-                    cells[i] = rowProperties is not null && rowProperties.TryGetValue(column.Name, out var cell)
-                        ? ValueCoercion.FromJson(cell, column.DbType)
-                        : null;
                 }
 
                 rows.Add(cells);
