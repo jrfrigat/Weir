@@ -8,6 +8,39 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-07
+
+### Added
+
+- **A binary column can be capped, so one large BLOB stops deciding how much memory a response needs.**
+  The new runtime setting `MaxBinaryBytes` (0 = unlimited) bounds how many bytes of a single binary
+  value are read into memory. A value over the cap is read through a pooled buffer and the response is
+  marked `truncated`; under the cap nothing changes. Editable on the Settings page.
+- **A list page keeps its chrome and scrolls only the rows.** Endpoints, Audit and Logs opt into a
+  screen-fit content region: the page header, the filters and the pager stay put and only the grid
+  scrolls. Every other page keeps its ordinary whole-page scrolling.
+- **The console warns before a session lapses.** Within two minutes of the access token's expiry the app
+  bar shows how long is left. The token is still refreshed reactively on a 401 - the warning only tells
+  the user.
+- **The sample client has a demo tour.** `weir-sample demo` walks the demo endpoints - a list, a single
+  row, an order built from a table-valued parameter, its detail, and output-only statistics - and
+  finishes with the streaming check, so one command shows the whole surface and ends on a procedure
+  whose rows arrive batch by batch. See [samples/README.md](samples/README.md#demo-mode).
+
+### Changed
+
+- **An enabled cache must have a TTL between one second and one year.** `TtlSeconds` was unbounded, and a
+  zero or negative value reached the response cache's options and threw on a live request. The range now
+  lives in a `CacheBounds` table shaped like `SettingsBounds`, validated at save time and bounded in the
+  endpoint editor, and the property documents it.
+- **A pure `Output` and an omitted `InputOutput` parameter bind the same way.** Both are handed to the
+  driver as null, which sends the default and lets the procedure fill the output; an omitted
+  `InputOutput` no longer falls back to its `DefaultValue`.
+- **The dashboard's sparklines draw at the metric ring's one-second resolution.** Flare's chart update
+  animation works since 0.34, so the 5-second buckets that stood in for it are gone.
+
+## [2.0.0] - 2026-09-28
+
 ### Added
 
 - **The endpoint API and the admin surface can be served on separate ports.** `Weir:Ports` names one
