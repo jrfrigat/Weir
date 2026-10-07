@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Weir.Client;
 using Weir.Sample.Client;
 
 // Two modes:
@@ -36,6 +37,12 @@ catch (WeirCliException ex)
 {
     AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
     return 2;
+}
+catch (WeirApiException ex)
+{
+    // The gateway refused the call: the message is the problem's detail, which for a database failure
+    // is the SQL error text.
+    return Output.Fail(ex);
 }
 catch (HttpRequestException ex)
 {

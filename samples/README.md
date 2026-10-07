@@ -67,8 +67,11 @@ error handling with THROW.
 
 `client/Weir.Sample.Client` is a small console app (`weir-sample`) built on
 [Spectre.Console](https://spectreconsole.net/) that calls the widgets endpoints and can load-test any
-endpoint. It talks to a running host over HTTP with an API key (`X-Api-Key`), so it exercises Weir end
-to end - useful for a quick smoke test or a throughput check after a change.
+endpoint. It goes through the shipped client package,
+[`FrigaT.Weir.Client`](../docs/en/client.md) (`src/client/Weir.Client`), with the API key in
+`X-Api-Key` - running the sample exercises the package a real consumer would take, and what it prints is
+what that package makes of the gateway. Useful for a quick smoke test or a throughput check after a
+change.
 
 ### Interactive mode
 

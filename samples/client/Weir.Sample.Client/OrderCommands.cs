@@ -19,13 +19,13 @@ internal static class ProductsCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         _ = args;
-        using var response = await session.Client.SendAsync(HttpMethod.Get, "products", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        var rows = await Gateway.TryAsync(() => session.Client.GetListAsync<JsonElement>(Session.Api("products")));
+        if (rows is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        Output.Rows(response.FirstResultSet(), "No products.");
+        Output.Rows(rows, "No products.");
         return 0;
     }
 }
@@ -40,20 +40,19 @@ internal static class ProductCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         var id = args.RequireIntPositional(0, "product <id>", "id");
-        using var response = await session.Client.SendAsync(HttpMethod.Get, $"products/by-id?id={id}", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(() => session.Client.GetAsync(Session.Api($"products/by-id?id={id}")));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var rows = response.FirstResultSet();
-        if (rows.Count == 0)
+        if (result.Data.Count == 0 || result.Data[0].Count == 0)
         {
             AnsiConsole.MarkupLine($"[yellow]Product {id} not found.[/]");
             return 0;
         }
 
-        Output.KeyValues(rows[0], $"product {id}");
+        Output.KeyValues(result.Data[0][0], $"product {id}");
         return 0;
     }
 }
@@ -68,13 +67,14 @@ internal static class OrdersCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         var customerId = args.RequireIntPositional(0, "orders <customerId>", "customerId");
-        using var response = await session.Client.SendAsync(HttpMethod.Get, $"customers/orders?id={customerId}", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        var rows = await Gateway.TryAsync(
+            () => session.Client.GetListAsync<JsonElement>(Session.Api($"customers/orders?id={customerId}")));
+        if (rows is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        Output.Rows(response.FirstResultSet(), $"No orders for customer {customerId}.");
+        Output.Rows(rows, $"No orders for customer {customerId}.");
         return 0;
     }
 }
@@ -89,13 +89,14 @@ internal static class OrderCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         var orderId = args.RequireIntPositional(0, "order <orderId>", "orderId");
-        using var response = await session.Client.SendAsync(HttpMethod.Get, $"orders/detail?orderId={orderId}", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(
+            () => session.Client.GetAsync(Session.Api($"orders/detail?orderId={orderId}")));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var sets = response.ResultSets();
+        var sets = result.Data;
         var header = sets.Count > 0 ? sets[0] : [];
         if (header.Count == 0)
         {
@@ -141,16 +142,18 @@ internal static class CreateOrderCommand
             items.Add(new { ProductId = productId, Quantity = quantity });
         }
 
-        var body = JsonSerializer.Serialize(new { customerId, items });
-        using var response = await session.Client.SendAsync(HttpMethod.Post, "orders", body, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(
+            () => session.Client.PostAsync(Session.Api("orders"), new { customerId, items }));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var orderId = Output.OutputField(response, "orderId") ?? "(none)";
-        var total = Output.OutputField(response, "total") ?? "(none)";
-        var count = response.ReturnValue ?? Fmt.N0(itemArgs.Count);
+        var orderId = Output.OutputField(result, "orderId") ?? "(none)";
+        var total = Output.OutputField(result, "total") ?? "(none)";
+        var count = result.ReturnValue is { } returned
+            ? returned.ToString(CultureInfo.InvariantCulture)
+            : Fmt.N0(itemArgs.Count);
         AnsiConsole.MarkupLine($"[green]Created order[/] [bold]{Markup.Escape(orderId)}[/] - total=[bold]{Markup.Escape(total)}[/], items=[bold]{Markup.Escape(count)}[/]");
         return 0;
     }
@@ -176,13 +179,14 @@ internal static class CustomerStatsCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         var customerId = args.RequireIntPositional(0, "customer-stats <customerId>", "customerId");
-        using var response = await session.Client.SendAsync(HttpMethod.Get, $"customers/stats?customerId={customerId}", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(
+            () => session.Client.GetAsync(Session.Api($"customers/stats?customerId={customerId}")));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        Output.KeyValues(response.Output, $"customer {customerId} stats");
+        Output.KeyValues(result.Output, $"customer {customerId} stats");
         return 0;
     }
 }

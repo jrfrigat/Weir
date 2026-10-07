@@ -14,13 +14,15 @@ internal static class ListCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         _ = args;
-        using var response = await session.Client.SendAsync(HttpMethod.Get, "widgets", null, CancellationToken.None);
-        if (!response.IsSuccess)
+
+        // A read that only needs rows goes through the package's typed helper, with JsonElement as the
+        // model: the sample stays schema-agnostic and still exercises the typed path.
+        var rows = await Gateway.TryAsync(() => session.Client.GetListAsync<JsonElement>(Session.Api("widgets")));
+        if (rows is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var rows = response.FirstResultSet();
         if (rows.Count == 0)
         {
             AnsiConsole.MarkupLine("[yellow]No widgets yet.[/] Create one: [bold]create <name> <price>[/]");
@@ -62,28 +64,21 @@ internal static class GetCommand
             throw new WeirCliException($"'{idText}' is not a valid id.");
         }
 
-        using var response = await session.Client.SendAsync(HttpMethod.Get, $"widgets/by-id?id={id}", null, CancellationToken.None);
-        if (!response.IsSuccess)
+        // The envelope, not the typed single-row helper: an empty set and a refused call both read as null
+        // there, and "not found" deserves its own message.
+        var result = await Gateway.TryAsync(() => session.Client.GetAsync(Session.Api($"widgets/by-id?id={id}")));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var rows = response.FirstResultSet();
-        if (rows.Count == 0)
+        if (result.Data.Count == 0 || result.Data[0].Count == 0)
         {
             AnsiConsole.MarkupLine($"[yellow]Widget {id} not found.[/]");
             return 0;
         }
 
-        var grid = new Grid();
-        grid.AddColumn();
-        grid.AddColumn();
-        foreach (var property in rows[0].EnumerateObject())
-        {
-            grid.AddRow($"[grey]{Markup.Escape(property.Name)}[/]", Markup.Escape(Output.Value(property.Value)));
-        }
-
-        AnsiConsole.Write(new Panel(grid) { Header = new PanelHeader($"widget {id}"), Border = BoxBorder.Rounded });
+        Output.KeyValues(result.Data[0][0], $"widget {id}");
         return 0;
     }
 }
@@ -104,16 +99,13 @@ internal static class CreateCommand
             throw new WeirCliException($"'{priceText}' is not a valid price.");
         }
 
-        var body = JsonSerializer.Serialize(new { name, price });
-        using var response = await session.Client.SendAsync(HttpMethod.Post, "widgets", body, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(() => session.Client.PostAsync(Session.Api("widgets"), new { name, price }));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var newId = response.Output.ValueKind == JsonValueKind.Object && response.Output.TryGetProperty("newId", out var value)
-            ? Output.Value(value)
-            : "(none)";
+        var newId = Output.OutputField(result, "newId") ?? "(none)";
         AnsiConsole.MarkupLine($"[green]Created[/] widget [bold]{Markup.Escape(name)}[/] -> newId=[bold]{Markup.Escape(newId)}[/]");
         return 0;
     }
@@ -151,15 +143,16 @@ internal static class ImportCommand
             rows.Add(new { Name = item[..separator], Price = itemPrice });
         }
 
-        var body = JsonSerializer.Serialize(new { items = rows });
-        using var response = await session.Client.SendAsync(HttpMethod.Post, "widgets/import", body, CancellationToken.None);
-        if (!response.IsSuccess)
+        var result = await Gateway.TryAsync(
+            () => session.Client.PostAsync(Session.Api("widgets/import"), new { items = rows }));
+        if (result is null)
         {
-            return Output.Fail(response);
+            return 1;
         }
 
-        var resultRows = response.FirstResultSet();
-        var imported = resultRows.Count > 0 ? Output.Field(resultRows[0], "Imported") : Fmt.N0(rows.Count);
+        var imported = result.Data.Count > 0 && result.Data[0].Count > 0
+            ? Output.Field(result.Data[0][0], "Imported")
+            : Fmt.N0(rows.Count);
         AnsiConsole.MarkupLine($"[green]Imported[/] [bold]{Markup.Escape(imported)}[/] widget(s).");
         return 0;
     }
@@ -175,7 +168,7 @@ internal static class CallCommand
     public static async Task<int> RunAsync(Session session, CliArgs args)
     {
         var route = args.Positional(0) ?? throw new WeirCliException("Usage: call <route> [-X METHOD] [-b JSON | -f FILE]");
-        var method = new HttpMethod((args.Option("-X", "--method") ?? "GET").ToUpperInvariant());
+        var method = (args.Option("-X", "--method") ?? "GET").ToUpperInvariant();
 
         var body = args.Option("-b", "--body");
         var bodyFile = args.Option("-f", "--body-file");
@@ -189,8 +182,18 @@ internal static class CallCommand
             body = await File.ReadAllTextAsync(bodyFile, CancellationToken.None);
         }
 
-        using var response = await session.Client.SendAsync(method, route, body, CancellationToken.None);
-        Output.Envelope(response);
-        return response.IsSuccess ? 0 : 1;
+        // The package takes the parameters as an object, and the body arrives as JSON text: parsing it
+        // first is what keeps it an object - handing the text over would send it as a JSON string.
+        var path = Session.Api(route);
+        var parameters = Gateway.ParseBody(body);
+        var result = await Gateway.TryAsync(() => Gateway.SendAsync(session.Client, method, path, parameters));
+
+        if (result is null)
+        {
+            return 1;
+        }
+
+        Output.Envelope(result);
+        return 0;
     }
 }

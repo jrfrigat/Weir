@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Spectre.Console;
 
 namespace Weir.Sample.Client;
@@ -39,7 +41,11 @@ internal static class LoadCommand
             throw new WeirCliException("--duration must be at least 1 second.");
         }
 
-        using var client = session.CreateClient(concurrency);
+        // The load test measures the transport, not the envelope, so it drives the HttpClient the package
+        // hands over (with its own pool, sized for the worker count) and keeps parsing out of the timing.
+        using var http = session.CreateHttp(concurrency);
+        var path = Session.Api(route);
+        var parameters = Gateway.ParseBody(body);
 
         // A live (cursor-driven) display only works on a real terminal. When output is redirected
         // (a pipe, a file, CI), fall back to plain progress lines so the run does not crash.
@@ -48,21 +54,19 @@ internal static class LoadCommand
         AnsiConsole.MarkupLine($"[bold]Load test[/] [cyan]{method} {Markup.Escape(session.Url)}/api/{Markup.Escape(route)}[/]");
         AnsiConsole.MarkupLine($"[grey]concurrency={concurrency}, {(byCount ? $"requests={Fmt.N0(requests!.Value)}" : $"duration={duration}s")}, warmup={warmup}s[/]");
 
-        // Preflight one request so a bad URL / key / route fails fast with a clear message instead of
-        // producing a wall of identical errors in the results.
-        using (var probe = await client.SendAsync(method, route, body, CancellationToken.None))
+        // Preflight one request through the package, so a bad URL / key / route fails fast with the
+        // gateway's own problem text instead of a wall of identical errors in the results.
+        var probe = await Gateway.TryAsync(() => Gateway.SendAsync(session.Client, method.Method, path, parameters));
+        if (probe is null)
         {
-            if (!probe.IsSuccess)
-            {
-                AnsiConsole.MarkupLine("[red]Preflight request failed - aborting load test.[/]");
-                return Output.Fail(probe);
-            }
+            AnsiConsole.MarkupLine("[red]Preflight request failed - aborting load test.[/]");
+            return 1;
         }
 
         if (warmup > 0)
         {
             using var warmupCts = new CancellationTokenSource(TimeSpan.FromSeconds(warmup));
-            var warmupRun = RunWorkersAsync(client, method, route, body, concurrency, byCount: false, total: 0, stats: null, warmupCts.Token);
+            var warmupRun = RunWorkersAsync(http, method, path, parameters, concurrency, byCount: false, total: 0, stats: null, warmupCts.Token);
             if (interactive)
             {
                 await AnsiConsole.Status().StartAsync($"warming up for {warmup}s...", async _ => await warmupRun);
@@ -79,7 +83,7 @@ internal static class LoadCommand
             ? new CancellationTokenSource()
             : new CancellationTokenSource(TimeSpan.FromSeconds(duration));
         var clock = Stopwatch.StartNew();
-        var run = RunWorkersAsync(client, method, route, body, concurrency, byCount, requests ?? 0, stats, cts.Token);
+        var run = RunWorkersAsync(http, method, path, parameters, concurrency, byCount, requests ?? 0, stats, cts.Token);
         await ShowProgressAsync(stats, clock, run, interactive);
         clock.Stop();
 
@@ -93,10 +97,10 @@ internal static class LoadCommand
     /// (duration mode) or the shared counter reaches <paramref name="total"/> (count mode). When
     /// <paramref name="stats"/> is null the run is a warm-up and results are discarded.
     /// </summary>
-    /// <param name="client">The client.</param>
+    /// <param name="http">The transport the workers share.</param>
     /// <param name="method">The HTTP method.</param>
-    /// <param name="route">The route.</param>
-    /// <param name="body">The request body, or null.</param>
+    /// <param name="path">The route relative to the gateway origin.</param>
+    /// <param name="parameters">The request parameters, or null.</param>
     /// <param name="concurrency">The number of concurrent workers.</param>
     /// <param name="byCount">True to stop after <paramref name="total"/> requests; false to run until cancelled.</param>
     /// <param name="total">The total request count in count mode.</param>
@@ -104,7 +108,7 @@ internal static class LoadCommand
     /// <param name="token">Cancellation token (the duration window, or the caller's).</param>
     /// <returns>A task that completes when every worker has stopped.</returns>
     private static Task RunWorkersAsync(
-        WeirClient client, HttpMethod method, string route, string? body, int concurrency,
+        HttpClient http, HttpMethod method, string path, JsonElement? parameters, int concurrency,
         bool byCount, int total, LoadStats? stats, CancellationToken token)
     {
         var issued = 0;
@@ -124,7 +128,7 @@ internal static class LoadCommand
                     RequestOutcome outcome;
                     try
                     {
-                        outcome = await client.MeasureAsync(method, route, body, token);
+                        outcome = await MeasureAsync(http, method, path, parameters, token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -146,6 +150,61 @@ internal static class LoadCommand
         }
 
         return Task.WhenAll(workers);
+    }
+
+    /// <summary>
+    /// Sends one request and times it, draining the body without parsing it: the load test measures the
+    /// transport, and reading the envelope would put work into the timing that no caller pays for.
+    /// </summary>
+    /// <param name="http">The transport.</param>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The route relative to the gateway origin.</param>
+    /// <param name="parameters">The request parameters, or null.</param>
+    /// <param name="cancellationToken">Cancellation token (cancelled when the load window ends).</param>
+    /// <returns>The measured outcome; a failed request is reported, not thrown.</returns>
+    private static async Task<RequestOutcome> MeasureAsync(
+        HttpClient http, HttpMethod method, string path, JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        var start = Stopwatch.GetTimestamp();
+        try
+        {
+            using var request = new HttpRequestMessage(method, path);
+            if (parameters is not null)
+            {
+                request.Content = JsonContent.Create(parameters);
+            }
+
+            using var response = await http
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+
+            long bytes = 0;
+            var buffer = new byte[16 * 1024];
+            await using (var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+            {
+                int read;
+                while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    bytes += read;
+                }
+            }
+
+            return new RequestOutcome((int)response.StatusCode, Stopwatch.GetElapsedTime(start).TotalMilliseconds, bytes, null);
+        }
+        catch (OperationCanceledException)
+        {
+            // The load window ended (or the caller cancelled): propagate so the worker stops cleanly
+            // without recording a half-finished request as a failure.
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            return new RequestOutcome(0, Stopwatch.GetElapsedTime(start).TotalMilliseconds, 0, ex.GetType().Name);
+        }
+        catch (IOException ex)
+        {
+            return new RequestOutcome(0, Stopwatch.GetElapsedTime(start).TotalMilliseconds, 0, ex.GetType().Name);
+        }
     }
 
     /// <summary>
@@ -380,3 +439,10 @@ internal readonly record struct LoadReport(
         return sorted[Math.Clamp(rank, 0, sorted.Length - 1)];
     }
 }
+
+/// <summary>The measured outcome of one load-test request.</summary>
+/// <param name="StatusCode">The HTTP status, or 0 when the request failed before a response.</param>
+/// <param name="ElapsedMs">The wall-clock duration in milliseconds.</param>
+/// <param name="Bytes">The response body size in bytes.</param>
+/// <param name="Error">The exception type name on failure, otherwise null.</param>
+internal readonly record struct RequestOutcome(int StatusCode, double ElapsedMs, long Bytes, string? Error);

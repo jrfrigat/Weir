@@ -1,5 +1,6 @@
 using System.Text;
 using Spectre.Console;
+using Weir.Client;
 
 namespace Weir.Sample.Client;
 
@@ -56,6 +57,10 @@ internal static class InteractiveShell
             catch (WeirCliException ex)
             {
                 AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            }
+            catch (WeirApiException ex)
+            {
+                Output.Fail(ex);
             }
             catch (HttpRequestException ex)
             {

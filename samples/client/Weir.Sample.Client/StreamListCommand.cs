@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using Spectre.Console;
+using Weir.Client;
 
 namespace Weir.Sample.Client;
 
@@ -36,64 +37,36 @@ internal static class StreamListCommand
         }
 
         var start = Stopwatch.GetTimestamp();
-        using var response = await session.Client.OpenAsync(HttpMethod.Get, route, null, CancellationToken.None);
-        var headersAtMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var raw = await response.Content.ReadAsStringAsync(CancellationToken.None);
-            JsonDocument document;
-            try
-            {
-                document = JsonDocument.Parse(string.IsNullOrWhiteSpace(raw) ? "{}" : raw);
-            }
-            catch (JsonException)
-            {
-                document = JsonDocument.Parse("{}");
-            }
-
-            using var failed = new WeirResponse((int)response.StatusCode, raw, document);
-            return Output.Fail(failed);
-        }
-
-        using var parser = new RowStreamParser();
         var printer = new RowPrinter();
-        var buffer = new byte[16 * 1024];
-        Exception? cutOff = null;
-        await using (var body = await response.Content.ReadAsStreamAsync(CancellationToken.None))
+        WeirApiException? failure = null;
+        try
         {
-            try
+            // The package's streaming API hands each row over the moment its bytes are complete, batch
+            // boundary included, so this loop is the whole live view.
+            await foreach (var item in session.Client.StreamEventsAsync(Session.Api(route)))
             {
-                int read;
-                while ((read = await body.ReadAsync(buffer, CancellationToken.None)) > 0)
-                {
-                    printer.Emit(
-                        parser.Feed(buffer.AsSpan(0, read), isFinal: false),
-                        Stopwatch.GetElapsedTime(start).TotalMilliseconds);
-                }
-
-                printer.Emit(parser.Feed(ReadOnlySpan<byte>.Empty, isFinal: true), Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+                printer.Emit(item, Stopwatch.GetElapsedTime(start).TotalMilliseconds);
             }
-            catch (IOException ex)
-            {
-                cutOff = ex;
-            }
-            catch (JsonException ex)
-            {
-                cutOff = ex;
-            }
+        }
+        catch (WeirApiException problem)
+        {
+            failure = problem;
         }
 
         var totalMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         AnsiConsole.WriteLine();
 
-        if (cutOff is not null)
+        if (failure is not null)
         {
-            var label = cutOff is JsonException ? "Bad JSON" : "Cut off";
-            AnsiConsole.MarkupLine($"[red]{label}:[/] the body stopped after {Fmt.N0(printer.RowCount)} row(s) at {Fmt.N0((long)totalMs)} ms ({Markup.Escape(cutOff.Message)}).");
-            AnsiConsole.MarkupLine(cutOff is JsonException
-                ? "[grey]The body ended inside a value, so the response was truncated or is not the usual envelope.[/]"
-                : "[grey]A proxy read timeout (nginx: proxy_read_timeout) turns a long pause into a closed connection, and a failure mid-stream aborts the response the same way.[/]");
+            // The package reports a problem body before the stream starts and a body that ended inside a
+            // value mid-stream; only the second carries an inner exception.
+            if (failure.InnerException is null)
+            {
+                return Output.Fail(failure);
+            }
+
+            AnsiConsole.MarkupLine($"[red]Cut off:[/] {Fmt.N0(printer.RowCount)} row(s) arrived in {Fmt.N0((long)totalMs)} ms ({Markup.Escape(failure.Message)}).");
+            AnsiConsole.MarkupLine("[grey]A proxy read timeout (nginx: proxy_read_timeout) turns a long pause into a closed connection, and a failure mid-stream aborts the response the same way.[/]");
             return 1;
         }
 
@@ -103,7 +76,7 @@ internal static class StreamListCommand
             return 2;
         }
 
-        AnsiConsole.MarkupLine($"[grey]{Fmt.N0(printer.RowCount)} row(s) in {printer.SetCount} set(s); headers at {Fmt.N0((long)headersAtMs)} ms, first row at {Fmt.N0((long)printer.FirstRowMs)} ms, done at {Fmt.N0((long)totalMs)} ms.[/]");
+        AnsiConsole.MarkupLine($"[grey]{Fmt.N0(printer.RowCount)} row(s) in {printer.SetCount} set(s); first row at {Fmt.N0((long)printer.FirstRowMs)} ms, done at {Fmt.N0((long)totalMs)} ms.[/]");
         return Verdict(printer.FirstRowMs, totalMs, gapMs);
     }
 
@@ -146,37 +119,34 @@ internal static class StreamListCommand
         /// <summary>When the first row arrived, in milliseconds from the start; -1 until one does.</summary>
         public double FirstRowMs { get; private set; } = -1;
 
-        /// <summary>Prints whatever a chunk completed, at the time that chunk arrived.</summary>
-        /// <param name="events">The events the chunk completed.</param>
-        /// <param name="atMs">When the chunk arrived, from the start of the request.</param>
-        public void Emit(IReadOnlyList<StreamEvent> events, double atMs)
+        /// <summary>Prints one event from the package's stream, at the time it arrived.</summary>
+        /// <param name="item">The event.</param>
+        /// <param name="atMs">When it arrived, from the start of the request.</param>
+        public void Emit(WeirStreamEvent item, double atMs)
         {
-            foreach (var item in events)
+            if (item.Kind == WeirStreamEventKind.ResultSetStarted)
             {
-                if (item.Kind == StreamEventKind.SetStarted)
-                {
-                    SetCount++;
-                    AnsiConsole.MarkupLine($"[grey]--- batch {SetCount} at {Fmt.N0((long)atMs)} ms ---[/]");
-                    continue;
-                }
-
-                if (FirstRowMs < 0)
-                {
-                    FirstRowMs = atMs;
-                }
-
-                using var row = JsonDocument.Parse(item.Json);
-                if (_columns is null)
-                {
-                    _columns = row.RootElement.ValueKind == JsonValueKind.Object
-                        ? [.. row.RootElement.EnumerateObject().Select(property => property.Name)]
-                        : [];
-                    AnsiConsole.MarkupLine($"[bold]{Markup.Escape(Join(_columns, null))}[/]");
-                }
-
-                AnsiConsole.MarkupLine($"[grey]{Fmt.N0((long)atMs),8} ms[/]  {Markup.Escape(Join(_columns!, row.RootElement))}");
-                RowCount++;
+                SetCount++;
+                AnsiConsole.MarkupLine($"[grey]--- batch {SetCount} at {Fmt.N0((long)atMs)} ms ---[/]");
+                return;
             }
+
+            if (FirstRowMs < 0)
+            {
+                FirstRowMs = atMs;
+            }
+
+            using var row = JsonDocument.Parse(item.Json);
+            if (_columns is null)
+            {
+                _columns = row.RootElement.ValueKind == JsonValueKind.Object
+                    ? [.. row.RootElement.EnumerateObject().Select(property => property.Name)]
+                    : [];
+                AnsiConsole.MarkupLine($"[bold]{Markup.Escape(Join(_columns, null))}[/]");
+            }
+
+            AnsiConsole.MarkupLine($"[grey]{Fmt.N0((long)atMs),8} ms[/]  {Markup.Escape(Join(_columns!, row.RootElement))}");
+            RowCount++;
         }
 
         /// <summary>Formats a line of padded cells: the header when <paramref name="row"/> is null, else the row's values.</summary>

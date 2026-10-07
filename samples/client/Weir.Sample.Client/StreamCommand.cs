@@ -39,7 +39,7 @@ internal static class StreamCommand
 
         var arrivals = new List<(double AtMs, int Bytes)>();
         var start = Stopwatch.GetTimestamp();
-        using var response = await session.Client.OpenAsync(HttpMethod.Get, route, compress ? "br, gzip" : null, CancellationToken.None);
+        using var response = await OpenAsync(session.Http, route, compress ? "br, gzip" : null, CancellationToken.None);
         var headersAtMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
 
         var buffer = new byte[64 * 1024];
@@ -112,6 +112,28 @@ internal static class StreamCommand
         }
 
         return bursts;
+    }
+
+    /// <summary>
+    /// Sends a request and returns as soon as the headers arrive, leaving the body unread, so the caller can
+    /// watch when its bytes turn up. This reaches past the package on purpose - it hands over its
+    /// <see cref="HttpClient"/> for exactly this - because the check is about the bytes, not the envelope.
+    /// </summary>
+    /// <param name="http">The transport.</param>
+    /// <param name="route">The route beneath <c>/api</c>, with its query string.</param>
+    /// <param name="acceptEncoding">The <c>Accept-Encoding</c> value to send, or null for none.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The response with its body still unread; the caller must dispose it.</returns>
+    private static async Task<HttpResponseMessage> OpenAsync(
+        HttpClient http, string route, string? acceptEncoding, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, Session.Api(route));
+        if (acceptEncoding is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Accept-Encoding", acceptEncoding);
+        }
+
+        return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
 
     /// <summary>Prints the response headers that decide whether a body can stream.</summary>

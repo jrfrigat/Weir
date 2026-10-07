@@ -19,6 +19,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The sample calls the gateway through the shipped client package on purpose: what it exercises is
+         what a real consumer would take, and the package is the thing a caller hand-rolls without it. -->
+    <ProjectReference Include="..\..\..\src\client\Weir.Client\Weir.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Spectre.Console" />
   </ItemGroup>
 

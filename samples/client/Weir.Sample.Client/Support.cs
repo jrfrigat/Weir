@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Spectre.Console;
+using Weir.Client;
 
 namespace Weir.Sample.Client;
 
@@ -103,14 +104,16 @@ internal static class Output
     public static string Field(JsonElement row, string name) =>
         row.ValueKind == JsonValueKind.Object && row.TryGetProperty(name, out var value) ? Value(value) : string.Empty;
 
-    /// <summary>Reads a field from the response's <c>output</c> object, or null when absent.</summary>
-    /// <param name="response">The response.</param>
+    /// <summary>Reads a field from the envelope's <c>output</c> object, or null when absent.</summary>
+    /// <param name="result">The envelope.</param>
     /// <param name="name">The output field name.</param>
     /// <returns>The value, or null.</returns>
-    public static string? OutputField(WeirResponse response, string name) =>
-        response.Output.ValueKind == JsonValueKind.Object && response.Output.TryGetProperty(name, out var value)
-            ? Value(value)
-            : null;
+    public static string? OutputField(WeirResult result, string name)
+    {
+        // OutputValue<T> is an unconstrained T?, so a missing value comes back as default(JsonElement).
+        var value = result.OutputValue<JsonElement>(name);
+        return value.ValueKind == JsonValueKind.Undefined ? null : Value(value);
+    }
 
     /// <summary>
     /// Renders a result set (rows of JSON objects) as a table, taking the column names and order from
@@ -167,51 +170,108 @@ internal static class Output
         AnsiConsole.Write(new Panel(grid) { Header = new PanelHeader(Markup.Escape(header)), Border = BoxBorder.Rounded });
     }
 
-    /// <summary>Prints the error from a failed response (problem+json title / detail) and returns exit code 1.</summary>
-    /// <param name="response">The failed response.</param>
-    /// <returns>The process exit code (1).</returns>
-    public static int Fail(WeirResponse response)
+    /// <summary>Renders an envelope's output parameters as a key/value panel.</summary>
+    /// <param name="output">The output values; null renders an empty panel.</param>
+    /// <param name="header">The panel header.</param>
+    public static void KeyValues(IReadOnlyDictionary<string, JsonElement>? output, string header)
     {
-        var title = TryString(response.Root, "title") ?? "request failed";
-        var detail = TryString(response.Root, "detail");
-        AnsiConsole.MarkupLine($"[red]HTTP {response.StatusCode}[/] - {Markup.Escape(title)}");
-        if (!string.IsNullOrWhiteSpace(detail))
+        var grid = new Grid();
+        grid.AddColumn();
+        grid.AddColumn();
+        if (output is not null)
         {
-            AnsiConsole.MarkupLine($"[grey]{Markup.Escape(detail)}[/]");
+            foreach (var (name, value) in output)
+            {
+                grid.AddRow($"[grey]{Markup.Escape(name)}[/]", Markup.Escape(Value(value)));
+            }
+        }
+
+        AnsiConsole.Write(new Panel(grid) { Header = new PanelHeader(Markup.Escape(header)), Border = BoxBorder.Rounded });
+    }
+
+    /// <summary>Prints the problem a refused call came back with, and returns exit code 1.</summary>
+    /// <param name="problem">The exception the package threw; its message is the problem's <c>detail</c>,
+    /// which for a database failure is the SQL error text.</param>
+    /// <returns>The process exit code (1).</returns>
+    public static int Fail(WeirApiException problem)
+    {
+        AnsiConsole.MarkupLine($"[red]HTTP {(int)problem.Status}[/] - {Markup.Escape(problem.Title ?? "Request failed")}");
+        if (!string.IsNullOrWhiteSpace(problem.Message))
+        {
+            AnsiConsole.MarkupLine($"[grey]{Markup.Escape(problem.Message)}[/]");
         }
 
         return 1;
     }
 
-    /// <summary>Pretty-prints the JSON envelope (or raw body) inside a bordered panel.</summary>
-    /// <param name="response">The response to render.</param>
-    public static void Envelope(WeirResponse response)
+    /// <summary>Pretty-prints the envelope inside a bordered panel.</summary>
+    /// <param name="result">The envelope to render.</param>
+    public static void Envelope(WeirResult result) =>
+        AnsiConsole.Write(new Panel(Markup.Escape(JsonSerializer.Serialize(result, Pretty)))
+        {
+            Header = new PanelHeader("[green]envelope[/]"),
+            Border = BoxBorder.Rounded,
+        });
+}
+
+/// <summary>Calls the gateway through the client package and turns a refusal into a printed problem.</summary>
+internal static class Gateway
+{
+    /// <summary>Runs a call, printing the problem and returning null when the gateway refused it.</summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="call">The call to make.</param>
+    /// <returns>The result, or null when the call was refused.</returns>
+    public static async Task<T?> TryAsync<T>(Func<Task<T>> call)
+        where T : class
     {
-        string text;
         try
         {
-            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(response.RawJson) ? "{}" : response.RawJson);
-            text = JsonSerializer.Serialize(document, Pretty);
+            return await call();
+        }
+        catch (WeirApiException problem)
+        {
+            Output.Fail(problem);
+            return null;
+        }
+    }
+
+    /// <summary>Parses a JSON request body, or returns null when there is none.</summary>
+    /// <param name="body">The JSON text as written on the command line, or null.</param>
+    /// <returns>The parameters, or null.</returns>
+    /// <exception cref="WeirCliException">The text is not valid JSON.</exception>
+    public static JsonElement? ParseBody(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            // Cloned, because the document that parsed it is disposed right away.
+            return JsonDocument.Parse(body).RootElement.Clone();
         }
         catch (JsonException)
         {
-            text = response.RawJson;
+            throw new WeirCliException("The body is not valid JSON.");
         }
-
-        var color = response.IsSuccess ? "green" : "red";
-        AnsiConsole.Write(new Panel(Markup.Escape(text))
-        {
-            Header = new PanelHeader($"[{color}]HTTP {response.StatusCode}[/]"),
-            Border = BoxBorder.Rounded,
-        });
     }
 
-    /// <summary>Reads a string property from a JSON object, or null.</summary>
-    /// <param name="obj">The object.</param>
-    /// <param name="name">The property name.</param>
-    /// <returns>The string value, or null.</returns>
-    private static string? TryString(JsonElement obj, string name) =>
-        obj.ValueKind == JsonValueKind.Object && obj.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
+    /// <summary>Sends one call by HTTP method name, with the parameters as an object.</summary>
+    /// <param name="client">The package client.</param>
+    /// <param name="method">The method name, as typed after <c>-X</c>.</param>
+    /// <param name="path">The route relative to the gateway origin.</param>
+    /// <param name="parameters">The request parameters, or null for none.</param>
+    /// <returns>The envelope.</returns>
+    /// <exception cref="WeirCliException">The method is not one the client can call.</exception>
+    public static Task<WeirResult> SendAsync(WeirClient client, string method, string path, JsonElement? parameters) =>
+        method switch
+        {
+            "GET" => client.GetAsync(path),
+            "POST" => client.PostAsync(path, parameters),
+            "PUT" => client.PutAsync(path, parameters),
+            "PATCH" => client.PatchAsync(path, parameters),
+            "DELETE" => client.DeleteAsync(path),
+            _ => throw new WeirCliException($"Unsupported method '{method}'. Use GET, POST, PUT, PATCH or DELETE."),
+        };
 }
