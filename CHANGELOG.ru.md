@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-07
+
 ### Добавлено
 
 - **Widgets-пример тоже умеет стримить.** В `sqlserver/schema.sql` появилась `dbo.StreamWidgets`, а в

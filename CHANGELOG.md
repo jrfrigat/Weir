@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-07
+
 ### Added
 
 - **The widgets sample can demonstrate streaming.** `sqlserver/schema.sql` gains `dbo.StreamWidgets` and
