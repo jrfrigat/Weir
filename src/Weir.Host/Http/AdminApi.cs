@@ -587,7 +587,12 @@ public static class AdminApi
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
 
-        // Import a set of endpoint definitions (upsert by id), for promoting between environments.
+        // Import a set of endpoint definitions, for promoting between environments. An endpoint is
+        // identified by its id when the file carries one that names a local endpoint, and otherwise by
+        // its method and route - so re-importing a file that carries no ids (the samples do not) lands on
+        // the routes it names instead of colliding with them. A conflict that still slips through (two
+        // ids on one route) is answered as 409, exactly as the single-endpoint create does, rather than
+        // letting the store's exception reach the caller as a 500.
         group.MapPost("/endpoints/import", async (List<EndpointDefinition> endpoints, IControlPlaneStore store, IEndpointCatalog catalog, IResponseCache cache, ClaimsPrincipal user, TimeProvider clock) =>
         {
             if (endpoints.Count > 1000)
@@ -596,17 +601,60 @@ public static class AdminApi
                     detail: "A single import may contain at most 1000 endpoints.");
             }
 
-            var imported = 0;
-            foreach (var endpoint in endpoints)
+            // The identity the store already knows, by id and by method + route. The maps grow as rows are
+            // written, so a route named twice in one file updates the row the earlier line created rather
+            // than colliding with it. Route comparison is exact, matching the unique index in the store.
+            var byId = new HashSet<Guid>();
+            var byRoute = new Dictionary<(string Method, string Route), Guid>();
+            foreach (var existing in await store.GetEndpointsAsync())
             {
-                var saved = await store.UpsertEndpointAsync(endpoint);
+                byId.Add(existing.Id);
+                byRoute[(existing.HttpMethod, existing.Route)] = existing.Id;
+            }
+
+            var written = new List<EndpointDefinition>();
+            try
+            {
+                foreach (var endpoint in endpoints)
+                {
+                    var id = endpoint.Id != Guid.Empty && byId.Contains(endpoint.Id)
+                        ? endpoint.Id
+                        : byRoute.TryGetValue((endpoint.HttpMethod, endpoint.Route), out var localId)
+                            ? localId
+                            : endpoint.Id;
+
+                    var saved = await store.UpsertEndpointAsync(endpoint with { Id = id });
+                    written.Add(saved);
+                    byId.Add(saved.Id);
+                    byRoute[(saved.HttpMethod, saved.Route)] = saved.Id;
+                }
+            }
+            catch (ControlPlaneConflictException ex)
+            {
+                // Rows are written one by one, so a conflict lands mid-file with earlier rows already
+                // stored. Those rows changed, so their cached responses are dropped like any other write;
+                // the catalog is reloaded so memory matches the store, what landed is recorded, and the
+                // caller gets a problem+json it can show rather than a bare 500.
+                foreach (var saved in written)
+                {
+                    await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
+                }
+
+                await catalog.LoadAsync();
+                await AuditActionAsync(store, publisher, clock, user, "endpoint.import",
+                    $"{written.Count} of {endpoints.Count} endpoint(s), then conflict: {ex.Message}");
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Endpoint import conflict",
+                    detail: $"{ex.Message} {written.Count} of {endpoints.Count} endpoint(s) were imported before the conflict.");
+            }
+
+            foreach (var saved in written)
+            {
                 await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
-                imported++;
             }
 
             await catalog.LoadAsync();
-            await AuditActionAsync(store, publisher, clock, user, "endpoint.import", $"{imported} endpoint(s)");
-            return Results.Ok(new { imported });
+            await AuditActionAsync(store, publisher, clock, user, "endpoint.import", $"{written.Count} endpoint(s)");
+            return Results.Ok(new { imported = written.Count });
         }).RequireAuthorization("AdminOnly");
 
         // Admin "try it": run an endpoint through the engine (admin-authorized, no API key) and

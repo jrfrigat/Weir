@@ -159,6 +159,33 @@ public class AdminAuthorizationTests : IClassFixture<AdminAuthorizationTests.Hos
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    // Regression: the import route used to let the store's unique-constraint exception reach the caller,
+    // so importing a file that names an existing route (the sample seeds carry no ids) answered 500.
+    // Identity is now the id when it names a local endpoint, else the method + route, so a second import
+    // of the same set updates the routes it names instead of colliding with them.
+    [Fact]
+    public async Task Import_Twice_Updates_Routes_Instead_Of_Failing()
+    {
+        var client = _factory.CreateClient();
+        var jwt = await LoginAsync(client, "admin", "admin-password");
+
+        var batch = new List<EndpointDefinition>
+        {
+            new() { Route = "import-twice", HttpMethod = "GET", ConnectionName = "primary", ObjectName = "usp_Get" },
+        };
+
+        var first = await SendAsync(client, HttpMethod.Post, "/admin/api/endpoints/import", jwt, batch);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        var second = await SendAsync(client, HttpMethod.Post, "/admin/api/endpoints/import", jwt, batch);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+
+        var endpoints = await (await SendAsync(client, HttpMethod.Get, "/admin/api/endpoints", jwt, content: null))
+            .Content.ReadFromJsonAsync<List<EndpointDefinition>>();
+        Assert.NotNull(endpoints);
+        Assert.Single(endpoints!, e => e.Route == "import-twice");
+    }
+
     private static async Task<string> LoginAsync(HttpClient client, string username, string password)
     {
         var response = await client.PostAsJsonAsync("/admin/api/auth/login",

@@ -387,12 +387,15 @@ route requires the `Admin` role.
 | Get one | `GET /admin/api/endpoints/{id}` |
 | Create or update | `POST /admin/api/endpoints` / `PUT /admin/api/endpoints/{id}` |
 | Delete | `DELETE /admin/api/endpoints/{id}` |
-| Import a set (upsert by id) | `POST /admin/api/endpoints/import` |
+| Import a set (upsert by id, else method and route) | `POST /admin/api/endpoints/import` |
 | Run one (admin "try it") | `POST /admin/api/endpoints/{id}/invoke` |
 | Generate an OpenAPI 3.0 document | `GET /admin/api/openapi.json` |
 
 A create or update reloads the in-memory catalog immediately; one that would duplicate an existing
-method + route returns HTTP 409.
+method + route returns HTTP 409. An import identifies each endpoint by its id when the file carries one
+that names an existing endpoint, and otherwise by its method + route, so a set exported from another
+environment updates the routes it names rather than colliding with them. A conflict that remains (two
+ids on one route) also returns HTTP 409, and the body says how many endpoints were imported before it.
 
 ### Syncing parameters from the database
 

@@ -193,13 +193,15 @@ public sealed class WeirApiClient
         _http.GetFromJsonAsync<List<DbColumnDescriptor>>(
             $"admin/api/introspect/{Uri.EscapeDataString(connection)}/columns?schema={Uri.EscapeDataString(schema)}&obj={Uri.EscapeDataString(objectName)}");
 
-    /// <summary>Imports a set of endpoint definitions (upsert), then reloads the catalog server-side.</summary>
+    /// <summary>Imports a set of endpoint definitions (upserted by id, else by method and route), then
+    /// reloads the catalog server-side.</summary>
     /// <param name="endpoints">The endpoints to import.</param>
     /// <returns>The number of imported endpoints.</returns>
+    /// <remarks>Throws <see cref="WeirApiException"/> carrying the server's RFC 7807 explanation when the
+    /// import is refused (for example a route conflict), so a page can show why rather than a raw status.</remarks>
     public async Task<int> ImportEndpointsAsync(List<EndpointDefinition> endpoints)
     {
-        var response = await _http.PostAsJsonAsync("admin/api/endpoints/import", endpoints);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(await _http.PostAsJsonAsync("admin/api/endpoints/import", endpoints));
         return endpoints.Count;
     }
 
