@@ -89,6 +89,7 @@ weir> create Bolt 1.50                        # POST /api/widgets; prints the ne
 weir> import --item Nut:0.25 --item Washer:0.10   # bulk insert via a table-valued parameter
 weir> call widgets/by-id?id=1                 # call any route, print the raw envelope
 weir> load -c 32 -d 15                        # load-test the widgets endpoint
+weir> stream-list --batches 3 --delay 1000    # print a streaming route's rows as they arrive
 weir> exit
 ```
 
@@ -191,6 +192,16 @@ It prints the headers that decide streaming (`Transfer-Encoding`, `Content-Encod
 **Inconclusive** (2 - the response was too short to tell). If a response buffers, check the endpoint's
 delivery mode, caching and result logging first, then the proxy; see
 [Streaming through the proxy](../docs/en/deployment.md#streaming-through-the-proxy).
+
+`stream` answers *whether* a response streams; **`stream-list` shows the data while it does**. It calls
+the same endpoint with the same options, parses the envelope as it arrives and prints each row the moment
+the bytes that carry it are complete - with the time it arrived and a marker where a new batch begins - so
+you watch the procedure produce rows instead of only reading its timing. It ends with the same verdict as
+`stream`. Only `--compress` does not apply to it (compressed bytes cannot be parsed).
+
+```sh
+dotnet run -- stream-list --url https://weir.example.com --batches 5 --rows 500 --delay 1000
+```
 
 ## A note on the seed format
 

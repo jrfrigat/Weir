@@ -30,6 +30,7 @@ internal static class Dispatch
         "call" => await CallCommand.RunAsync(session, args),
         "load" => await LoadCommand.RunAsync(session, args),
         "stream" => await StreamCommand.RunAsync(session, args),
+        "stream-list" => await StreamListCommand.RunAsync(session, args),
         "demo" => await DemoCommand.RunAsync(session, args),
         "help" or "-h" or "--help" => HelpCommand.Run(),
         _ => Unknown(command),

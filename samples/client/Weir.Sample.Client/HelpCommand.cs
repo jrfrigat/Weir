@@ -43,6 +43,7 @@ internal static class HelpCommand
         general.AddRow("load [[options]]", "Load-test an endpoint (throughput and latency percentiles).");
         general.AddRow("demo [[customerId]]", "Guided tour of the demo endpoints, ending with the streaming check.");
         general.AddRow("stream [[options]]", "Check a response streams end to end (demo: GET /api/stream).");
+        general.AddRow("stream-list [[options]]", "Print the rows of a streaming route as they arrive (demo: GET /api/stream).");
         general.AddRow("help", "Show this help.");
         general.AddRow("clear", "Clear the screen (interactive only).");
         general.AddRow("exit", "Leave the interactive shell.");
@@ -67,13 +68,13 @@ internal static class HelpCommand
         load.AddRow("-w, --warmup <SECONDS>", "Warm-up window, results discarded (default: 0).");
         AnsiConsole.Write(load);
 
-        var stream = new Table { Border = TableBorder.Rounded, Title = new TableTitle("stream options") };
+        var stream = new Table { Border = TableBorder.Rounded, Title = new TableTitle("stream / stream-list options") };
         stream.AddColumn("option");
         stream.AddColumn("description");
         stream.AddRow("--batches <N>", "Batches the demo procedure sends (default: 5).");
         stream.AddRow("--rows <N>", "Rows per batch (default: 500).");
         stream.AddRow("--delay <MS>", "Pause between batches (default: 1000).");
-        stream.AddRow("--compress", "Send Accept-Encoding: br, gzip and time the compressed bytes.");
+        stream.AddRow("--compress", "Send Accept-Encoding: br, gzip and time the compressed bytes (stream only).");
         stream.AddRow("-r, --route <ROUTE>", "Watch any other route instead (with its own query string).");
         stream.AddRow("--gap <MS>", "Silence that separates two bursts (default: a third of --delay).");
         AnsiConsole.Write(stream);
@@ -89,6 +90,7 @@ internal static class HelpCommand
         AnsiConsole.MarkupLine("[grey]  weir-sample load --route widgets -c 32 -d 15[/]");
         AnsiConsole.MarkupLine("[grey]  weir-sample demo                 # full tour, ending with the streaming check[/]");
         AnsiConsole.MarkupLine("[grey]  weir-sample stream --batches 5 --rows 500 --delay 1000 --compress[/]");
+        AnsiConsole.MarkupLine("[grey]  weir-sample stream-list --batches 5 --rows 500 --delay 1000   # rows appear batch by batch[/]");
         return 0;
     }
 
