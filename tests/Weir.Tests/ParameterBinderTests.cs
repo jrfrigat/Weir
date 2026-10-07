@@ -301,6 +301,41 @@ public class ParameterBinderTests
     }
 
     [Fact]
+    public void InputOutput_Parameter_Without_A_Value_Ignores_DefaultValue()
+    {
+        // A caller that sent nothing must not be turned into a caller that sent the default: an omitted
+        // InputOutput parameter is handed to the driver as null (DBNull) so the procedure's own default
+        // applies, exactly as for a pure Output parameter.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "counter",
+            DbType = WeirDbType.Int32,
+            Direction = ParameterDirection.InputOutput,
+            DefaultValue = 99,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{}"));
+        Assert.Null(result.Parameters[0].Value);
+    }
+
+    [Fact]
+    public void InputOutput_Parameter_Without_A_Value_Keys_As_Null()
+    {
+        // The value still lands in the key map (as null), so an endpoint that varies by an InputOutput
+        // parameter keys the same whether the caller omitted it or sent an explicit null.
+        var endpoint = Endpoint(new EndpointParameter
+        {
+            Name = "counter",
+            DbType = WeirDbType.Int32,
+            Direction = ParameterDirection.InputOutput,
+        });
+
+        var result = new ParameterBinder().Bind(Invocation(endpoint, "{}"));
+        Assert.True(result.Values.ContainsKey("counter"));
+        Assert.Null(result.Values["counter"]);
+    }
+
+    [Fact]
     public void Tvp_MatchesRowKeysCaseInsensitively()
     {
         // SQL Server ignores identifier case, and a client that serializes its body with a camelCase

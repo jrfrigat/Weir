@@ -427,7 +427,7 @@ public sealed class WeirEngine : IDisposable
                             var dbStart = Stopwatch.GetTimestamp();
                             await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
                             {
-                                result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: false, cancellationToken);
+                                result = await WeirResponseWriter.WriteAsync(buffer, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: false, cancellationToken, _settings.Current.MaxBinaryBytes);
                             }
 
                             context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
@@ -446,7 +446,7 @@ public sealed class WeirEngine : IDisposable
                             // span to the DB phase and leave StreamingDurationMs at zero.
                             var dbStart = Stopwatch.GetTimestamp();
                             await using var execution = await connector.ExecuteAsync(request, cancellationToken);
-                            result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: true, cancellationToken);
+                            result = await WeirResponseWriter.WriteAsync(output, execution, endpoint, WriterOptions, maxRows, flushBytes, flushWhenWaiting: true, cancellationToken, _settings.Current.MaxBinaryBytes);
                             context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
                             metadata = new WeirResponseMetadata { Truncated = result.Truncated };
                         }
@@ -728,7 +728,8 @@ public sealed class WeirEngine : IDisposable
                     // the MemoryStream it is filling.
                     result = await WeirResponseWriter.WriteAsync(
                         buffer, execution, endpoint, WriterOptions, maxRows,
-                        endpoint.Delivery.FlushBytes ?? settings.ResponseFlushBytes, flushWhenWaiting: false, cancellationToken);
+                        endpoint.Delivery.FlushBytes ?? settings.ResponseFlushBytes, flushWhenWaiting: false, cancellationToken,
+                        settings.MaxBinaryBytes);
                 }
 
                 var dbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;

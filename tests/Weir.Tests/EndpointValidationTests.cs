@@ -223,4 +223,52 @@ public class EndpointValidationTests
         Assert.Contains("BatchSize", errors.Keys);
         Assert.Contains("MaxRows", errors.Keys);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Cache_EnabledWithANonPositiveTtlIsRefused(int ttl)
+    {
+        // A non-positive TTL reaches the response cache's options and makes it throw on a live request.
+        var endpoint = Endpoint(EndpointOperation.Invoke, DbObjectType.StoredProcedure) with
+        {
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = ttl },
+        };
+
+        Assert.Contains("Cache.TtlSeconds", EndpointValidation.Validate(endpoint).Keys);
+    }
+
+    [Fact]
+    public void Cache_EnabledWithATtlAboveTheCapIsRefused()
+    {
+        var endpoint = Endpoint(EndpointOperation.Invoke, DbObjectType.StoredProcedure) with
+        {
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = (int)CacheBounds.TtlSeconds.Max + 1 },
+        };
+
+        Assert.Contains("Cache.TtlSeconds", EndpointValidation.Validate(endpoint).Keys);
+    }
+
+    [Fact]
+    public void Cache_EnabledWithAnInRangeTtlIsFine()
+    {
+        var endpoint = Endpoint(EndpointOperation.Invoke, DbObjectType.StoredProcedure) with
+        {
+            Cache = new CachePolicy { Enabled = true, TtlSeconds = 60 },
+        };
+
+        Assert.Empty(EndpointValidation.Validate(endpoint));
+    }
+
+    [Fact]
+    public void Cache_DisabledWithAnUnsetTtlIsFine()
+    {
+        // Every seed file stores ttlSeconds 0 with the cache off, and nothing reads it in that state.
+        var endpoint = Endpoint(EndpointOperation.Invoke, DbObjectType.StoredProcedure) with
+        {
+            Cache = new CachePolicy { Enabled = false, TtlSeconds = 0 },
+        };
+
+        Assert.Empty(EndpointValidation.Validate(endpoint));
+    }
 }

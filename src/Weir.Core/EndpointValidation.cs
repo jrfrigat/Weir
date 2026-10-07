@@ -46,7 +46,28 @@ public static class EndpointValidation
                 break;
         }
 
+        ValidateCache(endpoint, errors);
+
         return errors.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks a caching policy's numeric values against <see cref="CacheBounds"/>. Only a cached endpoint
+    /// is checked: an endpoint with the cache off stores an unset TTL and that is fine.
+    /// </summary>
+    /// <param name="endpoint">The endpoint whose cache policy is checked.</param>
+    /// <param name="errors">The error accumulator.</param>
+    private static void ValidateCache(EndpointDefinition endpoint, Dictionary<string, List<string>> errors)
+    {
+        if (CacheBounds.FirstViolation(endpoint.Cache) is not { } bound)
+        {
+            return;
+        }
+
+        // A negative or zero TTL reaches the response cache's options and makes it throw on a live
+        // request; an absurdly large one is a paste error. Either way the endpoint is not usable.
+        Add(errors, $"Cache.{bound.Setting}",
+            $"The cache {bound.Setting} must be between {bound.Min} and {bound.Max} seconds when caching is enabled.");
     }
 
     /// <summary>Checks a dictionary endpoint's target and policy.</summary>

@@ -48,6 +48,10 @@ public static class CacheKey
                 return null;
             }
 
+            // A value that is present but null (an InputOutput parameter the caller omitted, or an input
+            // supplied as JSON null) is not the same as an absent name: it is a real answer - "the caller
+            // did not set this" - and Encode tags it distinctly (\0null), so it keys apart from the
+            // absence above and from any other value. This is deliberate; do not fold it into the guard.
             Append(builder, name);
             Append(builder, Encode(value));
         }

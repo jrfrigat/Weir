@@ -112,24 +112,15 @@ public sealed class ParameterBinder : IParameterBinder
     {
         var dbName = definition.DbParameterName ?? definition.Name;
 
-        // Pure Output parameters have no client-supplied value: we emit a driver parameter with
-        // Value = null and skip ReadValue entirely.  InputOutput parameters, by contrast, fall
-        // through to ReadValue which returns (false, null) when the client omits them -- this is
-        // intentional: SQL Server maps all output-capable parameters as InputOutput, so leaving
-        // the value null lets the driver send the default and the procedure populates the output.
+        // Pure Output parameters have no client-supplied value at all. InputOutput parameters usually do,
+        // but the caller may omit one - so both directions can end up with nothing to send. When that
+        // happens the driver is handed null (DBNull): it sends the parameter's default and the procedure
+        // fills the output. Treating the two together is what lets the connector decide - reading the
+        // request for an output-only parameter would be meaningless, and an omitted InputOutput value
+        // must stay null rather than fall back to DefaultValue.
         if (definition.Direction == ParameterDirection.Output)
         {
-            return new WeirParameter
-            {
-                Name = dbName,
-                Direction = definition.Direction,
-                DbType = definition.DbType,
-                Size = definition.Size,
-                Precision = definition.Precision,
-                Scale = definition.Scale,
-                TypeName = definition.TypeName,
-                Value = null,
-            };
+            return Build(null);
         }
 
         if (definition.DbType == WeirDbType.Structured)
@@ -158,6 +149,16 @@ public sealed class ParameterBinder : IParameterBinder
         var (present, value) = ReadValue(invocation, definition);
         if (!present)
         {
+            if (definition.Direction == ParameterDirection.InputOutput)
+            {
+                // No caller value: bind null exactly like a pure Output parameter (see above), and record
+                // it as null for the cache key so an omitted InputOutput keys the same as an explicit null.
+                // DefaultValue is deliberately ignored - a caller that sent nothing must not be turned
+                // into a caller that sent the default.
+                values[definition.Name] = null;
+                return Build(null);
+            }
+
             if (definition.Required)
             {
                 throw new WeirValidationException($"Parameter '{definition.Name}' is required.");
@@ -172,8 +173,11 @@ public sealed class ParameterBinder : IParameterBinder
         }
 
         values[definition.Name] = value;
+        return Build(value);
 
-        return new WeirParameter
+        // Builds a scalar driver parameter from a bound value; shared by the two ways a parameter can end
+        // up with no caller value (a pure Output, or an omitted InputOutput) and the normal read path.
+        WeirParameter Build(object? value) => new()
         {
             Name = dbName,
             Direction = definition.Direction,

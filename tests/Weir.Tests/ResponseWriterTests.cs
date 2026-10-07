@@ -363,4 +363,61 @@ public class ResponseWriterTests
         Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("output").ValueKind);
         Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("returnValue").ValueKind);
     }
+
+    [Fact]
+    public async Task Binary_Cell_Under_The_Cap_Is_Written_Whole()
+    {
+        var written = await WriteBlobAsync(new byte[] { 1, 2, 3 }, maxBinaryBytes: 8);
+
+        using var document = JsonDocument.Parse(written.Bytes);
+        Assert.False(written.Result.Truncated);
+        Assert.False(document.RootElement.GetProperty("truncated").GetBoolean());
+        Assert.Equal(Convert.ToBase64String(new byte[] { 1, 2, 3 }), document.RootElement.GetProperty("data")[0][0].GetProperty("blob").GetString());
+    }
+
+    [Fact]
+    public async Task Binary_Cell_Over_The_Cap_Is_Truncated_And_Flagged()
+    {
+        var written = await WriteBlobAsync(new byte[] { 1, 2, 3, 4, 5, 6 }, maxBinaryBytes: 4);
+
+        using var document = JsonDocument.Parse(written.Bytes);
+        Assert.True(written.Result.Truncated);
+        Assert.True(document.RootElement.GetProperty("truncated").GetBoolean());
+        Assert.Equal(Convert.ToBase64String(new byte[] { 1, 2, 3, 4 }), document.RootElement.GetProperty("data")[0][0].GetProperty("blob").GetString());
+    }
+
+    /// <summary>Writes one BLOB row through the writer and returns the body and the result.</summary>
+    /// <param name="value">The BLOB value to store and read back.</param>
+    /// <param name="maxBinaryBytes">The writer's binary cap; 0 means unlimited.</param>
+    /// <returns>The written body and the writer's result.</returns>
+    private static async Task<(byte[] Bytes, WeirResponseWriter.WriteResult Result)> WriteBlobAsync(byte[] value, int maxBinaryBytes)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using (var setup = connection.CreateCommand())
+        {
+            setup.CommandText = "CREATE TABLE b(id INTEGER, blob BLOB);";
+            await setup.ExecuteNonQueryAsync();
+        }
+
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.CommandText = "INSERT INTO b(id, blob) VALUES (1, $v);";
+            var parameter = insert.CreateParameter();
+            parameter.ParameterName = "$v";
+            parameter.Value = value;
+            insert.Parameters.Add(parameter);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT blob FROM b";
+        var reader = await query.ExecuteReaderAsync();
+        await using var execution = new TestExecution(reader);
+        var endpoint = new EndpointDefinition { Route = "x", ConnectionName = "default", ObjectName = "usp" };
+
+        using var stream = new MemoryStream();
+        var result = await WeirResponseWriter.WriteAsync(stream, execution, endpoint, new JsonWriterOptions(), maxRows: 0, flushBytes: 0, flushWhenWaiting: false, CancellationToken.None, maxBinaryBytes);
+        return (stream.ToArray(), result);
+    }
 }

@@ -81,4 +81,11 @@ public sealed class WeirDataPlaneOptions
     /// Runtime-tunable; seeds <see cref="Weir.Contracts.WeirSystemSettings.ResponseCacheMaxBytes"/>.
     /// </summary>
     public long ResponseCacheMaxBytes { get; set; } = 134_217_728;
+
+    /// <summary>
+    /// Maximum bytes of a single binary (BLOB) column value materialized in a data-plane response.
+    /// Zero means unlimited. Runtime-tunable; seeds
+    /// <see cref="Weir.Contracts.WeirSystemSettings.MaxBinaryBytes"/>.
+    /// </summary>
+    public int MaxBinaryBytes { get; set; }
 }

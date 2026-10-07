@@ -85,6 +85,14 @@ public static class SettingsBounds
     public static Bound ResponseFlushBytes { get; } =
         new(nameof(WeirSystemSettings.ResponseFlushBytes), 0, 1_048_576, s => s.ResponseFlushBytes);
 
+    /// <summary>
+    /// Range for <see cref="WeirSystemSettings.MaxBinaryBytes"/>. Zero (unlimited) is a supported
+    /// configuration; the ceiling is the property's own type, since the cap exists to bound the one
+    /// allocation that still grows with a single value's size rather than to recommend a size.
+    /// </summary>
+    public static Bound MaxBinaryBytes { get; } =
+        new(nameof(WeirSystemSettings.MaxBinaryBytes), 0, int.MaxValue, s => s.MaxBinaryBytes);
+
     /// <summary>Every bound, in the order the admin form lays the settings out.</summary>
     public static IReadOnlyList<Bound> All { get; } =
     [
@@ -102,6 +110,7 @@ public static class SettingsBounds
         RequestLogRetentionDays,
         ResponseCacheMaxBytes,
         ResponseFlushBytes,
+        MaxBinaryBytes,
     ];
 
     /// <summary>Finds the first setting whose value falls outside its accepted range.</summary>

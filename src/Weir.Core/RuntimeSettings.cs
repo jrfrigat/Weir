@@ -66,6 +66,7 @@ public sealed partial class RuntimeSettings : IRuntimeSettings
             CircuitBreakerResetSeconds = seed.CircuitBreakerResetSeconds,
             ApiKeyFailureThreshold = seed.ApiKeyFailureThreshold,
             ResponseCacheMaxBytes = seed.ResponseCacheMaxBytes,
+            MaxBinaryBytes = seed.MaxBinaryBytes,
         };
     }
 

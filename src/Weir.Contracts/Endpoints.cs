@@ -276,7 +276,12 @@ public sealed record CachePolicy
     /// <summary>Whether responses for the endpoint are cached.</summary>
     public bool Enabled { get; init; }
 
-    /// <summary>Time-to-live for a cached response, in seconds.</summary>
+    /// <summary>
+    /// Time-to-live for a cached response, in seconds. While <see cref="Enabled"/> is set the accepted
+    /// range is <c>[1, 31536000]</c> (one second to one year) - see
+    /// <see cref="CacheBounds.TtlSeconds"/>, which the admin form and the admin API both read. A value
+    /// below one second has no meaning and would reach the cache as a non-positive expiration.
+    /// </summary>
     public int TtlSeconds { get; init; }
 
     /// <summary>Names of the input parameters whose values form the cache key. Empty = key on route only.</summary>

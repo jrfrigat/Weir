@@ -151,6 +151,14 @@ public sealed record WeirSystemSettings
     /// </para>
     /// </summary>
     public ResponseCompressionMode ResponseCompressionMode { get; init; } = ResponseCompressionMode.Auto;
+
+    /// <summary>
+    /// How many bytes of a single binary (BLOB) column value may be materialized before the value is
+    /// truncated and the response is marked <c>truncated</c>. A binary value is read whole into memory to
+    /// be Base64-encoded, so without a cap a single large BLOB is the one place the row hot path still
+    /// allocates with the value's size. Zero means unlimited (the historical behaviour).
+    /// </summary>
+    public int MaxBinaryBytes { get; init; }
 }
 
 /// <summary>

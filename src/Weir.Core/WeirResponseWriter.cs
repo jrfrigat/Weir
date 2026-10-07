@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Data.Common;
 using System.Text.Json;
 using Weir.Abstractions;
@@ -21,9 +22,9 @@ internal static class WeirResponseWriter
     /// </summary>
     private const int DefaultFlushThresholdBytes = 32 * 1024;
 
-    /// <summary>The outcome of streaming one response: rows written and whether the row cap was hit.</summary>
+    /// <summary>The outcome of streaming one response: rows written and whether the response is partial.</summary>
     /// <param name="RowCount">Number of data rows written across all result sets.</param>
-    /// <param name="Truncated">Whether the row cap was reached and the response closed early.</param>
+    /// <param name="Truncated">Whether the response is partial - the row cap was reached, or a binary value was cut to the byte cap.</param>
     internal readonly record struct WriteResult(int RowCount, bool Truncated);
 
     /// <summary>Streams the full response envelope for one execution into <paramref name="output"/>.</summary>
@@ -49,6 +50,12 @@ internal static class WeirResponseWriter
     /// driver already holds.
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="maxBinaryBytes">
+    /// How many bytes of a single binary (BLOB) column value may be materialized before the value is
+    /// truncated and the response is flagged. A binary value is read whole into memory to be
+    /// Base64-encoded, so an unbounded BLOB is the one place the streaming row path still allocates with
+    /// the value's size; capping it bounds that. Zero or less means unlimited (no cap).
+    /// </param>
     /// <returns>The number of data rows written and whether the response was truncated.</returns>
     public static async Task<WriteResult> WriteAsync(
         Stream output,
@@ -58,7 +65,8 @@ internal static class WeirResponseWriter
         int maxRows,
         int flushBytes,
         bool flushWhenWaiting,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int maxBinaryBytes = 0)
     {
         var rowCount = 0;
         var truncated = false;
@@ -104,7 +112,10 @@ internal static class WeirResponseWriter
                     for (var i = 0; i < fieldCount; i++)
                     {
                         writer.WritePropertyName(names[i]);
-                        WriteCell(writer, reader, i, kinds[i]);
+                        if (WriteCell(writer, reader, i, kinds[i], maxBinaryBytes))
+                        {
+                            truncated = true;
+                        }
                     }
 
                     writer.WriteEndObject();
@@ -346,12 +357,14 @@ internal static class WeirResponseWriter
     /// <param name="reader">The positioned data reader.</param>
     /// <param name="ordinal">The column ordinal.</param>
     /// <param name="kind">The column's value-writing kind.</param>
-    private static void WriteCell(Utf8JsonWriter writer, DbDataReader reader, int ordinal, ColumnKind kind)
+    /// <param name="maxBinaryBytes">Cap on a binary value's bytes; 0 or less means unlimited.</param>
+    /// <returns>True when a binary value was truncated to <paramref name="maxBinaryBytes"/>.</returns>
+    private static bool WriteCell(Utf8JsonWriter writer, DbDataReader reader, int ordinal, ColumnKind kind, int maxBinaryBytes)
     {
         if (reader.IsDBNull(ordinal))
         {
             writer.WriteNullValue();
-            return;
+            return false;
         }
 
         switch (kind)
@@ -368,9 +381,50 @@ internal static class WeirResponseWriter
             case ColumnKind.DateTimeOffset: writer.WriteStringValue(reader.GetFieldValue<DateTimeOffset>(ordinal)); break;
             case ColumnKind.Guid: writer.WriteStringValue(reader.GetGuid(ordinal)); break;
             case ColumnKind.String: writer.WriteStringValue(reader.GetString(ordinal)); break;
-            case ColumnKind.Bytes: writer.WriteBase64StringValue(reader.GetFieldValue<byte[]>(ordinal)); break;
+            case ColumnKind.Bytes: return WriteBytes(writer, reader, ordinal, maxBinaryBytes);
             case ColumnKind.TimeSpan: writer.WriteStringValue(reader.GetFieldValue<TimeSpan>(ordinal).ToString()); break;
             default: WriteValue(writer, reader.GetValue(ordinal)); break;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Writes a binary value as Base64, capping how much is materialized. Without a cap the value is read
+    /// whole (the historical behaviour); with one, a value larger than the cap is read into a pooled buffer
+    /// of exactly the cap's size, so a huge BLOB costs a bounded allocation instead of the value's own size.
+    /// </summary>
+    /// <param name="writer">The JSON writer.</param>
+    /// <param name="reader">The positioned data reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <param name="maxBinaryBytes">The byte cap; 0 or less means unlimited.</param>
+    /// <returns>True when the value was truncated to the cap.</returns>
+    private static bool WriteBytes(Utf8JsonWriter writer, DbDataReader reader, int ordinal, int maxBinaryBytes)
+    {
+        if (maxBinaryBytes <= 0)
+        {
+            writer.WriteBase64StringValue(reader.GetFieldValue<byte[]>(ordinal));
+            return false;
+        }
+
+        // GetBytes with a null buffer returns the field's length without reading it, so a value under the
+        // cap is materialized the ordinary way and only one over the cap pays the chunked read.
+        if (reader.GetBytes(ordinal, 0, null, 0, 0) <= maxBinaryBytes)
+        {
+            writer.WriteBase64StringValue(reader.GetFieldValue<byte[]>(ordinal));
+            return false;
+        }
+
+        var buffer = ArrayPool<byte>.Shared.Rent(maxBinaryBytes);
+        try
+        {
+            var read = (int)reader.GetBytes(ordinal, 0, buffer, 0, maxBinaryBytes);
+            writer.WriteBase64StringValue(buffer.AsSpan(0, read));
+            return true;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
