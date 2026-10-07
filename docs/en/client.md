@@ -82,6 +82,41 @@ var stamp  = result.OutputValue<DateTime>("generatedAt");
 `result.Truncated` is `true` when the gateway's row cap cut the response short. It is a partial
 answer, not the end of the data - treat it as one.
 
+## Streaming a response
+
+An endpoint the gateway streams (delivery mode `Stream`) writes its rows as the procedure produces them.
+`StreamEventsAsync` hands each one over the moment its bytes are complete, so a caller can show data while
+the request is still running; `StreamAsync<T>` is the same thing as typed rows.
+
+```csharp
+await foreach (var item in client.StreamEventsAsync("api/reports/stream", new { year = 2026 }))
+{
+    if (item.Kind == WeirStreamEventKind.ResultSetStarted)
+    {
+        Console.WriteLine($"-- batch {item.ResultSetIndex} --");
+        continue;
+    }
+
+    Console.WriteLine(JsonSerializer.Deserialize<Line>(item.Json.Span));
+}
+```
+
+A row travels as its raw UTF-8 JSON (`item.Json`) rather than as a parsed element: the row shape is the
+procedure's, and the client does not keep a JSON document alive per row. `ResultSetIndex` is 0-based, and
+a procedure that sends its rows in batches produces one set per batch; `ResultSetStarted` arrives even for
+a batch that has no rows, so a boundary is never missed.
+
+```csharp
+await foreach (var line in client.StreamAsync<Line>("api/reports/stream", new { year = 2026 }))
+{
+    Console.WriteLine(line.Amount);
+}
+```
+
+Only `data` is streamed. `output`, `returnValue` and `rowsAffected` are written after the result sets and
+are not reported here - a caller that needs them uses the buffered methods. Against an endpoint that does
+not stream, the same rows arrive at once, at the end.
+
 ## Dictionary endpoints
 
 `GetPageAsync` fills in the reserved keys (`search`, `page`, `pageSize`, `sort`, `sortDir`) and sends

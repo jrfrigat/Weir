@@ -14,6 +14,12 @@ All notable changes to this project are documented here. The format is based on
   `endpoints.seed.json` its `stream` route (delivery mode Stream), so `weir-sample stream` has an
   endpoint to check on the basic sample, not only on the demo database; `postgres/schema.sql` gains
   `stream_widgets` for parity.
+- **The client package can read a response as it arrives.** `FrigaT.Weir.Client` gains a streaming API:
+  `StreamEventsAsync` yields each row - and each result-set boundary - the moment its bytes are complete,
+  and `StreamAsync<T>` yields the same as typed rows. Only `data` is reported: `output` and `returnValue`
+  are written after the result sets. Until now every method waited for the whole body, which left a caller
+  that wanted to show data during a long procedure with nothing to use. See
+  [docs/en/client.md](docs/en/client.md#streaming-a-response).
 
 ## [2.1.0] - 2026-10-07
 

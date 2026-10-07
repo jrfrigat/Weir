@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
@@ -354,6 +355,116 @@ public sealed class WeirClient
             Deleted = deleted,
             Mode = mode,
         };
+    }
+
+    // ===== Streaming ==============================================================================
+
+    /// <summary>
+    /// Calls a GET endpoint and reads its rows as they arrive, instead of waiting for the whole body. The
+    /// endpoint has to be one the gateway streams (delivery mode <c>Stream</c>); against a buffered
+    /// endpoint the same rows are returned, all at once, at the end.
+    /// <para>
+    /// Only <c>data</c> is reported: <c>output</c>, <c>returnValue</c> and <c>rowsAffected</c> are written
+    /// after the result sets, so a caller that needs them uses the buffered methods instead.
+    /// </para>
+    /// </summary>
+    /// <param name="route">Route relative to the gateway, e.g. <c>api/reports/stream</c>.</param>
+    /// <param name="query">Parameters as an object or dictionary; null members are left out.</param>
+    /// <param name="cancellationToken">Cancellation token; cancelling stops the read and closes the response.</param>
+    /// <returns>The rows and result-set boundaries, in the order the gateway wrote them.</returns>
+    /// <exception cref="WeirApiException">
+    /// The call failed, or the body ended inside a value. The message is fit to show.
+    /// </exception>
+    public async IAsyncEnumerable<WeirStreamEvent> StreamEventsAsync(
+        string route,
+        object? query = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, BuildUrl(route, query));
+        using var response = await _http
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw await ToExceptionAsync(response, cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var parser = new EnvelopeStreamParser();
+        var buffer = new byte[16 * 1024];
+
+        while (true)
+        {
+            bool done;
+            List<WeirStreamEvent> events;
+            try
+            {
+                // A value cannot be yielded from inside a try that has a catch, so the read and the parsing
+                // happen here and the events are handed over just below.
+                (done, events) = await ReadChunkAsync(body, parser, buffer, cancellationToken).ConfigureAwait(false);
+            }
+            catch (JsonException ex)
+            {
+                throw new WeirApiException(
+                    "The streamed response ended inside a value: it was truncated, or is not a Weir envelope.", ex);
+            }
+            catch (IOException ex)
+            {
+                throw new WeirApiException("The streamed response ended before the last row arrived.", ex);
+            }
+
+            foreach (var item in events)
+            {
+                yield return item;
+            }
+
+            if (done)
+            {
+                yield break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Calls a GET endpoint and reads its rows as they arrive, as typed rows. Result-set boundaries are not
+    /// reported - every row of every set is yielded in order; use <see cref="StreamEventsAsync"/> to see
+    /// where one set ends and the next begins.
+    /// </summary>
+    /// <typeparam name="T">The row model; its property names must match the SQL column names.</typeparam>
+    /// <param name="route">Route relative to the gateway.</param>
+    /// <param name="query">Parameters as an object or dictionary; null members are left out.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The typed rows, in the order the gateway wrote them.</returns>
+    /// <exception cref="WeirApiException">The call failed, or the body ended inside a value.</exception>
+    public async IAsyncEnumerable<T> StreamAsync<T>(
+        string route,
+        object? query = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var item in StreamEventsAsync(route, query, cancellationToken).ConfigureAwait(false))
+        {
+            if (item.Kind == WeirStreamEventKind.Row &&
+                JsonSerializer.Deserialize<T>(item.Json.Span, WeirResultExtensions.RowOptions) is { } row)
+            {
+                yield return row;
+            }
+        }
+    }
+
+    /// <summary>Reads the next chunk of the body and feeds it to the parser.</summary>
+    /// <param name="body">The response body.</param>
+    /// <param name="parser">The parser to feed.</param>
+    /// <param name="buffer">The read buffer to reuse.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Whether the body ended, and the events this chunk completed.</returns>
+    private static async Task<(bool Done, List<WeirStreamEvent> Events)> ReadChunkAsync(
+        Stream body, EnvelopeStreamParser parser, byte[] buffer, CancellationToken cancellationToken)
+    {
+        var read = await body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        return read > 0
+            ? (false, parser.Feed(buffer.AsSpan(0, read), isFinal: false))
+            : (true, parser.Feed(ReadOnlySpan<byte>.Empty, isFinal: true));
     }
 
     // ===== Plumbing ===============================================================================

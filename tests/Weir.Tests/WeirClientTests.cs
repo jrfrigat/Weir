@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using Weir.Client;
 using Xunit;
 
@@ -54,6 +56,100 @@ public class WeirClientTests
     }
 
     private sealed record Product(int ProductId, string Name, decimal Price);
+
+    /// <summary>Row options matching the client's own, so assertions read a row the same way it does.</summary>
+    private static readonly JsonSerializerOptions RowOptions = new() { PropertyNameCaseInsensitive = true };
+
+    /// <summary>A transport that answers with a body delivered in scripted chunks, one per read.</summary>
+    private sealed class ChunkedHandler : HttpMessageHandler
+    {
+        private readonly IReadOnlyList<string> _chunks;
+        private readonly Func<int, CancellationToken, Task>? _before;
+
+        public ChunkedHandler(IReadOnlyList<string> chunks, Func<int, CancellationToken, Task>? before = null)
+        {
+            _chunks = chunks;
+            _before = before;
+        }
+
+        public HttpRequestMessage? LastRequest { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            LastRequest = request;
+            var content = new StreamContent(new ChunkStream(_chunks, _before));
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        }
+    }
+
+    /// <summary>Hands out one scripted chunk per read, then reports the end; can wait before a chunk.</summary>
+    private sealed class ChunkStream : Stream
+    {
+        private readonly IReadOnlyList<string> _chunks;
+        private readonly Func<int, CancellationToken, Task>? _before;
+        private int _index;
+
+        public ChunkStream(IReadOnlyList<string> chunks, Func<int, CancellationToken, Task>? before)
+        {
+            _chunks = chunks;
+            _before = before;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_before is not null)
+            {
+                await _before(_index, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (_index >= _chunks.Count)
+            {
+                return 0;
+            }
+
+            var chunk = Encoding.UTF8.GetBytes(_chunks[_index++]);
+            chunk.CopyTo(buffer);
+            return chunk.Length;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>Builds a client whose response body arrives in the given chunks, one per read.</summary>
+    private static (WeirClient Client, ChunkedHandler Handler) BuildStreaming(
+        IReadOnlyList<string> chunks, Func<int, CancellationToken, Task>? before = null)
+    {
+        var handler = new ChunkedHandler(chunks, before);
+        var http = new HttpClient(handler) { BaseAddress = new Uri("https://weir.test/") };
+        return (new WeirClient(http), handler);
+    }
 
     /// <summary>A stable array, so the query-rendering test is not re-allocating a constant each run.</summary>
     private static readonly int[] ThreeIds = [1, 2, 3];
@@ -227,5 +323,163 @@ public class WeirClientTests
     {
         var (client, _) = Build("""{"data":[[]],"truncated":true}""");
         Assert.True((await client.GetAsync("api/x")).Truncated);
+    }
+
+    [Fact]
+    public async Task Stream_YieldsRowsWhileTheBodyIsStillOpen()
+    {
+        // The second batch is not read until the test lets it through, so a row already in hand proves the
+        // read did not wait for the body to end - which is the whole point of the streaming API.
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (client, _) = BuildStreaming(
+            [
+                """{"data":[[{"ProductId":1,"Name":"Widget","Price":9.99}]""",
+                """,[{"ProductId":2,"Name":"Gadget","Price":19.5}]]}""",
+            ],
+            (index, _) => index == 1 ? gate.Task : Task.CompletedTask);
+
+        await using var rows = client.StreamEventsAsync("api/stream").GetAsyncEnumerator();
+
+        Assert.True(await rows.MoveNextAsync());
+        Assert.Equal(WeirStreamEventKind.ResultSetStarted, rows.Current.Kind);
+
+        Assert.True(await rows.MoveNextAsync());
+        Assert.Equal(WeirStreamEventKind.Row, rows.Current.Kind);
+        Assert.Equal(1, JsonSerializer.Deserialize<Product>(rows.Current.Json.Span, RowOptions)!.ProductId);
+
+        // The row is in hand and the second batch has not been requested: the response is still open.
+        Assert.False(gate.Task.IsCompleted);
+
+        gate.SetResult();
+        Assert.True(await rows.MoveNextAsync());
+        Assert.Equal(WeirStreamEventKind.ResultSetStarted, rows.Current.Kind);
+        Assert.Equal(1, rows.Current.ResultSetIndex);
+        Assert.True(await rows.MoveNextAsync());
+        Assert.Equal(2, JsonSerializer.Deserialize<Product>(rows.Current.Json.Span, RowOptions)!.ProductId);
+        Assert.False(await rows.MoveNextAsync());
+    }
+
+    [Fact]
+    public async Task Stream_ReassemblesARowSplitAcrossReads()
+    {
+        const string Body =
+            """{"data":[[{"ProductId":1,"Name":"Widget","Price":9.99}],[{"ProductId":2,"Name":"Gadget","Price":19.5}]],"rowsAffected":-1}""";
+
+        // One byte per read, so every token boundary falls on a chunk boundary at some point.
+        var (client, _) = BuildStreaming([.. Body.Select(character => character.ToString())]);
+
+        var events = new List<WeirStreamEvent>();
+        await foreach (var item in client.StreamEventsAsync("api/stream"))
+        {
+            events.Add(item);
+        }
+
+        var sets = events.Where(item => item.Kind == WeirStreamEventKind.ResultSetStarted).ToList();
+        var rows = events.Where(item => item.Kind == WeirStreamEventKind.Row).ToList();
+
+        Assert.Equal(new[] { 0, 1 }, sets.Select(item => item.ResultSetIndex));
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(0, rows[0].ResultSetIndex);
+        Assert.Equal(1, rows[1].ResultSetIndex);
+        Assert.Equal("Gadget", JsonSerializer.Deserialize<Product>(rows[1].Json.Span, RowOptions)!.Name);
+        Assert.Equal(19.5m, JsonSerializer.Deserialize<Product>(rows[1].Json.Span, RowOptions)!.Price);
+    }
+
+    [Fact]
+    public async Task Stream_AsTypedRowsReadsEverySet()
+    {
+        var (client, _) = BuildStreaming([TwoProducts]);
+
+        var names = new List<string>();
+        await foreach (var row in client.StreamAsync<Product>("api/products"))
+        {
+            names.Add(row.Name);
+        }
+
+        Assert.Equal(new[] { "Widget", "Gadget" }, names);
+    }
+
+    [Fact]
+    public async Task Stream_ReportsTheProblemBeforeTheFirstRow()
+    {
+        var (client, _) = Build(
+            """{"title":"Database error","detail":"Invalid column name 'Foo'."}""",
+            HttpStatusCode.BadRequest,
+            "application/problem+json");
+
+        var ex = await Assert.ThrowsAsync<WeirApiException>(async () =>
+        {
+            await foreach (var _ in client.StreamEventsAsync("api/stream"))
+            {
+            }
+        });
+
+        Assert.Equal("Invalid column name 'Foo'.", ex.Message);
+        Assert.Equal(HttpStatusCode.BadRequest, ex.Status);
+    }
+
+    [Fact]
+    public async Task Stream_ReportsABodyThatEndsInsideAValue()
+    {
+        var (client, _) = BuildStreaming(["{\"data\":[[{\"ProductId\":1,\""]);
+
+        var ex = await Assert.ThrowsAsync<WeirApiException>(async () =>
+        {
+            await foreach (var _ in client.StreamEventsAsync("api/stream"))
+            {
+            }
+        });
+
+        Assert.Contains("ended inside a value", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Stream_ReportsABodyThatIsNotAWeirEnvelope()
+    {
+        var (client, _) = BuildStreaming(["<html>nginx</html>"]);
+
+        var ex = await Assert.ThrowsAsync<WeirApiException>(async () =>
+        {
+            await foreach (var _ in client.StreamEventsAsync("api/stream"))
+            {
+            }
+        });
+
+        Assert.Contains("not a Weir envelope", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Stream_StopsWhenCancelled()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var (client, _) = BuildStreaming(
+            ["{\"data\":[[{\"ProductId\":1", "}]]}"],
+            (index, token) => index == 1 ? Task.Delay(Timeout.Infinite, token) : Task.CompletedTask);
+
+        await using var rows = client
+            .StreamEventsAsync("api/stream", null, cancellation.Token)
+            .GetAsyncEnumerator();
+
+        Assert.True(await rows.MoveNextAsync());
+        Assert.Equal(WeirStreamEventKind.ResultSetStarted, rows.Current.Kind);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await rows.MoveNextAsync());
+    }
+
+    [Fact]
+    public async Task Stream_IgnoresAnEnvelopeWhoseDataIsNotAnArray()
+    {
+        // A "data" that is null must not let a later array (here one inside "messages") pass for the data
+        // array, which would report that array's objects as rows.
+        var (client, _) = BuildStreaming(["""{"data":null,"messages":[{"text":"PRINT"}],"output":{}}"""]);
+
+        var events = new List<WeirStreamEvent>();
+        await foreach (var item in client.StreamEventsAsync("api/x"))
+        {
+            events.Add(item);
+        }
+
+        Assert.Empty(events);
     }
 }

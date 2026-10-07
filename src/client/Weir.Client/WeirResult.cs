@@ -118,9 +118,10 @@ public static class WeirResultExtensions
 {
     /// <summary>
     /// Case-insensitive matching, because a row's property names are SQL column names and the C# model
-    /// naming them will not agree with the database's casing convention.
+    /// naming them will not agree with the database's casing convention. Shared with the streaming reader,
+    /// which deserializes one row at a time.
     /// </summary>
-    private static readonly JsonSerializerOptions RowOptions = new() { PropertyNameCaseInsensitive = true };
+    internal static readonly JsonSerializerOptions RowOptions = new() { PropertyNameCaseInsensitive = true };
 
     /// <summary>Reads one result set as typed rows; an absent set reads as no rows.</summary>
     /// <typeparam name="T">The row model; its property names must match the SQL column names.</typeparam>

@@ -82,6 +82,42 @@ var stamp  = result.OutputValue<DateTime>("generatedAt");
 `result.Truncated` равен `true`, когда лимит строк шлюза обрезал ответ. Это частичный ответ, а не
 конец данных - так к нему и относитесь.
 
+## Потоковая передача ответа
+
+Эндпоинт, который шлюз отдаёт потоком (delivery mode `Stream`), пишет строки по мере того, как их
+выдаёт процедура. `StreamEventsAsync` отдаёт каждую строку в момент, когда её байты долились, так что
+вызывающий может показывать данные, пока запрос ещё выполняется; `StreamAsync<T>` - то же самое
+типизированными строками.
+
+```csharp
+await foreach (var item in client.StreamEventsAsync("api/reports/stream", new { year = 2026 }))
+{
+    if (item.Kind == WeirStreamEventKind.ResultSetStarted)
+    {
+        Console.WriteLine($"-- пачка {item.ResultSetIndex} --");
+        continue;
+    }
+
+    Console.WriteLine(JsonSerializer.Deserialize<Line>(item.Json.Span));
+}
+```
+
+Строка едет сырым UTF-8 JSON (`item.Json`), а не разобранным элементом: форма строки - это форма
+процедуры, и держать по документу JSON на строку клиент не станет. `ResultSetIndex` считается с нуля, и
+процедура, отдающая строки пачками, даёт по набору на пачку; `ResultSetStarted` приходит даже для
+пачки без строк, поэтому граница не теряется.
+
+```csharp
+await foreach (var line in client.StreamAsync<Line>("api/reports/stream", new { year = 2026 }))
+{
+    Console.WriteLine(line.Amount);
+}
+```
+
+Потоком идёт только `data`. `output`, `returnValue` и `rowsAffected` пишутся после наборов и здесь не
+сообщаются - кому они нужны, тот берёт буферизующие методы. Против эндпоинта, который не стримит, те же
+строки придут сразу, в конце.
+
 ## Эндпоинты-справочники
 
 `GetPageAsync` заполняет зарезервированные ключи (`search`, `page`, `pageSize`, `sort`, `sortDir`) и
