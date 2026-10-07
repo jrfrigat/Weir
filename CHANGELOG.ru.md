@@ -28,6 +28,10 @@
   завершается проверкой потоковой передачи, так что одна команда показывает всю поверхность и
   заканчивается процедурой, строки которой приходят пачками. См.
   [samples/README.ru.md](samples/README.ru.md#режим-demo).
+- **Widgets-пример тоже умеет стримить.** В `sqlserver/schema.sql` появилась `dbo.StreamWidgets`, а в
+  `endpoints.seed.json` - маршрут `stream` (delivery mode Stream), так что у `weir-sample stream` есть
+  эндпоинт и на базовом примере, не только на демо-базе; в `postgres/schema.sql` добавлена
+  `stream_widgets` для паритета.
 
 ### Изменено
 

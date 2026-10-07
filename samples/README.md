@@ -53,13 +53,15 @@ error handling with THROW.
    configuration guide). For SQL Server set the connection `Provider` to `SqlServer`; for
    PostgreSQL set it to `PostgreSql`.
 3. Sign in to the admin UI, open **Endpoints**, and use **Import** to load
-   `endpoints.seed.json`. The four sample endpoints appear immediately.
+   `endpoints.seed.json`. The five sample endpoints appear immediately.
 4. Create an API key (give it any scope, or none), then call the endpoints, for example:
    - `GET /api/widgets`
    - `GET /api/widgets/by-id?id=1`
    - `POST /api/widgets` with body `{ "name": "Bolt", "price": 1.50 }`
    - `POST /api/widgets/import` with body
      `{ "items": [ { "Name": "Nut", "Price": 0.25 }, { "Name": "Washer", "Price": 0.10 } ] }`
+   - `GET /api/stream?batches=5&rowsPerBatch=500&delayMs=1000` (batches of rows with a pause between
+     them; see [Streaming check](#streaming-check))
 
 ## CLI sample client
 
@@ -165,10 +167,11 @@ benchmarking rig.
 ### Streaming check
 
 The `stream` command checks that a response really streams through the whole chain - the database,
-Weir, and anything between Weir and the client. It calls the demo database's `GET /api/stream` (the
-`sales.StreamBatches` procedure sends batches of rows, each its own result set, with a pause between
-them) and records when each piece of the body arrives. A streamed response arrives in bursts spaced by
-the pause; one that something held back arrives in a single burst at the end.
+Weir, and anything between Weir and the client. It calls `GET /api/stream` - the widgets sample's
+`dbo.StreamWidgets` and the demo database's `sales.StreamBatches` both send batches of rows, each its
+own result set, with a pause between them - and records when each piece of the body arrives. A streamed
+response arrives in bursts spaced by the pause; one that something held back arrives in a single burst
+at the end.
 
 ```sh
 # Directly against Weir, then through the proxy - and compare:

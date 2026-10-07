@@ -50,3 +50,40 @@ BEGIN
     RETURN inserted;
 END;
 $$;
+
+-- Streaming check for PostgreSQL: a set-returning function that yields rows in batches, pausing between
+-- them. Rows produced before a pause reach the client before it (Npgsql streams the reader), which is
+-- what `weir-sample stream` measures. There is no endpoint seed for PostgreSQL - create the endpoint in
+-- the admin UI: provider PostgreSql, object stream_widgets, result mode multi-row, delivery mode Stream.
+CREATE OR REPLACE FUNCTION stream_widgets(
+    p_batches        integer DEFAULT 5,
+    p_rows_per_batch integer DEFAULT 500,
+    p_delay_ms       integer DEFAULT 1000)
+RETURNS TABLE (batch integer, seq integer, produced_at_utc timestamptz, payload text)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    b integer;
+    s integer;
+BEGIN
+    IF p_batches NOT BETWEEN 1 AND 100
+       OR p_rows_per_batch NOT BETWEEN 1 AND 10000
+       OR p_delay_ms NOT BETWEEN 0 AND 10000 THEN
+        RAISE EXCEPTION 'Batches must be 1-100, RowsPerBatch 1-10000 and DelayMs 0-10000.';
+    END IF;
+
+    FOR b IN 1..p_batches LOOP
+        FOR s IN 1..p_rows_per_batch LOOP
+            batch := b;
+            seq := s;
+            produced_at_utc := clock_timestamp();
+            payload := repeat('x', 64);
+            RETURN NEXT;
+        END LOOP;
+
+        IF b < p_batches AND p_delay_ms > 0 THEN
+            PERFORM pg_sleep(p_delay_ms / 1000.0);
+        END IF;
+    END LOOP;
+END;
+$$;
