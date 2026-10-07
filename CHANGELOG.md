@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **The widgets sample can demonstrate streaming.** `sqlserver/schema.sql` gains `dbo.StreamWidgets` and
+  `endpoints.seed.json` its `stream` route (delivery mode Stream), so `weir-sample stream` has an
+  endpoint to check on the basic sample, not only on the demo database; `postgres/schema.sql` gains
+  `stream_widgets` for parity.
+
 ## [2.1.0] - 2026-10-07
 
 ### Added
@@ -26,10 +33,6 @@ All notable changes to this project are documented here. The format is based on
   row, an order built from a table-valued parameter, its detail, and output-only statistics - and
   finishes with the streaming check, so one command shows the whole surface and ends on a procedure
   whose rows arrive batch by batch. See [samples/README.md](samples/README.md#demo-mode).
-- **The widgets sample can demonstrate streaming.** `sqlserver/schema.sql` gains `dbo.StreamWidgets` and
-  `endpoints.seed.json` its `stream` route (delivery mode Stream), so `weir-sample stream` has an
-  endpoint to check on the basic sample, not only on the demo database; `postgres/schema.sql` gains
-  `stream_widgets` for parity.
 
 ### Changed
 
