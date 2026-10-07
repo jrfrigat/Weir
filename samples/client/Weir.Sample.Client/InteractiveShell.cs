@@ -17,7 +17,7 @@ internal static class InteractiveShell
     public static async Task<int> RunAsync(Session session)
     {
         AnsiConsole.MarkupLine($"[bold]weir-sample[/] interactive - connected to [cyan]{Markup.Escape(session.Url)}[/]");
-        AnsiConsole.MarkupLine("[grey]Commands: list, get, create, import, call, load. Type 'help' for details, 'exit' to quit.[/]");
+        AnsiConsole.MarkupLine("[grey]Commands: list, get, create, import, products, product, orders, order, create-order, customer-stats, call, load, demo, stream. Type 'help' for details, 'exit' to quit.[/]");
         AnsiConsole.WriteLine();
 
         while (true)

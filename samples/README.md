@@ -127,6 +127,20 @@ shows the order id and total (output parameters) and the item count (procedure r
 renders both result sets (the order header and its line items). Any other demo route - `products/search`,
 `products/price`, `inventory/adjust`, `ping`, ... - is reachable with the generic `call` command.
 
+#### Demo mode
+
+`demo [customerId]` runs the whole tour above in one command and finishes with the streaming check, so a
+single invocation shows every feature and ends on the procedure whose rows arrive batch by batch:
+
+```sh
+dotnet run -- demo
+dotnet run -- demo 1        # tour customer 1's endpoints
+```
+
+Each step is independent: one that fails prints its error and the tour continues, so a partially
+configured host still demonstrates what it can. The command's exit code is the streaming step's verdict
+(0 streamed, 1 buffered, 2 inconclusive).
+
 ### Load testing
 
 The `load` command drives concurrent requests against one endpoint and reports throughput and latency

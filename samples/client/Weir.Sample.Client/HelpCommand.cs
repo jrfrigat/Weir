@@ -41,6 +41,7 @@ internal static class HelpCommand
         general.AddColumn("description");
         general.AddRow("call <route> [[-X M]] [[-b JSON]]", "Call any endpoint and print the raw envelope.");
         general.AddRow("load [[options]]", "Load-test an endpoint (throughput and latency percentiles).");
+        general.AddRow("demo [[customerId]]", "Guided tour of the demo endpoints, ending with the streaming check.");
         general.AddRow("stream [[options]]", "Check a response streams end to end (demo: GET /api/stream).");
         general.AddRow("help", "Show this help.");
         general.AddRow("clear", "Clear the screen (interactive only).");
@@ -86,6 +87,8 @@ internal static class HelpCommand
         AnsiConsole.MarkupLine("[grey]  weir-sample list[/]");
         AnsiConsole.MarkupLine("[grey]  weir-sample import --item Nut:0.25 --item Washer:0.10[/]");
         AnsiConsole.MarkupLine("[grey]  weir-sample load --route widgets -c 32 -d 15[/]");
+        AnsiConsole.MarkupLine("[grey]  weir-sample demo                 # full tour, ending with the streaming check[/]");
+        AnsiConsole.MarkupLine("[grey]  weir-sample stream --batches 5 --rows 500 --delay 1000 --compress[/]");
         return 0;
     }
 
