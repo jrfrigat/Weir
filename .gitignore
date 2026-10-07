@@ -46,6 +46,8 @@ samples/client/**/launchSettings.json
 ## Note: .claude/issues and .claude/backlog are working material (issue documents, audits, the
 ## triage data and its report). Deliberately not in the history - and so not backed up by it.
 CLAUDE.md
+AGENTS.md
+GEMINI.md
 .claude/
 .mcp.json
 
