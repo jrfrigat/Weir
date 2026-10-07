@@ -39,13 +39,13 @@ public sealed class DashboardBroadcaster : BackgroundService
     private static readonly TimeSpan ChartWindow = TimeSpan.FromSeconds(300);
 
     /// <summary>
-    /// Bucket width for those sparklines, and it is a readability setting rather than a resolution one.
-    /// A series advances by exactly one whole bucket at a time, so the bucket IS the size of the step
-    /// the line takes: at 15 seconds the five-minute window held twenty points and the line jumped a
-    /// twentieth of its width four times a minute, which reads as a jerk. At five it holds sixty and
-    /// moves a sixtieth at a time, which reads as a crawl - the same data, told in smaller steps.
+    /// Bucket width for those sparklines. One second - the metric ring's own resolution - because the
+    /// chart animates between updates (FlareChart.AnimateUpdates works since Flare 0.34), so the bucket
+    /// no longer has to be a compromise between a visible step and the payload size. It must match the
+    /// dashboard page's, or the chart changes shape when the socket drops and the page falls back to
+    /// polling.
     /// </summary>
-    private static readonly TimeSpan ChartBucket = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ChartBucket = TimeSpan.FromSeconds(1);
 
     private readonly IHubContext<DashboardHub> _hub;
     private readonly IMetricsAggregator _metrics;

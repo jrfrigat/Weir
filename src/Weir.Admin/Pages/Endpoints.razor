@@ -10,8 +10,9 @@
 @inject NavigationManager Nav
 @inject IFlareDownload Download
 @inject ISnackbarService Snackbar
+@inject ScreenFitState ScreenFit
 
-<FlareStack Gap="FlareSpacing.Medium">
+<FlareStack FillHeight Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Endpoints_PageTitle" Description="@AdminStrings.Endpoints_PageDescription">
         <Actions>
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="SyncAllAsync" Loading="_syncBusy">@AdminStrings.Endpoints_SyncAllButton</FlareButton>
@@ -32,7 +33,7 @@
         <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_deleteError</FlareAlert>
     }
 
-    <FlareTabs ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
+    <FlareTabs FillHeight ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
         <FlareTab Label="@AdminStrings.Endpoints_TabEndpoints">
             @if (_endpoints is null)
             {
@@ -56,7 +57,7 @@
                         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
                     }
                 </FlareStack>
-                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" Height="auto">
+                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
                     <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <Columns>
                         <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
@@ -264,7 +265,7 @@
                 <FlareDivider Text="@AdminStrings.Endpoints_CachingSection" TextAlign="DividerTextAlign.Left" />
                 <FlareStack Row Gap="FlareSpacing.Large" Wrap="true" Align="FlareAlignItems.Center">
                     <FlareSwitch Value="_editing.CacheEnabled" ValueChanged="@(v => _editing.CacheEnabled = v)" Label="@AdminStrings.Endpoints_EnableCacheLabel" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" HelperText="@DurationHint.Humanize(_editing.CacheTtlSeconds)" Style="max-width:9rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Endpoints_CacheTtlLabel" Size="FieldSize.Sm" @bind-Value="_editing.CacheTtlSeconds" Min="CacheBounds.TtlSeconds.Min" Max="CacheBounds.TtlSeconds.Max" HelperText="@DurationHint.Humanize(_editing.CacheTtlSeconds)" Style="max-width:9rem;" />
                     <FlareSwitch Value="_editing.CacheVaryByApiKey" ValueChanged="@(v => _editing.CacheVaryByApiKey = v)" Label="@AdminStrings.Endpoints_CacheVaryByApiKeyLabel" />
                     <FlareSwitch Value="_editing.CacheCoalesceRequests" ValueChanged="@(v => _editing.CacheCoalesceRequests = v)" Label="@AdminStrings.Endpoints_CacheCoalesceLabel" />
                 </FlareStack>
@@ -734,6 +735,17 @@
         {
             Edit(toEdit);
         }
+    }
+
+    /// <summary>Turns on the shell's screen-fit region once the page has rendered.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ScreenFit.Set(true);
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------

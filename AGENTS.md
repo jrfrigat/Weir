@@ -286,10 +286,10 @@ Released since Phase 15 (the roadmap above is the pre-1.0 plan; these shipped af
       admin grid now states Height="auto" PageSize="50". Metrics time series are clock-aligned and
       whole-bucket only (ring capacity 315s; percentile window pinned to 300s), the dashboard hub pushes
       on change with a 5s keepalive instead of a 2s beat, the Overview tab is now Dashboard, and the app
-      bar is 43px. FlareChart.AnimateUpdates is set but is a no-op - Flare rebuilds the chart's SVG nodes
-      instead of patching attributes, so its MutationObserver never sees the change (filed in
-      Flare/.Codex/issues/chart-animate-updates-never-runs.md); the sparklines' 5-second buckets are the
-      workaround that makes the step small enough to read as movement.
+      bar is 43px. FlareChart.AnimateUpdates now animates the live sparklines: the Flare defect where the
+      plot's nodes were rebuilt rather than patched, so the motion module never saw the change, was
+      fixed in Flare 0.34 (issue chart-animate-updates-never-runs.md), and the 5-second buckets that
+      used to stand in for the missing tween are gone - the series is drawn at the ring's one-second resolution.
 
 The buffered path's response stream is pooled: `WeirEngine` fills the buffered body and each cache fill
 from one `RecyclableMemoryStreamManager` (`Microsoft.IO.RecyclableMemoryStream`), so a response past one

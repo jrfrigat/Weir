@@ -163,10 +163,11 @@
     /// <summary>
     /// Bucket width for those sparklines, in seconds, and it matches the hub's for one reason: the two
     /// paths must draw the same picture, or the chart would change shape when the socket dropped and
-    /// the page fell back to polling. Five seconds rather than fifteen because a series advances one
-    /// whole bucket at a time, so the bucket is the size of the step the line takes on screen.
+    /// the page fell back to polling. One second - the metric ring's own resolution - because the chart
+    /// now animates between updates (FlareChart.AnimateUpdates works since Flare 0.34), so the step no
+    /// longer has to be kept artificially small to read as movement.
     /// </summary>
-    private const int ChartBucketSeconds = 5;
+    private const int ChartBucketSeconds = 1;
 
     private HubConnection? _hub;
     private Timer? _timer;

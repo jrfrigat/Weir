@@ -3278,6 +3278,15 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Session expires in {0} min.
+        /// </summary>
+        public static string Layout_SessionExpiringSoon {
+            get {
+                return ResourceManager.GetString("Layout_SessionExpiringSoon", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на An unexpected error occurred on this page. Try reloading, or navigate to another screen..
         /// </summary>
         public static string Layout_ErrorBody {
@@ -4389,6 +4398,24 @@ namespace Weir.Admin.Resources {
         public static string Settings_ResponseFlushBytesLabel {
             get {
                 return ResourceManager.GetString("Settings_ResponseFlushBytesLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Max binary bytes.
+        /// </summary>
+        public static string Settings_MaxBinaryBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_MaxBinaryBytesLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на How many bytes of one binary (BLOB) value are materialized before it is truncated. A binary value is read whole into memory to be Base64-encoded; zero means unlimited.
+        /// </summary>
+        public static string Settings_MaxBinaryBytesHelp {
+            get {
+                return ResourceManager.GetString("Settings_MaxBinaryBytesHelp", resourceCulture);
             }
         }
         

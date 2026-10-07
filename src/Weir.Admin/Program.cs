@@ -38,6 +38,7 @@ builder.Services.AddFlareVersionCheck(options =>
 });
 
 builder.Services.AddScoped<LanguageService>();
+builder.Services.AddScoped<ScreenFitState>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<TokenStore>();

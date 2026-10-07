@@ -5,9 +5,10 @@
 @using System.Text.Json
 @inject WeirApiClient Api
 @inject NavigationManager Nav
+@inject ScreenFitState ScreenFit
 @inject ISnackbarService Snackbar
 
-<FlareStack Gap="FlareSpacing.Medium">
+<FlareStack FillHeight Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Logs_Title" Description="@AdminStrings.Logs_Description">
         <Actions>
             @if (_endpointLabel is not null)
@@ -41,7 +42,17 @@
     }
     else
     {
-        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" Height="auto" RowClick="@(e => OpenDetail(e))">
+        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" FillHeight RowClick="@(e => OpenDetail(e))">
+            <ToolbarContent>
+                @if (_hasMore)
+                {
+                    <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Logs_LoadOlder</FlareButton>
+                }
+                @if (_loadingMore)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                }
+            </ToolbarContent>
             <Columns>
                 <FlareColumn TItem="RequestLogEntry" Id="time" Title="@AdminStrings.Logs_Time" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Filterable="true" FilterType="ColumnFilterType.Date" FilterFunc="@FilterTime" />
                 <FlareColumn TItem="RequestLogEntry" Id="method" Title="@AdminStrings.Logs_Method" Filterable="true" FilterType="ColumnFilterType.Select" FilterOptions="@_methodOptions" FilterFunc="@FilterMethod">
@@ -72,17 +83,6 @@
                 </FlareColumn>
             </Columns>
         </FlareDataGrid>
-
-        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-            @if (_hasMore)
-            {
-                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Logs_LoadOlder</FlareButton>
-            }
-            @if (_loadingMore)
-            {
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
-            }
-        </FlareStack>
     }
 </FlareStack>
 
@@ -256,6 +256,17 @@
         }
 
         await RefreshAsync();
+    }
+
+    /// <summary>Turns on the shell's screen-fit region once the page has rendered.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ScreenFit.Set(true);
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     /// <summary>Loads the newest page for the current filter.</summary>

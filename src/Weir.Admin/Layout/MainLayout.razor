@@ -5,6 +5,7 @@
 @inject WeirApiClient Api
 @inject NavigationManager Navigation
 @inject LanguageService Lang
+@inject ScreenFitState ScreenFit
 
 @* Command Center shell, composed from Flare: a top app bar with route tabs over a scrolling content
    region. A single fixed theme (Visual Studio 2026 geometry, Command Center palette) - no switcher.
@@ -33,6 +34,15 @@
                 <FlareLinkTab Href="/settings" Label="@AdminStrings.Nav_Settings" />
             </FlareLinkTabs>
             <FlareSpacer />
+            @* Session-expiry warning: the access token is refreshed reactively on a 401, so this only tells
+               the user their session is about to lapse rather than letting an expiry surprise them. *@
+            @if (_expiresInMinutes is { } minutesLeft)
+            {
+                <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                    <FlareIconView Value="@MaterialDesign3Icons.Regular.Schedule" Color="FlareColor.Warning" Size="1rem" />
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.Warning">@string.Format(AdminStrings.Layout_SessionExpiringSoon, minutesLeft)</FlareText>
+                </FlareStack>
+            }
             @* UI language picker, then the source-repository link, then the account menu. *@
             <LanguageSwitcher />
             <FlareIconButton Href="https://github.com/jrfrigat/weir" Target="_blank"
@@ -60,7 +70,7 @@
             </AuthorizeView>
         </FlareStack>
     </FlareLayoutAppBar>
-    <FlareLayoutContent>
+    <FlareLayoutContent FillHeight="@_screenFit">
         <ErrorBoundary @ref="_errorBoundary">
             <ChildContent>@Body</ChildContent>
             <ErrorContent>
@@ -75,6 +85,20 @@
 @code {
     private ErrorBoundary? _errorBoundary;
 
+    /// <summary>How often the access token's expiry is re-checked.</summary>
+    private static readonly TimeSpan ExpiryCheckInterval = TimeSpan.FromSeconds(30);
+
+    /// <summary>How long before expiry the warning appears.</summary>
+    private const int ExpiryWarningMinutes = 2;
+
+    private Timer? _expiryTimer;
+
+    /// <summary>Whether the current page asked for a screen-fit content region.</summary>
+    private bool _screenFit;
+
+    /// <summary>Minutes left in the access token when it is close to expiry; null otherwise.</summary>
+    private int? _expiresInMinutes;
+
     /// <summary>
     /// Recovers the error boundary on navigation so a per-page error clears when the user leaves it,
     /// and follows the UI language. A layout derives from LayoutComponentBase, so it cannot inherit
@@ -84,14 +108,56 @@
     {
         Navigation.LocationChanged += OnLocationChanged;
         Lang.LanguageChanged += OnLanguageChanged;
+        ScreenFit.Changed += OnScreenFitChanged;
+        _screenFit = ScreenFit.Enabled;
+        _expiryTimer = new Timer(_ => _ = InvokeAsync(RefreshExpiryAsync), null, TimeSpan.Zero, ExpiryCheckInterval);
     }
 
-    /// <summary>Handles route changes by clearing any caught error.</summary>
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+    /// <summary>
+    /// Handles route changes by clearing any caught error and resetting the screen-fit preference. The
+    /// incoming page turns it back on after its first render if it wants one, so the two never race.
+    /// </summary>
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
         _errorBoundary?.Recover();
+        ScreenFit.Set(false);
+    }
+
+    /// <summary>Re-renders the shell when a page turns screen-fit on or off.</summary>
+    private void OnScreenFitChanged()
+    {
+        _screenFit = ScreenFit.Enabled;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     /// <summary>Re-renders the shell (nav labels, account menu) after a language switch.</summary>
     private void OnLanguageChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Reads the access token's expiry and raises (or clears) the app-bar warning when the session is
+    /// close to lapsing. It only warns: the token is refreshed reactively on a 401, not by this timer.
+    /// </summary>
+    private async Task RefreshExpiryAsync()
+    {
+        int? minutesLeft = null;
+        var token = await Tokens.GetAsync();
+        if (!string.IsNullOrEmpty(token) &&
+            JwtParser.ParseClaims(token, out var expires).Count > 0 &&
+            expires is { } expiry)
+        {
+            var remaining = expiry - DateTimeOffset.UtcNow;
+            if (remaining > TimeSpan.Zero && remaining <= TimeSpan.FromMinutes(ExpiryWarningMinutes))
+            {
+                minutesLeft = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            }
+        }
+
+        if (minutesLeft != _expiresInMinutes)
+        {
+            _expiresInMinutes = minutesLeft;
+            StateHasChanged();
+        }
+    }
 
     /// <summary>Revokes the refresh token, clears both tokens, resets auth state and returns to login.</summary>
     private async Task LogoutAsync()
@@ -103,10 +169,12 @@
         Navigation.NavigateTo("login");
     }
 
-    /// <summary>Unsubscribes from navigation and language events.</summary>
+    /// <summary>Unsubscribes from navigation and language events and stops the expiry timer.</summary>
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
         Lang.LanguageChanged -= OnLanguageChanged;
+        ScreenFit.Changed -= OnScreenFitChanged;
+        _expiryTimer?.Dispose();
     }
 }

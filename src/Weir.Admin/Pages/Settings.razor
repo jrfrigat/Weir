@@ -31,6 +31,7 @@
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Min="SettingsBounds.RequestTimeoutSeconds.Min" Max="SettingsBounds.RequestTimeoutSeconds.Max" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Min="SettingsBounds.MaxTvpRows.Min" Max="SettingsBounds.MaxTvpRows.Max" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxImportRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxImportRows" Min="SettingsBounds.MaxImportRows.Min" Max="SettingsBounds.MaxImportRows.Max" HelperText="@AdminStrings.Settings_MaxImportRowsHelp" Style="max-width:12rem;" />
+                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxBinaryBytesLabel" Size="FieldSize.Sm" @bind-Value="_maxBinaryBytes" Min="SettingsBounds.MaxBinaryBytes.Min" Max="SettingsBounds.MaxBinaryBytes.Max" HelperText="@AdminStrings.Settings_MaxBinaryBytesHelp" Style="max-width:14rem;" />
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
             </FlareStack>
@@ -165,6 +166,7 @@
     private int _requestTimeoutSeconds;
     private int _maxTvpRows;
     private int _maxImportRows;
+    private int _maxBinaryBytes;
     private int _defaultRateLimit;
     private int _apiKeyFailureThreshold;
     private int _auditRetentionDays;
@@ -202,6 +204,7 @@
             _requestTimeoutSeconds = view.Settings.RequestTimeoutSeconds;
             _maxTvpRows = view.Settings.MaxTvpRows;
             _maxImportRows = view.Settings.MaxImportRows;
+            _maxBinaryBytes = view.Settings.MaxBinaryBytes;
             _defaultRateLimit = view.Settings.DefaultApiKeyRateLimitPerMinute;
             _apiKeyFailureThreshold = view.Settings.ApiKeyFailureThreshold;
             _auditRetentionDays = view.Settings.AuditRetentionDays;
@@ -267,6 +270,7 @@
             RequestTimeoutSeconds = _requestTimeoutSeconds,
             MaxTvpRows = _maxTvpRows,
             MaxImportRows = _maxImportRows,
+            MaxBinaryBytes = _maxBinaryBytes,
             DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
             ApiKeyFailureThreshold = _apiKeyFailureThreshold,
             AuditRetentionDays = _auditRetentionDays,
@@ -355,6 +359,7 @@
         nameof(WeirSystemSettings.RequestTimeoutSeconds) => AdminStrings.Settings_RequestTimeoutLabel,
         nameof(WeirSystemSettings.MaxTvpRows) => AdminStrings.Settings_MaxTvpRowsLabel,
         nameof(WeirSystemSettings.MaxImportRows) => AdminStrings.Settings_MaxImportRowsLabel,
+        nameof(WeirSystemSettings.MaxBinaryBytes) => AdminStrings.Settings_MaxBinaryBytesLabel,
         nameof(WeirSystemSettings.DefaultApiKeyRateLimitPerMinute) => AdminStrings.Settings_DefaultRateLimitLabel,
         nameof(WeirSystemSettings.AuditRetentionDays) => AdminStrings.Settings_AuditRetentionLabel,
         nameof(WeirSystemSettings.MaxConcurrentRequestsPerConnection) => AdminStrings.Settings_MaxConcurrentPerConnectionLabel,

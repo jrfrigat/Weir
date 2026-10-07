@@ -364,6 +364,9 @@
   <data name="Layout_AccountMenuAriaLabel" xml:space="preserve">
     <value>Account menu</value>
   </data>
+  <data name="Layout_SessionExpiringSoon" xml:space="preserve">
+    <value>Session expires in {0} min</value>
+  </data>
   <data name="Layout_Account" xml:space="preserve">
     <value>Account</value>
   </data>
@@ -1387,6 +1390,12 @@
   </data>
   <data name="Settings_MaxImportRowsLabel" xml:space="preserve">
     <value>Max import rows</value>
+  </data>
+  <data name="Settings_MaxBinaryBytesLabel" xml:space="preserve">
+    <value>Max binary bytes</value>
+  </data>
+  <data name="Settings_MaxBinaryBytesHelp" xml:space="preserve">
+    <value>How many bytes of one binary (BLOB) value are materialized before it is truncated. A binary value is read whole into memory to be Base64-encoded; zero means unlimited.</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>settings</value>

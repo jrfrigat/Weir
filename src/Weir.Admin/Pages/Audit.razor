@@ -5,10 +5,11 @@
 @inject WeirApiClient Api
 @inject NavigationManager Nav
 @inject TokenStore Tokens
+@inject ScreenFitState ScreenFit
 @inject ISnackbarService Snackbar
 @implements IAsyncDisposable
 
-<FlareStack Gap="FlareSpacing.Medium">
+<FlareStack FillHeight Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Audit_Title" Description="@AdminStrings.Audit_Description" />
 
     @if (_entries is null)
@@ -23,9 +24,18 @@
     }
     else
     {
-        <FlareDataGrid Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" Height="auto">
+        <FlareDataGrid Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
             <ToolbarContent>
                 <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
+                @if (_hasMore)
+                {
+                    <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Audit_LoadOlder</FlareButton>
+                }
+                @if (_loadingMore)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                }
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Audit_EntriesLoaded, _entries.Count)</FlareText>
             </ToolbarContent>
             <Columns>
                 <FlareColumn TItem="AuditEntry" Id="time" Title="@AdminStrings.Audit_ColumnTime" Field="@(e => (object?)e.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss"))" Sortable="true" />
@@ -46,18 +56,6 @@
                 </FlareColumn>
             </Columns>
         </FlareDataGrid>
-
-        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-            @if (_hasMore)
-            {
-                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Audit_LoadOlder</FlareButton>
-            }
-            @if (_loadingMore)
-            {
-                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
-            }
-            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Audit_EntriesLoaded, _entries.Count)</FlareText>
-        </FlareStack>
     }
 </FlareStack>
 
@@ -94,6 +92,17 @@
         }
 
         await ConnectHubAsync();
+    }
+
+    /// <summary>Turns on the shell's screen-fit region once the page has rendered.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ScreenFit.Set(true);
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     /// <summary>

@@ -364,6 +364,9 @@
   <data name="Layout_AccountMenuAriaLabel" xml:space="preserve">
     <value>Меню аккаунта</value>
   </data>
+  <data name="Layout_SessionExpiringSoon" xml:space="preserve">
+    <value>Сессия истекает через {0} мин</value>
+  </data>
   <data name="Layout_Account" xml:space="preserve">
     <value>Аккаунт</value>
   </data>
@@ -1387,6 +1390,12 @@
   </data>
   <data name="Settings_MaxImportRowsLabel" xml:space="preserve">
     <value>Макс. строк импорта</value>
+  </data>
+  <data name="Settings_MaxBinaryBytesLabel" xml:space="preserve">
+    <value>Макс. байт BLOB</value>
+  </data>
+  <data name="Settings_MaxBinaryBytesHelp" xml:space="preserve">
+    <value>Сколько байт одного бинарного (BLOB) значения читается в память до усечения. Бинарное значение читается целиком для Base64; ноль означает без ограничений.</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>настройки</value>
