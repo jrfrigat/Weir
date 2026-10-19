@@ -22,7 +22,6 @@ builder.Services.AddFlare(options =>
     // or light/dark switching.
     options.DefaultTheme = new CommandCenterTheme();
     options.DefaultMode = ThemeMode.Dark;
-    options.RegisterAllBuiltInThemes = false;
 });
 builder.Services.AddFlareTheme(new CommandCenterTheme());
 builder.Services.AddFlareIde();

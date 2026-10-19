@@ -18,7 +18,7 @@
   <ItemGroup Label="Data access">
     <PackageVersion Include="Dapper" Version="2.1.89" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
     <!-- Override the transitive (vulnerable, NU1903) SQLitePCLRaw 2.1.11 with the patched 3.0.x line. -->
@@ -33,13 +33,13 @@
   <ItemGroup Label="Microsoft.Extensions">
     <!-- Keep the whole 10.0.* set on one servicing patch. Flare's Microsoft.AspNetCore.Components.Web
          floats to the newest 10.0.* patch, so letting these lag behind it downgrades them (NU1109). -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="Telemetry / observability">
     <!-- AspNetCore instrumentation is one patch behind the rest: 1.19.1 was never published for it. -->
@@ -54,8 +54,8 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>
   <ItemGroup Label="Auth / API">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="Distributed">
     <PackageVersion Include="StackExchange.Redis" Version="3.3.1" />
@@ -73,15 +73,15 @@
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
   <ItemGroup Label="Blazor WASM admin">
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
-    <PackageVersion Include="Flare.Blazor" Version="0.42.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.42.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.42.0" />
-    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.42.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
+    <PackageVersion Include="Flare.Blazor" Version="0.46.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.46.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.46.0" />
+    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.46.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

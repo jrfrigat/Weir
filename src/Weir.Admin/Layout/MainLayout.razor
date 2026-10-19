@@ -120,7 +120,7 @@
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         _errorBoundary?.Recover();
-        ScreenFit.Set(false);
+        ScreenFit.ResetForNavigation(e.Location);
     }
 
     /// <summary>Re-renders the shell when a page turns screen-fit on or off.</summary>
