@@ -10,13 +10,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
-- Update Flare from 0.42.0 to 0.46.0 and use its explicit theme registration. The admin inherits
+- Update Flare from 0.42.0 to 0.47.0 and use its explicit theme registration. The admin inherits
   chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
   menus and tabs, while keeping the Command Center theme and its Visual Studio base. Align the
   Microsoft.Extensions, ASP.NET Core and WebAssembly packages on the required 10.0.13 servicing patch.
 
 ### Fixed
 
+- With Flare 0.47.0, switching the UI language updates grid column headers immediately, and
+  numeric fields step once per arrow key press.
 - Keep the destination page's screen-fit preference when a navigation notification arrives after
   its first render, so switching to a list page does not collapse its grid until a reload.
 
