@@ -365,6 +365,8 @@ public class WeirEngineCacheFillTests
         Assert.False(second.CacheHit);
     }
 
+    /// <summary>Checks that a completed background fill is stored and serves the next request.</summary>
+    /// <returns>A task that completes once the cached response has been verified.</returns>
     [Fact]
     public async Task A_Fill_With_No_Purge_Is_Stored_And_Served_From_The_Cache()
     {
@@ -382,12 +384,17 @@ public class WeirEngineCacheFillTests
         gate.SetResult();
         await first.WaitAsync(TimeSpan.FromSeconds(10));
 
+        // The response can finish before its background store. With just one fill, its disposal means
+        // the store attempt has finished, so the next call tests the cache rather than the scheduler.
+        await WaitUntil(() => engine.DisposedFillCount == 1);
+
         using var secondOutput = new MemoryStream();
         var second = await engine.ExecuteAsync(NewInvocation(coalesce: false), secondOutput).WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.NotEqual(0, firstOutput.Length);
         Assert.Equal(1, connector.Executions);
         Assert.True(second.CacheHit);
+        Assert.Equal(firstOutput.ToArray(), secondOutput.ToArray());
     }
 
     [Fact]
