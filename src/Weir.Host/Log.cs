@@ -227,4 +227,43 @@ internal static partial class Log
     /// <param name="localPort">The local port the request arrived on.</param>
     [LoggerMessage(Level = LogLevel.Debug, Message = "Refused a request to {path} on port {localPort}: that surface is bound to another listener.")]
     public static partial void PortRequestRefused(ILogger logger, string path, int localPort);
+
+    /// <summary>Logs that client-certificate authentication is switched on, and in which mode.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="mode">The configured mode.</param>
+    /// <param name="authorities">How many certificate authorities were loaded.</param>
+    /// <param name="forwardedHeader">The header a trusted proxy may forward a certificate in, or "none".</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client certificates (mTLS) are enabled in {mode} mode with {authorities} configured authorities; forwarded certificate header: {forwardedHeader}.")]
+    public static partial void MtlsEnabled(ILogger logger, string mode, int authorities, string forwardedHeader);
+
+    /// <summary>
+    /// Logs that chain verification is switched off. A warning rather than information: it removes
+    /// the server's half of the mTLS check, and it must not reach production unnoticed.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Weir:Mtls:AllowUnverifiedChain is set, so a client certificate is accepted even when its chain does not verify. Only a key's own policy then limits which certificate is accepted.")]
+    public static partial void MtlsChainVerificationDisabled(ILogger logger);
+
+    /// <summary>Logs that a presented client certificate was refused before any key was considered.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="thumbprint">The refused certificate's thumbprint.</param>
+    /// <param name="reason">Why the chain was not acceptable.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Refused client certificate {thumbprint}: {reason}.")]
+    public static partial void MtlsChainRejected(ILogger logger, string thumbprint, string reason);
+
+    /// <summary>Logs that a forwarded certificate header could not be parsed.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="reason">Why the value was unusable.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Ignored a forwarded client certificate header: {reason}.")]
+    public static partial void MtlsForwardedCertificateUnusable(ILogger logger, string reason);
+
+    /// <summary>
+    /// Logs that a certificate header arrived from an address that is not a configured proxy, and was
+    /// therefore ignored. A security event: this is an attempt at the one control mTLS provides.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="header">The header that was present.</param>
+    /// <param name="remoteAddress">The peer that sent it.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Ignored header {header} from {remoteAddress}: a forwarded client certificate is only believed from a proxy listed in Weir:Network:TrustedProxies.")]
+    public static partial void MtlsForwardedCertificateFromUntrustedPeer(ILogger logger, string header, string remoteAddress);
 }

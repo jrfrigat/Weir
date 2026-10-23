@@ -3,6 +3,7 @@
 // initialization, and maps the data plane, admin API and health.
 using System.Net;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -221,6 +222,48 @@ builder.Services.AddOptions<NetworkOptions>()
     .Validate(o => o.ForwardLimit >= 1, "Weir:Network:ForwardLimit must be at least 1.")
     .ValidateOnStart();
 
+// Client certificates (mTLS), off unless Weir:Mtls:Mode says otherwise. Two deployments are served:
+// TLS terminated here, where the certificate is on the connection, and TLS terminated by a reverse
+// proxy, where it can only arrive in a header the proxy sets - and that header is believed only from
+// a proxy named in Weir:Network:TrustedProxies, which is why this section leans on that one.
+var mtlsOptions = builder.Configuration.GetSection(MtlsOptions.SectionName).Get<MtlsOptions>() ?? new MtlsOptions();
+builder.Services.AddOptions<MtlsOptions>()
+    .Bind(builder.Configuration.GetSection(MtlsOptions.SectionName))
+    .Validate(
+        o =>
+        {
+            o.Validate(out var error);
+            return error is null;
+        },
+        "Weir:Mtls is not usable: check that every TrustedCaFiles entry exists, that every "
+        + "TrustedCaThumbprints entry is a hex thumbprint, and that MaxForwardedCertificateBytes is positive.")
+    .Validate(
+        o => !o.ReadsForwardedHeader || networkOptions.Enabled,
+        "Weir:Mtls:ForwardedCertificateHeader is set but Weir:Network:TrustedProxies is empty, so no "
+        + "forwarded certificate could ever be believed. Name the proxies, or drop the header.")
+    .ValidateOnStart();
+
+if (mtlsOptions.Enabled)
+{
+    builder.Services.AddSingleton<ClientCertificateReader>();
+
+    // AllowCertificate, never RequireCertificate, even at Mode=Require: the same listener serves the
+    // admin PWA, and a TLS-level requirement would make an operator's browser produce a client
+    // certificate just to open the dashboard. The requirement is applied per request instead, which
+    // is also the only form of it that works behind a proxy, where Weir terminates no TLS at all.
+    // On a plain-HTTP endpoint this configures nothing, so the proxy deployment is unaffected.
+    builder.WebHost.ConfigureKestrel(kestrel => kestrel.ConfigureHttpsDefaults(https =>
+    {
+        https.ClientCertificateMode = Microsoft.AspNetCore.Server.Kestrel.Https.ClientCertificateMode.AllowCertificate;
+
+        // Chain verification is Weir's own (ClientCertificateReader), against the authorities named in
+        // Weir:Mtls rather than the machine trust store. Accepting here and deciding there keeps one
+        // copy of the rule, and it is the copy that also runs for a forwarded certificate.
+        https.ClientCertificateValidation = static (_, _, _) => true;
+        https.CheckCertificateRevocation = mtlsOptions.RevocationMode != X509RevocationMode.NoCheck;
+    }));
+}
+
 if (networkOptions.Enabled)
 {
     networkOptions.ParseTrustedProxies(out var trustedProxies, out var trustedNetworks, out _);
@@ -431,6 +474,26 @@ if (portSplit.Filters)
 }
 
 await WeirStartup.InitializeAsync(app);
+
+if (mtlsOptions.Enabled)
+{
+    var mtlsMode = mtlsOptions.Mode.ToString();
+    var mtlsHeader = string.IsNullOrWhiteSpace(mtlsOptions.ForwardedCertificateHeader)
+        ? "none"
+        : mtlsOptions.ForwardedCertificateHeader;
+    Weir.Host.Log.MtlsEnabled(app.Logger, mtlsMode, mtlsOptions.TrustedCaFiles.Count, mtlsHeader);
+
+    if (mtlsOptions.AllowUnverifiedChain)
+    {
+        Weir.Host.Log.MtlsChainVerificationDisabled(app.Logger);
+    }
+}
+
+// Read the client certificate before UseForwardedHeaders, not after. A certificate forwarded by a
+// proxy may only be believed when the request really came from a trusted proxy, and once the
+// forwarded-headers middleware has replaced RemoteIpAddress with the caller's address that question
+// can no longer be answered. A no-op when Weir:Mtls is off.
+app.UseWeirClientCertificate();
 
 // Rewrite RemoteIpAddress / Scheme from the proxy's forwarded headers before anything reads them: the
 // sign-in throttle keys on the caller's address and the request log records it, so this has to be the
