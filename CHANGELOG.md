@@ -10,12 +10,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
-- Update Flare from 0.42.0 to 0.48.0 and use its explicit theme registration. The admin inherits
+- Update Flare from 0.42.0 to 0.51.0 and use its explicit theme registration. The admin inherits
   chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
   menus and tabs, while keeping the Command Center theme and its Visual Studio base. Align the
   Microsoft.Extensions, ASP.NET Core and WebAssembly packages on the required 10.0.13 servicing patch.
 - Flare 0.48.0 improves drawer and dialog focus, narrow-screen layout and tooltips, and retries a
   JavaScript module import after a loading failure.
+- Flare 0.49-0.51 closes the grid filter menu on an outside click without applying the filter,
+  keeps tab arrow keys working when the JavaScript module fails to load, fits description lists
+  into a narrow parent, and draws alerts on the Visual Studio status containers like snackbars.
 
 ### Fixed
 
