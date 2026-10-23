@@ -20,6 +20,14 @@ public enum ApiKeyAuthStatus
     /// ordinary failed sign-in.
     /// </summary>
     RateLimited,
+
+    /// <summary>
+    /// The key is valid, but the client certificate is not one it accepts - or none was presented
+    /// where one is required. The caller should receive 403, not 401: 401 means "present valid
+    /// credentials", and a caller that gets it for a perfectly good key will go and reissue the key
+    /// instead of fixing the certificate.
+    /// </summary>
+    ClientCertificateRejected,
 }
 
 /// <summary>
@@ -40,8 +48,13 @@ public readonly record struct ApiKeyAuthResult
     /// <summary>The outcome.</summary>
     public ApiKeyAuthStatus Status { get; }
 
-    /// <summary>The resolved key record, present only when <see cref="Status"/> is
-    /// <see cref="ApiKeyAuthStatus.Authenticated"/>.</summary>
+    /// <summary>
+    /// The resolved key record. Present when <see cref="Status"/> is
+    /// <see cref="ApiKeyAuthStatus.Authenticated"/>, and also when it is
+    /// <see cref="ApiKeyAuthStatus.ClientCertificateRejected"/> - there the key is known, and the
+    /// audit entry for the refusal has to name it, or a run of refusals cannot be tied to the key
+    /// whose certificate is wrong, which is exactly what an operator needs to see.
+    /// </summary>
     public ApiKeyRecord? Record { get; }
 
     /// <summary>A "no valid key" result.</summary>
@@ -54,6 +67,12 @@ public readonly record struct ApiKeyAuthResult
     /// <param name="record">The resolved key record.</param>
     /// <returns>The result.</returns>
     public static ApiKeyAuthResult Ok(ApiKeyRecord record) => new(ApiKeyAuthStatus.Authenticated, record);
+
+    /// <summary>A "valid key, unacceptable client certificate" result, carrying the key it refused.</summary>
+    /// <param name="record">The resolved key record.</param>
+    /// <returns>The result.</returns>
+    public static ApiKeyAuthResult CertificateRejected(ApiKeyRecord record) =>
+        new(ApiKeyAuthStatus.ClientCertificateRejected, record);
 }
 
 /// <summary>Authenticates a data-plane request from its API key.</summary>
@@ -98,6 +117,9 @@ public sealed class ApiKeyAuthenticator : IApiKeyAuthenticator, IDisposable
     /// <summary>Caps how many unresolved keys one caller address may cost the store per window.</summary>
     private readonly IApiKeyFloodGuard _floodGuard;
 
+    /// <summary>Decides whether the key may be used over this connection's client certificate.</summary>
+    private readonly ClientCertificateGate _certificateGate;
+
     /// <summary>
     /// Change token source linked to every cached key entry. Replacing it (in <see cref="Invalidate"/>)
     /// evicts all cached records at once even though <see cref="IMemoryCache"/> exposes no key enumeration.
@@ -109,12 +131,19 @@ public sealed class ApiKeyAuthenticator : IApiKeyAuthenticator, IDisposable
     /// <param name="cache">Short-lived cache for resolved keys.</param>
     /// <param name="clock">Clock used to check expiry.</param>
     /// <param name="floodGuard">Caps unresolved-key lookups per caller address.</param>
-    public ApiKeyAuthenticator(IControlPlaneStore store, IMemoryCache cache, TimeProvider clock, IApiKeyFloodGuard floodGuard)
+    /// <param name="certificateGate">Applies the key's client-certificate policy and the server-wide mTLS mode.</param>
+    public ApiKeyAuthenticator(
+        IControlPlaneStore store,
+        IMemoryCache cache,
+        TimeProvider clock,
+        IApiKeyFloodGuard floodGuard,
+        ClientCertificateGate certificateGate)
     {
         _store = store;
         _cache = cache;
         _clock = clock;
         _floodGuard = floodGuard;
+        _certificateGate = certificateGate;
     }
 
     /// <inheritdoc />
@@ -165,6 +194,15 @@ public sealed class ApiKeyAuthenticator : IApiKeyAuthenticator, IDisposable
         if (record.ExpiresAt is { } expiry && expiry <= _clock.GetUtcNow())
         {
             return ApiKeyAuthResult.Unauthenticated;
+        }
+
+        // mTLS is checked here, and only here, because this is the one place that holds both the key
+        // and the connection it arrived on. HTTP, WebSocket and gRPC all come through this method, so
+        // the rule reaches every door without any of them knowing about it - the same reason scopes and
+        // grants live in one copy in DataPlaneAuthorization.
+        if (!_certificateGate.Allows(record, context.GetClientCertificate()))
+        {
+            return ApiKeyAuthResult.CertificateRejected(record);
         }
 
         return ApiKeyAuthResult.Ok(record);

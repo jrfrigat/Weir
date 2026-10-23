@@ -163,6 +163,16 @@ public static class DataPlaneEndpoints
             return null;
         }
 
+        if (auth.Status == ApiKeyAuthStatus.ClientCertificateRejected)
+        {
+            // The key is fine; the client certificate is not. 403 rather than 401, and the key's prefix
+            // is returned so the audit entry names it - a run of these is how an operator finds the one
+            // key whose certificate is wrong.
+            await ProblemResults.WriteAsync(context, StatusCodes.Status403Forbidden, "Forbidden",
+                "The API key requires a client certificate that this connection did not present.");
+            return auth.Record!.Prefix;
+        }
+
         if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
             context.Response.Headers.WWWAuthenticate = "ApiKey";

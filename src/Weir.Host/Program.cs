@@ -147,6 +147,11 @@ using (var pluginBootstrapLoggerFactory = LoggerFactory.Create(logging =>
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AdminBootstrapOptions>(builder.Configuration.GetSection("Weir:Admin"));
 builder.Services.AddSingleton<IApiKeyFloodGuard, ApiKeyFloodGuard>();
+// Registered whatever Weir:Mtls says, because the authenticator depends on it unconditionally. With
+// mTLS off the gate still answers correctly: no certificate ever arrives, so a key whose policy asks
+// for one cannot be satisfied and is refused - a refusal in the closing direction, which is the right
+// way for that mistake to land.
+builder.Services.AddSingleton<ClientCertificateGate>();
 builder.Services.AddSingleton<IApiKeyAuthenticator, ApiKeyAuthenticator>();
 
 // Per-API-key rate limiter: in-memory (per instance) by default, or a distributed Redis-backed limiter

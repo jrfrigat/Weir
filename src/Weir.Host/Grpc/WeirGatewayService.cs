@@ -160,6 +160,15 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
                 "Too many unauthenticated requests. Try again later."));
         }
 
+        if (status == ApiKeyAuthStatus.ClientCertificateRejected)
+        {
+            // PermissionDenied, not Unauthenticated: the key authenticated, it is the certificate that
+            // is unacceptable. That is the gRPC spelling of the 403 /api and /ws answer here.
+            DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status403Forbidden);
+            return new RpcException(new Status(StatusCode.PermissionDenied,
+                "The API key requires a client certificate that this connection did not present."));
+        }
+
         DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status401Unauthorized);
         return new RpcException(new Status(StatusCode.Unauthenticated,
             "A valid API key is required in the \"x-api-key\" or \"authorization\" metadata."));

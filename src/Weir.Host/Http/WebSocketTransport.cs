@@ -89,6 +89,18 @@ public static class WebSocketTransport
             return;
         }
 
+        if (auth.Status == ApiKeyAuthStatus.ClientCertificateRejected)
+        {
+            // Refused before the socket is accepted, like every other refusal on this path: there is
+            // never a connection with nobody behind it. 403, matching what /api answers, because the
+            // key is valid and the certificate is not.
+            DataPlaneDispatcher.EnqueueRefusal(auditor, EndpointTransports.WebSocket, context.Request.Path.Value,
+                StatusCodes.Status403Forbidden);
+            await ProblemResults.WriteAsync(context, StatusCodes.Status403Forbidden, "Forbidden",
+                "The API key requires a client certificate that this connection did not present.");
+            return;
+        }
+
         if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
             context.Response.Headers.WWWAuthenticate = "ApiKey";

@@ -266,4 +266,14 @@ internal static partial class Log
     /// <param name="remoteAddress">The peer that sent it.</param>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Ignored header {header} from {remoteAddress}: a forwarded client certificate is only believed from a proxy listed in Weir:Network:TrustedProxies.")]
     public static partial void MtlsForwardedCertificateFromUntrustedPeer(ILogger logger, string header, string remoteAddress);
+
+    /// <summary>
+    /// Logs that a valid key was refused over its client-certificate policy. A security event, like a
+    /// scope or grant refusal, and recorded at the same level.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="keyPrefix">The refused key's identifying prefix.</param>
+    /// <param name="reason">Why the policy refused.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Refused API key {keyPrefix}: {reason}.")]
+    public static partial void MtlsCallRefused(ILogger logger, string keyPrefix, string reason);
 }
