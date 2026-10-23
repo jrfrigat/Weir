@@ -94,7 +94,7 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
         var auth = await _authenticator.AuthenticateAsync(http, context.CancellationToken);
         if (auth.Status != ApiKeyAuthStatus.Authenticated)
         {
-            throw RefuseAuthentication(auth.Status, request.Route);
+            throw RefuseAuthentication(auth.Status, request.Route, auth.Record?.Prefix);
         }
 
         if (string.IsNullOrWhiteSpace(request.Route))
@@ -150,8 +150,12 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
     /// </summary>
     /// <param name="status">The authentication outcome; never <see cref="ApiKeyAuthStatus.Authenticated"/>.</param>
     /// <param name="route">The route the caller asked for, when it named one.</param>
+    /// <param name="keyPrefix">
+    /// The refused key's prefix, on the one refusal where a key did resolve: a valid key whose
+    /// client-certificate policy was not satisfied. Null for the others, where none resolved.
+    /// </param>
     /// <returns>The exception to throw.</returns>
-    internal RpcException RefuseAuthentication(ApiKeyAuthStatus status, string? route)
+    internal RpcException RefuseAuthentication(ApiKeyAuthStatus status, string? route, string? keyPrefix = null)
     {
         if (status == ApiKeyAuthStatus.RateLimited)
         {
@@ -164,7 +168,7 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
         {
             // PermissionDenied, not Unauthenticated: the key authenticated, it is the certificate that
             // is unacceptable. That is the gRPC spelling of the 403 /api and /ws answer here.
-            DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status403Forbidden);
+            DataPlaneDispatcher.EnqueueRefusal(_auditor, EndpointTransports.Grpc, route, StatusCodes.Status403Forbidden, keyPrefix);
             return new RpcException(new Status(StatusCode.PermissionDenied,
                 "The API key requires a client certificate that this connection did not present."));
         }

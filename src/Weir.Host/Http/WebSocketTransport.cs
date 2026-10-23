@@ -95,7 +95,7 @@ public static class WebSocketTransport
             // never a connection with nobody behind it. 403, matching what /api answers, because the
             // key is valid and the certificate is not.
             DataPlaneDispatcher.EnqueueRefusal(auditor, EndpointTransports.WebSocket, context.Request.Path.Value,
-                StatusCodes.Status403Forbidden);
+                StatusCodes.Status403Forbidden, auth.Record!.Prefix);
             await ProblemResults.WriteAsync(context, StatusCodes.Status403Forbidden, "Forbidden",
                 "The API key requires a client certificate that this connection did not present.");
             return;

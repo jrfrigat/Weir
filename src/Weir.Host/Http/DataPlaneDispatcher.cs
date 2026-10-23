@@ -154,7 +154,20 @@ public sealed class DataPlaneDispatcher
     /// <param name="transport">Which door refused, recorded as the entry's detail.</param>
     /// <param name="route">The route the caller asked for, when the door knows it.</param>
     /// <param name="status">The HTTP-shaped status the caller was refused with.</param>
-    public static void EnqueueRefusal(IDataPlaneAuditor auditor, EndpointTransports transport, string? route, int status)
+    /// <param name="keyPrefix">
+    /// The refused key's prefix, on the one kind of refusal where a key was resolved: a valid key whose
+    /// client-certificate policy was not satisfied. Null for the others, where no key resolved at all.
+    /// It is a parameter rather than a fixed null because a run of certificate refusals is only useful
+    /// if it names the key whose certificate is wrong - and HTTP, which audits every request itself,
+    /// records that prefix. Leaving it null here would make the same refusal read differently depending
+    /// on the door it came through, which is the asymmetry these transports share this code to avoid.
+    /// </param>
+    public static void EnqueueRefusal(
+        IDataPlaneAuditor auditor,
+        EndpointTransports transport,
+        string? route,
+        int status,
+        string? keyPrefix = null)
     {
         ArgumentNullException.ThrowIfNull(auditor);
         if (!auditor.Enabled)
@@ -164,10 +177,9 @@ public sealed class DataPlaneDispatcher
 
         auditor.Enqueue(new AuditEntry
         {
+            // Null unless a key really did resolve: a placeholder would read as a key that exists.
+            Actor = keyPrefix,
             Category = "endpoint.call",
-            // No key was resolved, so there is no prefix to name: null is the truth here, where a
-            // placeholder would read as a key that exists.
-            Actor = null,
             Route = route,
             StatusCode = status,
             Outcome = OutcomeCodes.Error,
