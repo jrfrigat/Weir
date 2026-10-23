@@ -1271,10 +1271,8 @@ public sealed class SqlServerControlPlaneStore : IControlPlaneStore
         public string ScopesJson { get; set; } = "";
         /// <summary>Serialized resource-grant list.</summary>
         public string GrantsJson { get; set; } = "[]";
-
         /// <summary>Stored client-certificate policy, or null when the key states none.</summary>
         public string? MtlsJson { get; set; }
-
         /// <summary>Stored CORS policy, or null when the key states none.</summary>
         public string? CorsJson { get; set; }
         /// <summary>Enabled flag.</summary>
