@@ -414,8 +414,32 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy.RequireRole(AdminRoles.Admin));
 
-// CORS for browser data-plane clients (opt-in via Weir:Cors:AllowedOrigins).
+// CORS. Two mechanisms, never on the same path.
+//
+// The data plane (/api, /ws) gets Weir's own middleware, because there a policy can belong to the
+// calling key rather than to the server, and a CORS preflight carries no key - so the two halves of
+// the exchange have to be answered from different places. Weir:Cors stays the server-wide default
+// that a key stating no policy of its own falls back to.
+//
+// Everything else - the admin API, the served PWA - keeps the framework's CORS middleware with the
+// same default policy it had before. The admin surface shares the host origin and so has no CORS
+// surface to speak of, but a deployment that was relying on Weir:Cors reaching it would otherwise
+// lose that silently, and "find out in production" is not an acceptable way to learn it.
 var corsOrigins = builder.Configuration.GetSection("Weir:Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddOptions<WeirCorsOptions>()
+    .Bind(builder.Configuration.GetSection(WeirCorsOptions.SectionName))
+    .Validate(
+        o =>
+        {
+            o.Validate(out var error);
+            return error is null;
+        },
+        "Weir:Cors sets AllowCredentials together with the wildcard origin '*'. The CORS specification "
+        + "forbids that pair and browsers refuse it, so name the origins explicitly or turn "
+        + "AllowCredentials off.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<CorsPolicyIndex>();
+
 if (corsOrigins.Length > 0)
 {
     builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
@@ -581,9 +605,13 @@ app.UseStaticFiles(new StaticFileOptions
     },
 });
 
+// Weir's own CORS on the data plane, the framework's everywhere else - see the note where the
+// services were registered for why both exist. UseWhen keeps them off each other's paths.
+app.UseWhen(DataPlaneCors.IsDataPlanePath, branch => branch.UseWeirDataPlaneCors());
+
 if (corsOrigins.Length > 0)
 {
-    app.UseCors();
+    app.UseWhen(static context => !DataPlaneCors.IsDataPlanePath(context), branch => branch.UseCors());
 }
 
 // The data-plane WebSocket door at /ws. SignalR brings its own for the dashboard hub; a raw socket

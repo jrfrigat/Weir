@@ -771,11 +771,15 @@ public static class AdminApi
         group.MapGet("/keys", async (IControlPlaneStore store) =>
             Results.Ok(await store.GetApiKeysAsync()));
 
-        group.MapPost("/keys", async (ApiKeyCreate request, IControlPlaneStore store, IApiKeyAuthenticator authenticator, ClaimsPrincipal user, TimeProvider clock) =>
+        group.MapPost("/keys", async (ApiKeyCreate request, IControlPlaneStore store, IApiKeyAuthenticator authenticator, CorsPolicyIndex corsIndex, ClaimsPrincipal user, TimeProvider clock) =>
         {
             var (plainText, prefix, hash) = ApiKeyGenerator.Generate();
             var info = await store.CreateApiKeyAsync(request, hash, prefix);
+            // Both caches hold resolved key state, so both are dropped together. The CORS index also
+            // has a TTL, but relying on it would mean a policy an operator just saved appears not to
+            // work for half a minute - which reads as a policy that does not work.
             authenticator.Invalidate();
+            corsIndex.Invalidate();
             await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "key.created",
@@ -787,11 +791,13 @@ public static class AdminApi
             return Results.Ok(new ApiKeyCreated { Info = info, PlainTextKey = plainText });
         }).RequireAuthorization("AdminOnly");
 
-        group.MapDelete("/keys/{id:guid}", async (Guid id, IControlPlaneStore store, IApiKeyAuthenticator authenticator, ClaimsPrincipal user, TimeProvider clock) =>
+        group.MapDelete("/keys/{id:guid}", async (Guid id, IControlPlaneStore store, IApiKeyAuthenticator authenticator, CorsPolicyIndex corsIndex, ClaimsPrincipal user, TimeProvider clock) =>
         {
             await store.RevokeApiKeyAsync(id);
-            // Evict the auth cache so the revoked key stops authenticating immediately, not after the TTL.
+            // Evict the auth cache so the revoked key stops authenticating immediately, not after the
+            // TTL, and the CORS index with it so a revoked key stops widening a preflight answer.
             authenticator.Invalidate();
+            corsIndex.Invalidate();
             await AppendAuditAsync(store, publisher, new AuditEntry
             {
                 Category = "key.revoked",

@@ -75,6 +75,35 @@ public readonly record struct ApiKeyAuthResult
         new(ApiKeyAuthStatus.ClientCertificateRejected, record);
 }
 
+/// <summary>
+/// Reads the key that authenticated the current request back off it. The authenticator records the
+/// resolved record on the request so that a later stage can answer in terms of the key without
+/// resolving it a second time - which would charge the flood guard twice for one request.
+/// <para>
+/// The data-plane CORS middleware is what needs this: it runs before authentication, because CORS
+/// has to answer a preflight that carries no key at all, and so can only write a real response's
+/// headers once the key is known.
+/// </para>
+/// </summary>
+public static class HttpContextApiKeyExtensions
+{
+    /// <summary>Key the resolved record is stored under on the request.</summary>
+    internal const string ItemKey = "Weir.ApiKey";
+
+    /// <summary>
+    /// The key that authenticated this request, or null when none did - including when a key was
+    /// resolved but refused, because such a request is not authenticated and must not be answered as
+    /// though it were.
+    /// </summary>
+    /// <param name="context">The HTTP context.</param>
+    /// <returns>The authenticated key record, or null.</returns>
+    public static ApiKeyRecord? GetAuthenticatedApiKey(this HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return context.Items.TryGetValue(ItemKey, out var value) ? value as ApiKeyRecord : null;
+    }
+}
+
 /// <summary>Authenticates a data-plane request from its API key.</summary>
 public interface IApiKeyAuthenticator
 {
@@ -205,6 +234,10 @@ public sealed class ApiKeyAuthenticator : IApiKeyAuthenticator, IDisposable
             return ApiKeyAuthResult.CertificateRejected(record);
         }
 
+        // Recorded on the request only once the key has actually authenticated, so a later stage that
+        // reads it cannot mistake a refused key for an accepted one. The data-plane CORS middleware is
+        // the reader; see HttpContextApiKeyExtensions for why it cannot resolve the key itself.
+        context.Items[HttpContextApiKeyExtensions.ItemKey] = record;
         return ApiKeyAuthResult.Ok(record);
     }
 

@@ -276,4 +276,14 @@ internal static partial class Log
     /// <param name="reason">Why the policy refused.</param>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Refused API key {keyPrefix}: {reason}.")]
     public static partial void MtlsCallRefused(ILogger logger, string keyPrefix, string reason);
+
+    /// <summary>
+    /// Logs that the per-key CORS index could not be rebuilt from the control plane. The index then
+    /// answers "no CORS headers", so an operator whose cross-origin calls just stopped working needs
+    /// to be able to find this line.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="exception">The failure.</param>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to rebuild the per-key CORS index; preflight requests will be answered with no CORS headers until it succeeds.")]
+    public static partial void CorsIndexRebuildFailed(ILogger logger, Exception exception);
 }
