@@ -225,7 +225,15 @@ public sealed record ApiKeyCorsPolicy
     /// </summary>
     public IReadOnlyList<string> AllowedOrigins { get; init; } = [];
 
-    /// <summary>Methods the preflight answer permits. Empty falls back to the data plane's own methods.</summary>
+    /// <summary>
+    /// Methods the preflight answer permits. Empty falls back to the data plane's own methods.
+    /// <para>
+    /// This is advice to the browser, not an authorization rule: CORS method lists are enforced by
+    /// the browser before it sends the request, and nothing on the server consults this list again.
+    /// What a key may actually call is decided by its scopes and grants and by the endpoint's own
+    /// method - this only shapes what a preflight answer says.
+    /// </para>
+    /// </summary>
     public IReadOnlyList<string> AllowedMethods { get; init; } = [];
 
     /// <summary>

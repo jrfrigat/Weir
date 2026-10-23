@@ -99,6 +99,12 @@ public sealed class CorsPolicyIndex : IDisposable
         // The server-wide policy is checked first and without touching the store: a deployment that
         // only uses Weir:Cors should never pay for a key read, which is the behaviour this section had
         // before per-key policies existed.
+        //
+        // Where both the server and a key name the same origin, that makes the server's answer the one
+        // the preflight carries, even when the key's is narrower. It is a preflight, so the only thing
+        // that can differ is the advice the browser is given about methods and headers; the real
+        // request is answered by the calling key's policy alone, which is where "may this origin read
+        // this key's responses" is actually decided.
         if (_serverPolicy is not null && _serverPolicy.AllowsOrigin(origin))
         {
             return _serverPolicy;
