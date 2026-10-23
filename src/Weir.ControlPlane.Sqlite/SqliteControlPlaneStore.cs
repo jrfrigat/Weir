@@ -304,7 +304,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
     {
         await using var conn = await OpenAsync(cancellationToken);
         var rows = await conn.QueryAsync<ApiKeyRow>(new CommandDefinition(
-            "SELECT Id, Name, Prefix, Hash, ScopesJson, GrantsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute FROM ApiKeys ORDER BY CreatedAt DESC",
+            "SELECT Id, Name, Prefix, Hash, ScopesJson, GrantsJson, MtlsJson, CorsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute FROM ApiKeys ORDER BY CreatedAt DESC",
             cancellationToken: cancellationToken));
         return rows.Select(MapKeyInfo).ToList();
     }
@@ -314,7 +314,7 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
     {
         await using var conn = await OpenAsync(cancellationToken);
         var row = await conn.QuerySingleOrDefaultAsync<ApiKeyRow>(new CommandDefinition(
-            "SELECT Id, Name, Prefix, Hash, ScopesJson, GrantsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute FROM ApiKeys WHERE Hash = @Hash",
+            "SELECT Id, Name, Prefix, Hash, ScopesJson, GrantsJson, MtlsJson, CorsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute FROM ApiKeys WHERE Hash = @Hash",
             new { Hash = hash }, cancellationToken: cancellationToken));
         if (row is null)
         {
@@ -329,6 +329,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             Hash = row.Hash,
             Scopes = JsonSerializer.Deserialize<List<string>>(row.ScopesJson, Json) ?? [],
             Grants = JsonSerializer.Deserialize<List<ApiKeyGrant>>(row.GrantsJson, Json) ?? [],
+            Mtls = ApiKeyPolicyJson.ReadMtls(row.MtlsJson),
+            Cors = ApiKeyPolicyJson.ReadCors(row.CorsJson),
             Enabled = row.Enabled != 0,
             ExpiresAt = row.ExpiresAt is null ? null : ParseDto(row.ExpiresAt),
             RateLimitPerMinute = row.RateLimitPerMinute,
@@ -344,8 +346,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
 
         await using var conn = await OpenAsync(cancellationToken);
         await conn.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO ApiKeys (Id, Name, Prefix, Hash, ScopesJson, GrantsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute)
-            VALUES (@Id, @Name, @Prefix, @Hash, @ScopesJson, @GrantsJson, 1, @ExpiresAt, @CreatedAt, NULL, @RateLimitPerMinute);
+            INSERT INTO ApiKeys (Id, Name, Prefix, Hash, ScopesJson, GrantsJson, MtlsJson, CorsJson, Enabled, ExpiresAt, CreatedAt, LastUsedAt, RateLimitPerMinute)
+            VALUES (@Id, @Name, @Prefix, @Hash, @ScopesJson, @GrantsJson, @MtlsJson, @CorsJson, 1, @ExpiresAt, @CreatedAt, NULL, @RateLimitPerMinute);
             """, new
         {
             Id = id.ToString(),
@@ -354,6 +356,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             Hash = hash,
             ScopesJson = JsonSerializer.Serialize(create.Scopes, Json),
             GrantsJson = JsonSerializer.Serialize(create.Grants, Json),
+            MtlsJson = ApiKeyPolicyJson.Write(create.Mtls),
+            CorsJson = ApiKeyPolicyJson.Write(create.Cors),
             ExpiresAt = create.ExpiresAt is null ? null : Iso(create.ExpiresAt.Value),
             CreatedAt = Iso(now),
             create.RateLimitPerMinute,
@@ -366,6 +370,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
             Prefix = prefix,
             Scopes = create.Scopes,
             Grants = create.Grants,
+            Mtls = create.Mtls,
+            Cors = create.Cors,
             Enabled = true,
             ExpiresAt = create.ExpiresAt,
             CreatedAt = now,
@@ -379,6 +385,25 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         await using var conn = await OpenAsync(cancellationToken);
         await conn.ExecuteAsync(new CommandDefinition("UPDATE ApiKeys SET Enabled = 0 WHERE Id = @Id",
             new { Id = id.ToString() }, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateApiKeyPoliciesAsync(
+        Guid id,
+        ApiKeyMtlsPolicy? mtls,
+        ApiKeyCorsPolicy? cors,
+        CancellationToken cancellationToken = default)
+    {
+        await using var conn = await OpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE ApiKeys SET MtlsJson = @MtlsJson, CorsJson = @CorsJson WHERE Id = @Id",
+            new
+            {
+                Id = id.ToString(),
+                MtlsJson = ApiKeyPolicyJson.Write(mtls),
+                CorsJson = ApiKeyPolicyJson.Write(cors),
+            },
+            cancellationToken: cancellationToken));
     }
 
     /// <inheritdoc />
@@ -405,6 +430,8 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         Prefix = r.Prefix,
         Scopes = JsonSerializer.Deserialize<List<string>>(r.ScopesJson, Json) ?? [],
         Grants = JsonSerializer.Deserialize<List<ApiKeyGrant>>(r.GrantsJson, Json) ?? [],
+        Mtls = ApiKeyPolicyJson.ReadMtls(r.MtlsJson),
+        Cors = ApiKeyPolicyJson.ReadCors(r.CorsJson),
         Enabled = r.Enabled != 0,
         ExpiresAt = r.ExpiresAt is null ? null : ParseDto(r.ExpiresAt),
         CreatedAt = ParseDto(r.CreatedAt),
@@ -1142,6 +1169,12 @@ public sealed class SqliteControlPlaneStore : IControlPlaneStore
         public string ScopesJson { get; set; } = "";
         /// <summary>Serialized resource-grant list.</summary>
         public string GrantsJson { get; set; } = "[]";
+
+        /// <summary>Stored client-certificate policy, or null when the key states none.</summary>
+        public string? MtlsJson { get; set; }
+
+        /// <summary>Stored CORS policy, or null when the key states none.</summary>
+        public string? CorsJson { get; set; }
         /// <summary>Enabled flag (0/1).</summary>
         public long Enabled { get; set; }
         /// <summary>Optional expiry (ISO-8601 text).</summary>

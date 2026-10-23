@@ -241,5 +241,16 @@ internal static class SqlServerSchema
         IF COL_LENGTH(N'Endpoints', N'Transports') IS NULL
             ALTER TABLE Endpoints ADD Transports int NOT NULL CONSTRAINT DF_Endpoints_Transports DEFAULT 1;
         """,
+
+        // v16 - per-key client-certificate (mTLS) and CORS policies. Both nullable and without a
+        // default, because NULL is the fact to record: a key that predates these columns states no
+        // policy of its own and keeps behaving exactly as it did - only the server-wide settings
+        // apply to it. An empty policy is a different fact and is stored as JSON.
+        """
+        IF COL_LENGTH(N'ApiKeys', N'MtlsJson') IS NULL
+            ALTER TABLE ApiKeys ADD MtlsJson nvarchar(max) NULL;
+        IF COL_LENGTH(N'ApiKeys', N'CorsJson') IS NULL
+            ALTER TABLE ApiKeys ADD CorsJson nvarchar(max) NULL;
+        """,
     ];
 }

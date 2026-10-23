@@ -68,6 +68,18 @@ public sealed record ApiKeyInfo
 
     /// <summary>Optional per-key rate limit, in requests per minute.</summary>
     public int? RateLimitPerMinute { get; init; }
+
+    /// <summary>
+    /// Optional client-certificate requirement for this key. Null means the key states none, and only
+    /// the server-wide mTLS mode applies - which is what every key that predates this field does.
+    /// </summary>
+    public ApiKeyMtlsPolicy? Mtls { get; init; }
+
+    /// <summary>
+    /// Optional CORS policy for this key. Null means the key states none and the server-wide default
+    /// applies; a policy with no allowed origins closes cross-origin access for this key alone.
+    /// </summary>
+    public ApiKeyCorsPolicy? Cors { get; init; }
 }
 
 /// <summary>Request to create a new API key.</summary>
@@ -87,6 +99,12 @@ public sealed record ApiKeyCreate
 
     /// <summary>Optional per-key rate limit, in requests per minute.</summary>
     public int? RateLimitPerMinute { get; init; }
+
+    /// <summary>Optional client-certificate requirement for the new key. Null states none.</summary>
+    public ApiKeyMtlsPolicy? Mtls { get; init; }
+
+    /// <summary>Optional CORS policy for the new key. Null states none, so the server default applies.</summary>
+    public ApiKeyCorsPolicy? Cors { get; init; }
 }
 
 /// <summary>Result of creating an API key. The <see cref="PlainTextKey"/> is shown exactly once.</summary>

@@ -209,5 +209,14 @@ internal static class PostgresSchema
         """
         ALTER TABLE Endpoints ADD COLUMN IF NOT EXISTS Transports integer NOT NULL DEFAULT 1;
         """,
+
+        // v16 - per-key client-certificate (mTLS) and CORS policies. Both nullable and without a
+        // default, because NULL is the fact to record: a key that predates these columns states no
+        // policy of its own and keeps behaving exactly as it did - only the server-wide settings
+        // apply to it. An empty policy is a different fact and is stored as JSON.
+        """
+        ALTER TABLE ApiKeys ADD COLUMN IF NOT EXISTS MtlsJson text NULL;
+        ALTER TABLE ApiKeys ADD COLUMN IF NOT EXISTS CorsJson text NULL;
+        """,
     ];
 }

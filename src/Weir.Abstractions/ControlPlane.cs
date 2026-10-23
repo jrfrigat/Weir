@@ -68,6 +68,26 @@ public interface IControlPlaneStore
     /// <summary>Disables an API key by id.</summary>
     Task RevokeApiKeyAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Replaces an API key's client-certificate and CORS policies. Only the policies: a key's name,
+    /// scopes and grants are a different capability, with different consequences, and bundling them
+    /// into one write is how a policy edit ends up silently widening what a key may call.
+    /// <para>
+    /// Null clears a policy, which puts the key back under the server-wide default. A key that does
+    /// not exist is not an error here - the caller has already read the key list to offer the edit,
+    /// and a race with a revoke should not be reported as a failure.
+    /// </para>
+    /// </summary>
+    /// <param name="id">The key id.</param>
+    /// <param name="mtls">The new client-certificate policy, or null to state none.</param>
+    /// <param name="cors">The new CORS policy, or null to state none.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateApiKeyPoliciesAsync(
+        Guid id,
+        Weir.Contracts.ApiKeyMtlsPolicy? mtls,
+        Weir.Contracts.ApiKeyCorsPolicy? cors,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Records the last-used timestamp for a key (best-effort, may be throttled by the store).</summary>
     Task TouchApiKeyAsync(Guid id, DateTimeOffset usedAt, CancellationToken cancellationToken = default);
 
@@ -336,6 +356,16 @@ public sealed record ApiKeyRecord
 
     /// <summary>Optional per-key rate limit, in requests per minute.</summary>
     public int? RateLimitPerMinute { get; init; }
+
+    /// <summary>
+    /// The key's client-certificate requirement, or null when it states none. Deserialized once when
+    /// the record is read, because this record is what the authenticator caches and the policy is then
+    /// consulted per request.
+    /// </summary>
+    public Weir.Contracts.ApiKeyMtlsPolicy? Mtls { get; init; }
+
+    /// <summary>The key's CORS policy, or null when it states none and the server-wide default applies.</summary>
+    public Weir.Contracts.ApiKeyCorsPolicy? Cors { get; init; }
 }
 
 /// <summary>
