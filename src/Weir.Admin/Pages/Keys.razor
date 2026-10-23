@@ -54,6 +54,8 @@
                     <Template><FlareText Element="span" Mono="true" Color="FlareColor.Primary">@string.Join(", ", context.Scopes)</FlareText></Template>
                 </FlareColumn>
                 <FlareColumn TItem="ApiKeyInfo" Id="procedure-access" Title="@AdminStrings.Keys_ProcedureAccess" Field="@(k => (object?)GrantsSummary(k.Grants))" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="mtls" Title="@AdminStrings.Keys_Mtls" Field="@(k => (object?)MtlsSummary(k.Mtls))" Filterable="true" />
+                <FlareColumn TItem="ApiKeyInfo" Id="cors" Title="@AdminStrings.Keys_Cors" Field="@(k => (object?)CorsSummary(k.Cors))" Filterable="true" />
                 <FlareColumn TItem="ApiKeyInfo" Id="created" Title="@AdminStrings.Keys_ColumnCreated" Field="@(k => (object?)k.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd"))" Sortable="true" />
                 <FlareColumn TItem="ApiKeyInfo" Id="last-used" Title="@AdminStrings.Keys_ColumnLastUsed" Field="@(k => (object?)(k.LastUsedAt.HasValue ? k.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "-"))" Sortable="true" />
                 <FlareColumn TItem="ApiKeyInfo" Id="status" Title="@AdminStrings.Keys_ColumnStatus">
@@ -63,6 +65,7 @@
                     <Template>
                         @if (context.Enabled)
                         {
+                            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="@(() => OpenPolicies(context))">@AdminStrings.Keys_EditPolicies</FlareButton>
                             <FlareButton Variant="ButtonVariant.Text" Color="FlareColor.Error" Size="ButtonSize.Sm" OnClick="@(() => RevokeAsync(context))">@AdminStrings.Keys_Revoke</FlareButton>
                         }
                     </Template>
@@ -124,6 +127,51 @@
     </ActionsContent>
 </FlareDialog>
 
+<FlareDialog @bind-Visible="_showPolicies" Title="@AdminStrings.Keys_PoliciesDialogTitle" Size="DialogSize.Md" ShowCloseButton="true">
+    <ChildContent>
+        <FlareStack Gap="FlareSpacing.Medium">
+            @if (_policyError is not null)
+            {
+                <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_policyError</FlareAlert>
+            }
+            @if (_policyWarning is not null)
+            {
+                <FlareAlert Severity="AlertSeverity.Warning" Title="@AdminStrings.Keys_PolicySavedTitle">@_policyWarning</FlareAlert>
+            }
+
+            <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_PoliciesHelp</FlareText>
+
+            <div>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Mtls</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_MtlsHelp</FlareText>
+                <FlareStack Gap="FlareSpacing.Small" Style="margin-top:.5rem;">
+                    <FlareSwitch @bind-Value="_policy.RequireCertificate" Label="@AdminStrings.Keys_MtlsRequire" />
+                    <FlareField TValue="string" @bind-Value="_policy.Thumbprints" Label="@AdminStrings.Keys_MtlsThumbprints" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                    <FlareField TValue="string" @bind-Value="_policy.IssuerThumbprints" Label="@AdminStrings.Keys_MtlsIssuers" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                    <FlareField TValue="string" @bind-Value="_policy.SubjectPatterns" Label="@AdminStrings.Keys_MtlsSubjects" Placeholder="@AdminStrings.Keys_MtlsSubjectPlaceholder" />
+                </FlareStack>
+            </div>
+
+            <div>
+                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Cors</FlareText>
+                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_CorsHelp</FlareText>
+                <FlareStack Gap="FlareSpacing.Small" Style="margin-top:.5rem;">
+                    <FlareField TValue="string" @bind-Value="_policy.AllowedOrigins" Label="@AdminStrings.Keys_CorsOrigins" Placeholder="@AdminStrings.Keys_CorsOriginPlaceholder" />
+                    <FlareField TValue="string" @bind-Value="_policy.AllowedMethods" Label="@AdminStrings.Keys_CorsMethods" Placeholder="@AdminStrings.Keys_CorsMethodPlaceholder" />
+                    <FlareField TValue="string" @bind-Value="_policy.AllowedHeaders" Label="@AdminStrings.Keys_CorsHeaders" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                    <FlareField TValue="string" @bind-Value="_policy.ExposedHeaders" Label="@AdminStrings.Keys_CorsExposed" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                    <FlareSwitch @bind-Value="_policy.AllowCredentials" Label="@AdminStrings.Keys_CorsCredentials" />
+                    <FlareNumericField TValue="int?" @bind-Value="_policy.MaxAgeSeconds" Label="@AdminStrings.Keys_CorsMaxAge" Min="0" Max="ApiKeyPolicyBounds.MaxCorsMaxAgeSeconds" />
+                </FlareStack>
+            </div>
+        </FlareStack>
+    </ChildContent>
+    <ActionsContent>
+        <FlareButton Variant="ButtonVariant.Text" OnClick="() => _showPolicies = false">@AdminStrings.Common_Cancel</FlareButton>
+        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SavePoliciesAsync" Loading="_busy">@AdminStrings.Common_Save</FlareButton>
+    </ActionsContent>
+</FlareDialog>
+
 @code {
     private List<ApiKeyInfo>? _keys;
     private List<Scope>? _scopes;
@@ -137,6 +185,11 @@
     private ApiKeyCreated? _created;
     private string? _error;
     private string? _createError;
+    private bool _showPolicies;
+    private ApiKeyInfo? _policyKey;
+    private PolicyEdit _policy = new();
+    private string? _policyError;
+    private string? _policyWarning;
 
     /// <summary>Loads keys, the available scopes and connections.</summary>
     protected override async Task OnInitializedAsync()
@@ -169,6 +222,47 @@
 
     /// <summary>Adds an empty grant row (defaults to allow-any).</summary>
     private void AddGrant() => _grants.Add(new GrantEdit());
+
+    /// <summary>
+    /// Summarizes a key's client-certificate policy for the list. What the list has to answer is "which
+    /// keys have a policy at all"; the policy itself belongs in the editor, where it can be read.
+    /// </summary>
+    /// <param name="policy">The key's policy, or null when it states none.</param>
+    /// <returns>The summary.</returns>
+    private static string MtlsSummary(ApiKeyMtlsPolicy? policy)
+    {
+        if (policy is null || policy.IsEmpty)
+        {
+            return "-";
+        }
+
+        var limits = policy.Thumbprints.Count + policy.IssuerThumbprints.Count + policy.SubjectPatterns.Count;
+        if (!policy.RequireCertificate)
+        {
+            return string.Format(AdminStrings.Keys_MtlsSummaryLimited, limits);
+        }
+
+        return limits == 0
+            ? AdminStrings.Keys_MtlsSummaryRequired
+            : string.Format(AdminStrings.Keys_MtlsSummaryRequiredLimited, limits);
+    }
+
+    /// <summary>Summarizes a key's CORS policy for the list.</summary>
+    /// <param name="policy">The key's policy, or null when it states none.</param>
+    /// <returns>The summary.</returns>
+    private static string CorsSummary(ApiKeyCorsPolicy? policy)
+    {
+        if (policy is null)
+        {
+            return "-";
+        }
+
+        // A policy that is present but names no origin is not the same as no policy: it closes
+        // cross-origin access for this key alone, and the list has to say so rather than show a dash.
+        return policy.IsEmpty
+            ? AdminStrings.Keys_CorsSummaryClosed
+            : string.Format(AdminStrings.Keys_CorsSummaryOrigins, policy.AllowedOrigins.Count);
+    }
 
     /// <summary>Builds a short summary of a key's grants for the list.</summary>
     private static string GrantsSummary(IReadOnlyList<ApiKeyGrant> grants) =>
@@ -279,6 +373,176 @@
 
         Snackbar.Show(AdminStrings.Keys_KeyRevoked, SnackbarSeverity.Success);
         await LoadAsync();
+    }
+
+    /// <summary>Opens the policy editor for a key, loading its current policies into the form.</summary>
+    /// <param name="key">The key to edit.</param>
+    private void OpenPolicies(ApiKeyInfo key)
+    {
+        _policyKey = key;
+        _policy = PolicyEdit.From(key);
+        _policyError = null;
+        _policyWarning = null;
+        _showPolicies = true;
+    }
+
+    /// <summary>Saves the edited policies and reloads the list.</summary>
+    private async Task SavePoliciesAsync()
+    {
+        if (_policyKey is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _policyError = null;
+        _policyWarning = null;
+        try
+        {
+            var result = await Api.UpdateKeyPoliciesAsync(_policyKey.Id, _policy.ToUpdate());
+
+            // A warning is not a failure: the policy was stored. The dialog stays open showing it,
+            // because the one case that produces it - a certificate policy saved while mTLS is off -
+            // means this key will be refused every call, and that must not scroll past unnoticed.
+            if (result?.Warning is { Length: > 0 } warning)
+            {
+                // Said in the panel's own language where the code is one this build knows, and in the
+                // server's English where it is not: a newer host must still be able to warn an older
+                // panel about something, even if the wording is not translated.
+                _policyWarning = result.WarningCode switch
+                {
+                    ApiKeyPolicyWarnings.MtlsDisabled => AdminStrings.Keys_PolicyMtlsOffWarning,
+                    _ => warning,
+                };
+                await LoadAsync();
+                return;
+            }
+        }
+        catch (WeirApiException ex)
+        {
+            _policyError = ex.Message;
+            return;
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        _showPolicies = false;
+        Snackbar.Show(AdminStrings.Keys_PoliciesSaved, SnackbarSeverity.Success);
+        await LoadAsync();
+    }
+
+    /// <summary>
+    /// Mutable editor model for a key's two policies. The lists are edited as one comma-separated
+    /// line each: they are flat sets of values with no named parts, unlike a resource grant, whose
+    /// three levels earn three fields.
+    /// </summary>
+    private sealed class PolicyEdit
+    {
+        /// <summary>Whether the key may only be used with a client certificate.</summary>
+        public bool RequireCertificate { get; set; }
+
+        /// <summary>Accepted certificate thumbprints, comma-separated.</summary>
+        public string Thumbprints { get; set; } = string.Empty;
+
+        /// <summary>Accepted issuer thumbprints, comma-separated.</summary>
+        public string IssuerThumbprints { get; set; } = string.Empty;
+
+        /// <summary>Accepted subject patterns, comma-separated.</summary>
+        public string SubjectPatterns { get; set; } = string.Empty;
+
+        /// <summary>Allowed browser origins, comma-separated.</summary>
+        public string AllowedOrigins { get; set; } = string.Empty;
+
+        /// <summary>Methods the preflight answer permits, comma-separated.</summary>
+        public string AllowedMethods { get; set; } = string.Empty;
+
+        /// <summary>Request headers the preflight answer permits, comma-separated.</summary>
+        public string AllowedHeaders { get; set; } = string.Empty;
+
+        /// <summary>Response headers the browser may read, comma-separated.</summary>
+        public string ExposedHeaders { get; set; } = string.Empty;
+
+        /// <summary>Whether the browser may send credentials.</summary>
+        public bool AllowCredentials { get; set; }
+
+        /// <summary>Preflight cache lifetime in seconds, or null for the browser's default.</summary>
+        public int? MaxAgeSeconds { get; set; }
+
+        /// <summary>Loads a key's stored policies into an editor model.</summary>
+        /// <param name="key">The key.</param>
+        /// <returns>The editor model.</returns>
+        public static PolicyEdit From(ApiKeyInfo key) => new()
+        {
+            RequireCertificate = key.Mtls?.RequireCertificate ?? false,
+            Thumbprints = Join(key.Mtls?.Thumbprints),
+            IssuerThumbprints = Join(key.Mtls?.IssuerThumbprints),
+            SubjectPatterns = Join(key.Mtls?.SubjectPatterns),
+            AllowedOrigins = Join(key.Cors?.AllowedOrigins),
+            AllowedMethods = Join(key.Cors?.AllowedMethods),
+            AllowedHeaders = Join(key.Cors?.AllowedHeaders),
+            ExposedHeaders = Join(key.Cors?.ExposedHeaders),
+            AllowCredentials = key.Cors?.AllowCredentials ?? false,
+            MaxAgeSeconds = key.Cors?.MaxAgeSeconds,
+        };
+
+        /// <summary>
+        /// Builds the update to send. A policy that asks for nothing is sent as null rather than as an
+        /// empty record, because null is what "this key states no policy" means on the wire - except
+        /// for CORS, where an empty origin list is a deliberate "no cross-origin access for this key"
+        /// and has to survive as a present policy.
+        /// </summary>
+        /// <returns>The policy update.</returns>
+        public ApiKeyPolicyUpdate ToUpdate()
+        {
+            var mtls = new ApiKeyMtlsPolicy
+            {
+                RequireCertificate = RequireCertificate,
+                Thumbprints = Split(Thumbprints),
+                IssuerThumbprints = Split(IssuerThumbprints),
+                SubjectPatterns = Split(SubjectPatterns),
+            };
+
+            var cors = new ApiKeyCorsPolicy
+            {
+                AllowedOrigins = Split(AllowedOrigins),
+                AllowedMethods = Split(AllowedMethods),
+                AllowedHeaders = Split(AllowedHeaders),
+                ExposedHeaders = Split(ExposedHeaders),
+                AllowCredentials = AllowCredentials,
+                MaxAgeSeconds = MaxAgeSeconds,
+            };
+
+            // CORS: only a form with nothing filled in at all states "no policy". Origins alone being
+            // empty while something else is set is a closed policy, not an absent one.
+            var corsStated = cors.AllowedOrigins.Count > 0
+                || cors.AllowedMethods.Count > 0
+                || cors.AllowedHeaders.Count > 0
+                || cors.ExposedHeaders.Count > 0
+                || cors.AllowCredentials
+                || cors.MaxAgeSeconds is not null;
+
+            return new ApiKeyPolicyUpdate
+            {
+                Mtls = mtls.IsEmpty ? null : mtls,
+                Cors = corsStated ? cors : null,
+            };
+        }
+
+        /// <summary>Renders a stored list as the comma-separated line the form edits.</summary>
+        /// <param name="values">The stored values, or null.</param>
+        /// <returns>The line.</returns>
+        private static string Join(IReadOnlyList<string>? values) =>
+            values is null || values.Count == 0 ? string.Empty : string.Join(", ", values);
+
+        /// <summary>Parses the form's line into a list, dropping blanks and trimming each entry.</summary>
+        /// <param name="value">The edited line.</param>
+        /// <returns>The values.</returns>
+        private static IReadOnlyList<string> Split(string? value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? []
+                : [.. value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
     }
 
     /// <summary>Mutable editor model for one resource grant.</summary>

@@ -178,6 +178,57 @@ public sealed record WeirSystemSettingsView
 
     /// <summary>The file-logging configuration, shown read-only (changing it requires a restart).</summary>
     public WeirLoggingInfo? Logging { get; init; }
+
+    /// <summary>
+    /// The server-wide client-certificate configuration, shown read-only: it is applied to the web
+    /// server at startup, so changing it requires a restart. It is surfaced because a key's own mTLS
+    /// policy only means anything when this is switched on.
+    /// </summary>
+    public WeirMtlsInfo? Mtls { get; init; }
+
+    /// <summary>
+    /// The server-wide CORS default, shown read-only. Surfaced because it is what a key stating no
+    /// CORS policy of its own falls back to, which is otherwise invisible from the key's own screen.
+    /// </summary>
+    public WeirCorsInfo? Cors { get; init; }
+}
+
+/// <summary>Read-only view of the server-wide client-certificate configuration.</summary>
+public sealed record WeirMtlsInfo
+{
+    /// <summary>The mode: <c>None</c>, <c>Allow</c> or <c>Require</c>.</summary>
+    public string Mode { get; init; } = string.Empty;
+
+    /// <summary>Whether mTLS is switched on at all.</summary>
+    public bool Enabled { get; init; }
+
+    /// <summary>How many certificate authority files are configured.</summary>
+    public int TrustedCaFileCount { get; init; }
+
+    /// <summary>How many authority thumbprints are pinned.</summary>
+    public int TrustedCaThumbprintCount { get; init; }
+
+    /// <summary>Whether a certificate with an unverifiable chain is accepted.</summary>
+    public bool AllowUnverifiedChain { get; init; }
+
+    /// <summary>The header a trusted proxy may forward a certificate in, or null when none is read.</summary>
+    public string? ForwardedCertificateHeader { get; init; }
+}
+
+/// <summary>Read-only view of the server-wide CORS default.</summary>
+public sealed record WeirCorsInfo
+{
+    /// <summary>Whether a server-wide policy is configured at all.</summary>
+    public bool Enabled { get; init; }
+
+    /// <summary>The allowed origins.</summary>
+    public IReadOnlyList<string> AllowedOrigins { get; init; } = [];
+
+    /// <summary>Whether the server-wide default allows credentials.</summary>
+    public bool AllowCredentials { get; init; }
+
+    /// <summary>The preflight cache lifetime, if one is set.</summary>
+    public int? MaxAgeSeconds { get; init; }
 }
 
 /// <summary>Read-only view of the file-logging configuration, surfaced in the admin panel.</summary>

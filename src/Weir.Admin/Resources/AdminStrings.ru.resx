@@ -1589,4 +1589,127 @@
   <data name="Settings_SettingsServiceUnavailable" xml:space="preserve">
     <value>Служба настроек не ответила.</value>
   </data>
+  <data name="Keys_Mtls" xml:space="preserve">
+    <value>mTLS</value>
+  </data>
+  <data name="Keys_Cors" xml:space="preserve">
+    <value>CORS</value>
+  </data>
+  <data name="Keys_EditPolicies" xml:space="preserve">
+    <value>Политики</value>
+  </data>
+  <data name="Keys_PoliciesDialogTitle" xml:space="preserve">
+    <value>Политики ключа</value>
+  </data>
+  <data name="Keys_PoliciesHelp" xml:space="preserve">
+    <value>Действуют только на этот ключ. Оставьте раздел пустым - и ключ работает как сейчас: к нему применяются серверные настройки и ничего больше.</value>
+  </data>
+  <data name="Keys_PoliciesSaved" xml:space="preserve">
+    <value>Политики сохранены</value>
+  </data>
+  <data name="Keys_PolicySavedTitle" xml:space="preserve">
+    <value>Сохранено, но есть что учесть</value>
+  </data>
+  <data name="Keys_MtlsHelp" xml:space="preserve">
+    <value>Какой клиентский сертификат принимает этот ключ. Три списка - альтернативы: сертификат, совпавший по отпечатку, не обязан совпасть ещё и по субъекту. Пустой список не ограничивает.</value>
+  </data>
+  <data name="Keys_MtlsRequire" xml:space="preserve">
+    <value>Требовать клиентский сертификат</value>
+  </data>
+  <data name="Keys_MtlsThumbprints" xml:space="preserve">
+    <value>Отпечатки сертификатов</value>
+  </data>
+  <data name="Keys_MtlsIssuers" xml:space="preserve">
+    <value>Отпечатки издателей</value>
+  </data>
+  <data name="Keys_MtlsSubjects" xml:space="preserve">
+    <value>Шаблоны субъекта</value>
+  </data>
+  <data name="Keys_MtlsSubjectPlaceholder" xml:space="preserve">
+    <value>CN=svc-*, OU=payments*</value>
+  </data>
+  <data name="Keys_MtlsSummaryRequired" xml:space="preserve">
+    <value>требуется</value>
+  </data>
+  <data name="Keys_MtlsSummaryRequiredLimited" xml:space="preserve">
+    <value>требуется, разрешено {0}</value>
+  </data>
+  <data name="Keys_MtlsSummaryLimited" xml:space="preserve">
+    <value>разрешено {0}</value>
+  </data>
+  <data name="Keys_CorsHelp" xml:space="preserve">
+    <value>Каким origin браузера можно обращаться с этим ключом. Заданная здесь политика ЗАМЕНЯЕТ для этого ключа серверное значение по умолчанию, а не дополняет его.</value>
+  </data>
+  <data name="Keys_CorsOrigins" xml:space="preserve">
+    <value>Разрешённые origin</value>
+  </data>
+  <data name="Keys_CorsOriginPlaceholder" xml:space="preserve">
+    <value>https://app.example.com</value>
+  </data>
+  <data name="Keys_CorsMethods" xml:space="preserve">
+    <value>Разрешённые методы</value>
+  </data>
+  <data name="Keys_CorsMethodPlaceholder" xml:space="preserve">
+    <value>GET, POST</value>
+  </data>
+  <data name="Keys_CorsHeaders" xml:space="preserve">
+    <value>Разрешённые заголовки запроса</value>
+  </data>
+  <data name="Keys_CorsExposed" xml:space="preserve">
+    <value>Открытые заголовки ответа</value>
+  </data>
+  <data name="Keys_CorsCredentials" xml:space="preserve">
+    <value>Разрешить credentials</value>
+  </data>
+  <data name="Keys_CorsMaxAge" xml:space="preserve">
+    <value>Кеш preflight, секунды</value>
+  </data>
+  <data name="Keys_CorsSummaryClosed" xml:space="preserve">
+    <value>закрыт</value>
+  </data>
+  <data name="Keys_CorsSummaryOrigins" xml:space="preserve">
+    <value>origin: {0}</value>
+  </data>
+  <data name="Keys_ListPlaceholder" xml:space="preserve">
+    <value>через запятую</value>
+  </data>
+  <data name="Settings_SectionMtls" xml:space="preserve">
+    <value>КЛИЕНТСКИЕ СЕРТИФИКАТЫ</value>
+  </data>
+  <data name="Settings_MtlsMode" xml:space="preserve">
+    <value>Режим</value>
+  </data>
+  <data name="Settings_MtlsAuthorities" xml:space="preserve">
+    <value>Доверенные центры</value>
+  </data>
+  <data name="Settings_MtlsUnverifiedChain" xml:space="preserve">
+    <value>Принимать непроверенную цепочку</value>
+  </data>
+  <data name="Settings_MtlsForwardedHeader" xml:space="preserve">
+    <value>Заголовок с сертификатом от прокси</value>
+  </data>
+  <data name="Settings_MtlsHelp" xml:space="preserve">
+    <value>Только для чтения: применяется при старте, изменение требует перезапуска. Политика mTLS у ключа ничего не делает, пока режим - None.</value>
+  </data>
+  <data name="Settings_SectionCors" xml:space="preserve">
+    <value>CORS ПО УМОЛЧАНИЮ</value>
+  </data>
+  <data name="Settings_CorsOrigins" xml:space="preserve">
+    <value>Разрешённые origin</value>
+  </data>
+  <data name="Settings_CorsCredentials" xml:space="preserve">
+    <value>Разрешить credentials</value>
+  </data>
+  <data name="Settings_CorsMaxAge" xml:space="preserve">
+    <value>Кеш preflight, секунды</value>
+  </data>
+  <data name="Settings_CorsHelp" xml:space="preserve">
+    <value>Только для чтения: применяется при старте. Это то, на что падает ключ, не заявивший своей политики CORS.</value>
+  </data>
+  <data name="Settings_None" xml:space="preserve">
+    <value>нет</value>
+  </data>
+  <data name="Keys_PolicyMtlsOffWarning" xml:space="preserve">
+    <value>Клиентские сертификаты на этом сервере выключены (Weir:Mtls:Mode - None), поэтому сертификат не может попасть в запрос. Этот ключ будет получать отказ на каждый вызов, пока mTLS не включат и хост не перезапустят.</value>
+  </data>
 </root>

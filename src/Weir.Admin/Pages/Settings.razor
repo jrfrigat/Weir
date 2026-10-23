@@ -152,6 +152,37 @@
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_LoggingHelp</FlareText>
             </FlareStack>
         </FlareCard>
+
+        @if (_mtls is not null)
+        {
+            <FlareCard Variant="CardVariant.Filled">
+                <FlareStack Gap="FlareSpacing.XSmall">
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionMtls</FlareText>
+                    <FlareDescriptionList>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_MtlsMode"><FlareText Mono="true">@_mtls.Mode</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_MtlsAuthorities"><FlareText Mono="true">@(_mtls.TrustedCaFileCount + _mtls.TrustedCaThumbprintCount)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_MtlsUnverifiedChain"><FlareText Mono="true">@(_mtls.AllowUnverifiedChain ? AdminStrings.Settings_On : AdminStrings.Settings_Off)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_MtlsForwardedHeader"><FlareText Mono="true">@(_mtls.ForwardedCertificateHeader ?? AdminStrings.Settings_None)</FlareText></FlareDescriptionItem>
+                    </FlareDescriptionList>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_MtlsHelp</FlareText>
+                </FlareStack>
+            </FlareCard>
+        }
+
+        @if (_cors is not null)
+        {
+            <FlareCard Variant="CardVariant.Filled">
+                <FlareStack Gap="FlareSpacing.XSmall">
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionCors</FlareText>
+                    <FlareDescriptionList>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_CorsOrigins"><FlareText Mono="true">@(_cors.AllowedOrigins.Count == 0 ? AdminStrings.Settings_None : string.Join(", ", _cors.AllowedOrigins))</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_CorsCredentials"><FlareText Mono="true">@(_cors.AllowCredentials ? AdminStrings.Settings_On : AdminStrings.Settings_Off)</FlareText></FlareDescriptionItem>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_CorsMaxAge"><FlareText Mono="true">@(_cors.MaxAgeSeconds?.ToString() ?? AdminStrings.Settings_None)</FlareText></FlareDescriptionItem>
+                    </FlareDescriptionList>
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_CorsHelp</FlareText>
+                </FlareStack>
+            </FlareCard>
+        }
     }
 </FlareStack>
 
@@ -182,6 +213,8 @@
     private ResponseCompressionMode _responseCompressionMode;
     private long _maxRequestBodyBytes;
     private WeirLoggingInfo? _logging;
+    private WeirMtlsInfo? _mtls;
+    private WeirCorsInfo? _cors;
     private bool _exporting;
     /// <summary>Loads the current settings into the editable fields.</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -220,6 +253,8 @@
             _responseCompressionMode = view.Settings.ResponseCompressionMode;
             _maxRequestBodyBytes = view.MaxRequestBodyBytes;
             _logging = view.Logging;
+            _mtls = view.Mtls;
+            _cors = view.Cors;
         }
         catch (HttpRequestException)
         {

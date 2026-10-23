@@ -1589,4 +1589,127 @@
   <data name="Settings_SettingsServiceUnavailable" xml:space="preserve">
     <value>The settings service did not respond.</value>
   </data>
+  <data name="Keys_Mtls" xml:space="preserve">
+    <value>mTLS</value>
+  </data>
+  <data name="Keys_Cors" xml:space="preserve">
+    <value>CORS</value>
+  </data>
+  <data name="Keys_EditPolicies" xml:space="preserve">
+    <value>Policies</value>
+  </data>
+  <data name="Keys_PoliciesDialogTitle" xml:space="preserve">
+    <value>Key policies</value>
+  </data>
+  <data name="Keys_PoliciesHelp" xml:space="preserve">
+    <value>These apply to this key alone. Leave a section empty and the key behaves as it does today: the server-wide settings apply to it and nothing else does.</value>
+  </data>
+  <data name="Keys_PoliciesSaved" xml:space="preserve">
+    <value>Policies saved</value>
+  </data>
+  <data name="Keys_PolicySavedTitle" xml:space="preserve">
+    <value>Saved, with one thing to know</value>
+  </data>
+  <data name="Keys_MtlsHelp" xml:space="preserve">
+    <value>Which client certificate this key accepts. The three lists are alternatives: a certificate matching by thumbprint does not also have to match a subject. An empty list does not restrict.</value>
+  </data>
+  <data name="Keys_MtlsRequire" xml:space="preserve">
+    <value>Require a client certificate</value>
+  </data>
+  <data name="Keys_MtlsThumbprints" xml:space="preserve">
+    <value>Certificate thumbprints</value>
+  </data>
+  <data name="Keys_MtlsIssuers" xml:space="preserve">
+    <value>Issuer thumbprints</value>
+  </data>
+  <data name="Keys_MtlsSubjects" xml:space="preserve">
+    <value>Subject patterns</value>
+  </data>
+  <data name="Keys_MtlsSubjectPlaceholder" xml:space="preserve">
+    <value>CN=svc-*, OU=payments*</value>
+  </data>
+  <data name="Keys_MtlsSummaryRequired" xml:space="preserve">
+    <value>required</value>
+  </data>
+  <data name="Keys_MtlsSummaryRequiredLimited" xml:space="preserve">
+    <value>required, {0} allowed</value>
+  </data>
+  <data name="Keys_MtlsSummaryLimited" xml:space="preserve">
+    <value>{0} allowed</value>
+  </data>
+  <data name="Keys_CorsHelp" xml:space="preserve">
+    <value>Which browser origins may call with this key. Setting any of these replaces the server-wide CORS default for this key rather than adding to it.</value>
+  </data>
+  <data name="Keys_CorsOrigins" xml:space="preserve">
+    <value>Allowed origins</value>
+  </data>
+  <data name="Keys_CorsOriginPlaceholder" xml:space="preserve">
+    <value>https://app.example.com</value>
+  </data>
+  <data name="Keys_CorsMethods" xml:space="preserve">
+    <value>Allowed methods</value>
+  </data>
+  <data name="Keys_CorsMethodPlaceholder" xml:space="preserve">
+    <value>GET, POST</value>
+  </data>
+  <data name="Keys_CorsHeaders" xml:space="preserve">
+    <value>Allowed request headers</value>
+  </data>
+  <data name="Keys_CorsExposed" xml:space="preserve">
+    <value>Exposed response headers</value>
+  </data>
+  <data name="Keys_CorsCredentials" xml:space="preserve">
+    <value>Allow credentials</value>
+  </data>
+  <data name="Keys_CorsMaxAge" xml:space="preserve">
+    <value>Preflight cache, seconds</value>
+  </data>
+  <data name="Keys_CorsSummaryClosed" xml:space="preserve">
+    <value>closed</value>
+  </data>
+  <data name="Keys_CorsSummaryOrigins" xml:space="preserve">
+    <value>{0} origins</value>
+  </data>
+  <data name="Keys_ListPlaceholder" xml:space="preserve">
+    <value>comma-separated</value>
+  </data>
+  <data name="Settings_SectionMtls" xml:space="preserve">
+    <value>CLIENT CERTIFICATES</value>
+  </data>
+  <data name="Settings_MtlsMode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Settings_MtlsAuthorities" xml:space="preserve">
+    <value>Trusted authorities</value>
+  </data>
+  <data name="Settings_MtlsUnverifiedChain" xml:space="preserve">
+    <value>Accept unverified chain</value>
+  </data>
+  <data name="Settings_MtlsForwardedHeader" xml:space="preserve">
+    <value>Forwarded certificate header</value>
+  </data>
+  <data name="Settings_MtlsHelp" xml:space="preserve">
+    <value>Read-only: applied at startup, so changing it needs a restart. A key's own mTLS policy does nothing while the mode is None.</value>
+  </data>
+  <data name="Settings_SectionCors" xml:space="preserve">
+    <value>CORS DEFAULT</value>
+  </data>
+  <data name="Settings_CorsOrigins" xml:space="preserve">
+    <value>Allowed origins</value>
+  </data>
+  <data name="Settings_CorsCredentials" xml:space="preserve">
+    <value>Allow credentials</value>
+  </data>
+  <data name="Settings_CorsMaxAge" xml:space="preserve">
+    <value>Preflight cache, seconds</value>
+  </data>
+  <data name="Settings_CorsHelp" xml:space="preserve">
+    <value>Read-only: applied at startup. This is what a key that states no CORS policy of its own falls back to.</value>
+  </data>
+  <data name="Settings_None" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="Keys_PolicyMtlsOffWarning" xml:space="preserve">
+    <value>Client certificates are switched off on this server (Weir:Mtls:Mode is None), so no certificate can reach a request. This key will be refused every call until mTLS is enabled and the host restarted.</value>
+  </data>
 </root>

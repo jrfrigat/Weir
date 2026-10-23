@@ -86,9 +86,16 @@ public static class AdminApi
     /// <param name="publisher">Pushes a stored audit entry to connected dashboards.</param>
     private static void MapSettings(RouteGroupBuilder group, IAuditPublisher publisher)
     {
-        group.MapGet("/settings", (IRuntimeSettings settings, IOptions<WeirDataPlaneOptions> options, IOptions<WeirLoggingOptions> logging) =>
+        group.MapGet("/settings", (
+            IRuntimeSettings settings,
+            IOptions<WeirDataPlaneOptions> options,
+            IOptions<WeirLoggingOptions> logging,
+            IOptions<MtlsOptions> mtls,
+            IOptions<WeirCorsOptions> cors) =>
         {
             var log = logging.Value;
+            var tls = mtls.Value;
+            var crossOrigin = cors.Value;
             return Results.Ok(new WeirSystemSettingsView
             {
                 Settings = settings.Current,
@@ -102,6 +109,28 @@ public static class AdminApi
                     RetainedFileTimeLimitDays = log.RetainedFileTimeLimitDays,
                     Format = log.Format,
                     MinimumLevel = log.MinimumLevel,
+                },
+                // Both sections are read-only here because both are applied at startup. They are
+                // surfaced because a key's own policy is meaningless without them: an mTLS policy on a
+                // key does nothing while Mode is None, and a key stating no CORS policy falls back to
+                // the server default, which is otherwise invisible from the key's own screen.
+                Mtls = new WeirMtlsInfo
+                {
+                    Mode = tls.Mode.ToString(),
+                    Enabled = tls.Enabled,
+                    TrustedCaFileCount = tls.TrustedCaFiles.Count,
+                    TrustedCaThumbprintCount = tls.TrustedCaThumbprints.Count,
+                    AllowUnverifiedChain = tls.AllowUnverifiedChain,
+                    ForwardedCertificateHeader = string.IsNullOrWhiteSpace(tls.ForwardedCertificateHeader)
+                        ? null
+                        : tls.ForwardedCertificateHeader,
+                },
+                Cors = new WeirCorsInfo
+                {
+                    Enabled = crossOrigin.Enabled,
+                    AllowedOrigins = [.. crossOrigin.AllowedOrigins],
+                    AllowCredentials = crossOrigin.AllowCredentials,
+                    MaxAgeSeconds = crossOrigin.MaxAgeSeconds,
                 },
             });
         });
@@ -791,6 +820,74 @@ public static class AdminApi
             return Results.Ok(new ApiKeyCreated { Info = info, PlainTextKey = plainText });
         }).RequireAuthorization("AdminOnly");
 
+        // Policies only, and the route says so. The store operation behind it was deliberately narrow
+        // (see IControlPlaneStore.UpdateApiKeyPoliciesAsync); a route called PUT /keys/{id} would read
+        // as "update the key", and sooner or later somebody would add scopes to it.
+        group.MapPut("/keys/{id:guid}/policies", async (
+            Guid id,
+            ApiKeyPolicyUpdate request,
+            IControlPlaneStore store,
+            IApiKeyAuthenticator authenticator,
+            CorsPolicyIndex corsIndex,
+            IOptions<MtlsOptions> mtls,
+            ClaimsPrincipal user,
+            TimeProvider clock,
+            CancellationToken cancellationToken) =>
+        {
+            ArgumentNullException.ThrowIfNull(request);
+
+            // Checked against the same table the admin form constrains its inputs with, because this
+            // route is reachable without the form.
+            if (ApiKeyPolicyBounds.FirstViolation(request.Mtls, request.Cors) is { } violation)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Invalid key policy", detail: violation);
+            }
+
+            var keys = await store.GetApiKeysAsync(cancellationToken);
+            var existing = keys.FirstOrDefault(k => k.Id == id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+
+            await store.UpdateApiKeyPoliciesAsync(id, request.Mtls, request.Cors, cancellationToken);
+
+            // Both caches hold resolved key state. Without the second one a CORS policy an operator has
+            // just saved would not take effect for another half minute, which reads as a policy that
+            // does not work.
+            authenticator.Invalidate();
+            corsIndex.Invalidate();
+
+            await AppendAuditAsync(store, publisher, new AuditEntry
+            {
+                Category = "key.policies.updated",
+                Actor = user.Identity?.Name,
+                Detail = PolicySummary(existing.Prefix, request),
+                Outcome = OutcomeCodes.Ok,
+                Timestamp = clock.GetUtcNow(),
+            }, cancellationToken);
+
+            // Saved, not refused: configuring keys before switching mTLS on is an ordinary order of
+            // work. But a key whose policy wants a certificate while no certificate can ever arrive
+            // will be refused every call, and an operator who is not told would have no way to see why.
+            var mtlsDisabled = request.Mtls is { IsEmpty: false } && !mtls.Value.Enabled;
+            var warning = mtlsDisabled
+                ? "Weir:Mtls is switched off (Mode=None), so no client certificate can reach a request. "
+                  + "This key will be refused every call until mTLS is enabled and the host restarted."
+                : null;
+
+            var updated = (await store.GetApiKeysAsync(cancellationToken)).FirstOrDefault(k => k.Id == id);
+            return updated is null
+                ? Results.NotFound()
+                : Results.Ok(new ApiKeyPolicyUpdated
+                {
+                    Key = updated,
+                    Warning = warning,
+                    WarningCode = mtlsDisabled ? ApiKeyPolicyWarnings.MtlsDisabled : null,
+                });
+        }).RequireAuthorization("AdminOnly");
+
         group.MapDelete("/keys/{id:guid}", async (Guid id, IControlPlaneStore store, IApiKeyAuthenticator authenticator, CorsPolicyIndex corsIndex, ClaimsPrincipal user, TimeProvider clock) =>
         {
             await store.RevokeApiKeyAsync(id);
@@ -808,6 +905,26 @@ public static class AdminApi
             });
             return Results.NoContent();
         }).RequireAuthorization("AdminOnly");
+    }
+
+    /// <summary>
+    /// Describes a policy change for the audit detail: which key, and what each policy now asks for.
+    /// Counts and flags rather than the lists themselves - an audit entry has to stay readable, and
+    /// the key's current policy can always be read back from the key itself.
+    /// </summary>
+    /// <param name="prefix">The key's identifying prefix.</param>
+    /// <param name="update">The change being applied.</param>
+    /// <returns>The audit detail.</returns>
+    private static string PolicySummary(string prefix, ApiKeyPolicyUpdate update)
+    {
+        var mtls = update.Mtls is { } m
+            ? $"mtls(require={m.RequireCertificate}, thumbprints={m.Thumbprints.Count}, "
+              + $"issuers={m.IssuerThumbprints.Count}, subjects={m.SubjectPatterns.Count})"
+            : "mtls(none)";
+        var cors = update.Cors is { } c
+            ? $"cors(origins={c.AllowedOrigins.Count}, credentials={c.AllowCredentials})"
+            : "cors(none)";
+        return $"{prefix} {mtls} {cors}";
     }
 
     /// <summary>Maps scope management.</summary>

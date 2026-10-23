@@ -4589,5 +4589,374 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_ValueOutOfRange", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_Mtls.
+        /// </summary>
+        public static string Keys_Mtls {
+            get {
+                return ResourceManager.GetString("Keys_Mtls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_Cors.
+        /// </summary>
+        public static string Keys_Cors {
+            get {
+                return ResourceManager.GetString("Keys_Cors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_EditPolicies.
+        /// </summary>
+        public static string Keys_EditPolicies {
+            get {
+                return ResourceManager.GetString("Keys_EditPolicies", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_PoliciesDialogTitle.
+        /// </summary>
+        public static string Keys_PoliciesDialogTitle {
+            get {
+                return ResourceManager.GetString("Keys_PoliciesDialogTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_PoliciesHelp.
+        /// </summary>
+        public static string Keys_PoliciesHelp {
+            get {
+                return ResourceManager.GetString("Keys_PoliciesHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_PoliciesSaved.
+        /// </summary>
+        public static string Keys_PoliciesSaved {
+            get {
+                return ResourceManager.GetString("Keys_PoliciesSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_PolicySavedTitle.
+        /// </summary>
+        public static string Keys_PolicySavedTitle {
+            get {
+                return ResourceManager.GetString("Keys_PolicySavedTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsHelp.
+        /// </summary>
+        public static string Keys_MtlsHelp {
+            get {
+                return ResourceManager.GetString("Keys_MtlsHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsRequire.
+        /// </summary>
+        public static string Keys_MtlsRequire {
+            get {
+                return ResourceManager.GetString("Keys_MtlsRequire", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsThumbprints.
+        /// </summary>
+        public static string Keys_MtlsThumbprints {
+            get {
+                return ResourceManager.GetString("Keys_MtlsThumbprints", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsIssuers.
+        /// </summary>
+        public static string Keys_MtlsIssuers {
+            get {
+                return ResourceManager.GetString("Keys_MtlsIssuers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsSubjects.
+        /// </summary>
+        public static string Keys_MtlsSubjects {
+            get {
+                return ResourceManager.GetString("Keys_MtlsSubjects", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsSubjectPlaceholder.
+        /// </summary>
+        public static string Keys_MtlsSubjectPlaceholder {
+            get {
+                return ResourceManager.GetString("Keys_MtlsSubjectPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryRequired.
+        /// </summary>
+        public static string Keys_MtlsSummaryRequired {
+            get {
+                return ResourceManager.GetString("Keys_MtlsSummaryRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryRequiredLimited.
+        /// </summary>
+        public static string Keys_MtlsSummaryRequiredLimited {
+            get {
+                return ResourceManager.GetString("Keys_MtlsSummaryRequiredLimited", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryLimited.
+        /// </summary>
+        public static string Keys_MtlsSummaryLimited {
+            get {
+                return ResourceManager.GetString("Keys_MtlsSummaryLimited", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsHelp.
+        /// </summary>
+        public static string Keys_CorsHelp {
+            get {
+                return ResourceManager.GetString("Keys_CorsHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsOrigins.
+        /// </summary>
+        public static string Keys_CorsOrigins {
+            get {
+                return ResourceManager.GetString("Keys_CorsOrigins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsOriginPlaceholder.
+        /// </summary>
+        public static string Keys_CorsOriginPlaceholder {
+            get {
+                return ResourceManager.GetString("Keys_CorsOriginPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsMethods.
+        /// </summary>
+        public static string Keys_CorsMethods {
+            get {
+                return ResourceManager.GetString("Keys_CorsMethods", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsMethodPlaceholder.
+        /// </summary>
+        public static string Keys_CorsMethodPlaceholder {
+            get {
+                return ResourceManager.GetString("Keys_CorsMethodPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsHeaders.
+        /// </summary>
+        public static string Keys_CorsHeaders {
+            get {
+                return ResourceManager.GetString("Keys_CorsHeaders", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsExposed.
+        /// </summary>
+        public static string Keys_CorsExposed {
+            get {
+                return ResourceManager.GetString("Keys_CorsExposed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsCredentials.
+        /// </summary>
+        public static string Keys_CorsCredentials {
+            get {
+                return ResourceManager.GetString("Keys_CorsCredentials", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsMaxAge.
+        /// </summary>
+        public static string Keys_CorsMaxAge {
+            get {
+                return ResourceManager.GetString("Keys_CorsMaxAge", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsSummaryClosed.
+        /// </summary>
+        public static string Keys_CorsSummaryClosed {
+            get {
+                return ResourceManager.GetString("Keys_CorsSummaryClosed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_CorsSummaryOrigins.
+        /// </summary>
+        public static string Keys_CorsSummaryOrigins {
+            get {
+                return ResourceManager.GetString("Keys_CorsSummaryOrigins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_ListPlaceholder.
+        /// </summary>
+        public static string Keys_ListPlaceholder {
+            get {
+                return ResourceManager.GetString("Keys_ListPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_SectionMtls.
+        /// </summary>
+        public static string Settings_SectionMtls {
+            get {
+                return ResourceManager.GetString("Settings_SectionMtls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_MtlsMode.
+        /// </summary>
+        public static string Settings_MtlsMode {
+            get {
+                return ResourceManager.GetString("Settings_MtlsMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_MtlsAuthorities.
+        /// </summary>
+        public static string Settings_MtlsAuthorities {
+            get {
+                return ResourceManager.GetString("Settings_MtlsAuthorities", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_MtlsUnverifiedChain.
+        /// </summary>
+        public static string Settings_MtlsUnverifiedChain {
+            get {
+                return ResourceManager.GetString("Settings_MtlsUnverifiedChain", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_MtlsForwardedHeader.
+        /// </summary>
+        public static string Settings_MtlsForwardedHeader {
+            get {
+                return ResourceManager.GetString("Settings_MtlsForwardedHeader", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_MtlsHelp.
+        /// </summary>
+        public static string Settings_MtlsHelp {
+            get {
+                return ResourceManager.GetString("Settings_MtlsHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_SectionCors.
+        /// </summary>
+        public static string Settings_SectionCors {
+            get {
+                return ResourceManager.GetString("Settings_SectionCors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_CorsOrigins.
+        /// </summary>
+        public static string Settings_CorsOrigins {
+            get {
+                return ResourceManager.GetString("Settings_CorsOrigins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_CorsCredentials.
+        /// </summary>
+        public static string Settings_CorsCredentials {
+            get {
+                return ResourceManager.GetString("Settings_CorsCredentials", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_CorsMaxAge.
+        /// </summary>
+        public static string Settings_CorsMaxAge {
+            get {
+                return ResourceManager.GetString("Settings_CorsMaxAge", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_CorsHelp.
+        /// </summary>
+        public static string Settings_CorsHelp {
+            get {
+                return ResourceManager.GetString("Settings_CorsHelp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Settings_None.
+        /// </summary>
+        public static string Settings_None {
+            get {
+                return ResourceManager.GetString("Settings_None", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку с ключом Keys_PolicyMtlsOffWarning.
+        /// </summary>
+        public static string Keys_PolicyMtlsOffWarning {
+            get {
+                return ResourceManager.GetString("Keys_PolicyMtlsOffWarning", resourceCulture);
+            }
+        }
     }
 }

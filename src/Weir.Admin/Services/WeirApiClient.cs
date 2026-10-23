@@ -378,6 +378,19 @@ public sealed class WeirApiClient
     public async Task RevokeKeyAsync(Guid id) =>
         await EnsureSuccessAsync(await _http.DeleteAsync($"admin/api/keys/{id}"));
 
+    /// <summary>
+    /// Replaces a key's client-certificate and CORS policies. Policies only: the route deliberately
+    /// cannot change a key's name, scopes or grants.
+    /// </summary>
+    /// <param name="id">The key id.</param>
+    /// <param name="update">The new policies; a null policy states none.</param>
+    /// <returns>The stored key, plus a warning when the saved policy cannot take effect yet.</returns>
+    public async Task<ApiKeyPolicyUpdated?> UpdateKeyPoliciesAsync(Guid id, ApiKeyPolicyUpdate update)
+    {
+        var response = await EnsureSuccessAsync(await _http.PutAsJsonAsync($"admin/api/keys/{id}/policies", update));
+        return await response.Content.ReadFromJsonAsync<ApiKeyPolicyUpdated>();
+    }
+
     // ----- Scopes ----------------------------------------------------------------------------
 
     /// <summary>Lists scopes.</summary>

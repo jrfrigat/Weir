@@ -333,4 +333,135 @@ public static class ApiKeyPolicyBounds
 
     /// <summary>Largest accepted length of one list entry: an origin, a thumbprint or a pattern.</summary>
     public const int MaxEntryLength = 256;
+
+    /// <summary>
+    /// The first thing wrong with a pair of policies, or null when both are acceptable. One function
+    /// for both sides: the admin form constrains its inputs with it, and the admin API refuses with
+    /// it, because a limit is not enforced by the page that edits it and that route is reachable
+    /// without the page.
+    /// </summary>
+    /// <param name="mtls">The client-certificate policy, or null.</param>
+    /// <param name="cors">The CORS policy, or null.</param>
+    /// <returns>A message naming what is wrong, or null when nothing is.</returns>
+    public static string? FirstViolation(ApiKeyMtlsPolicy? mtls, ApiKeyCorsPolicy? cors)
+    {
+        if (mtls is not null)
+        {
+            var problem = CheckList(mtls.Thumbprints, nameof(ApiKeyMtlsPolicy.Thumbprints))
+                ?? CheckList(mtls.IssuerThumbprints, nameof(ApiKeyMtlsPolicy.IssuerThumbprints))
+                ?? CheckList(mtls.SubjectPatterns, nameof(ApiKeyMtlsPolicy.SubjectPatterns));
+            if (problem is not null)
+            {
+                return problem;
+            }
+        }
+
+        if (cors is null)
+        {
+            return null;
+        }
+
+        var corsProblem = CheckList(cors.AllowedOrigins, nameof(ApiKeyCorsPolicy.AllowedOrigins))
+            ?? CheckList(cors.AllowedMethods, nameof(ApiKeyCorsPolicy.AllowedMethods))
+            ?? CheckList(cors.AllowedHeaders, nameof(ApiKeyCorsPolicy.AllowedHeaders))
+            ?? CheckList(cors.ExposedHeaders, nameof(ApiKeyCorsPolicy.ExposedHeaders));
+        if (corsProblem is not null)
+        {
+            return corsProblem;
+        }
+
+        if (cors.MaxAgeSeconds is { } maxAge && (maxAge < 0 || maxAge > MaxCorsMaxAgeSeconds))
+        {
+            return $"'{nameof(ApiKeyCorsPolicy.MaxAgeSeconds)}' must be between 0 and {MaxCorsMaxAgeSeconds}.";
+        }
+
+        // The specification forbids a wildcard origin together with credentials, and every browser
+        // refuses the pair, so a policy saying both would look permissive and allow nothing. Refused
+        // on the way in rather than quietly corrected on the way out: a setting that does not do what
+        // it says is worse than one that would not save.
+        if (cors.AllowCredentials && cors.AllowsAnyOrigin())
+        {
+            return "A CORS policy cannot set AllowCredentials together with the wildcard origin '*'. "
+                + "Name the origins explicitly, or turn AllowCredentials off.";
+        }
+
+        return null;
+    }
+
+    /// <summary>Checks one policy list against the entry-count and entry-length caps.</summary>
+    /// <param name="values">The list to check.</param>
+    /// <param name="name">Its name, for the message.</param>
+    /// <returns>A message naming what is wrong, or null.</returns>
+    private static string? CheckList(IReadOnlyList<string> values, string name)
+    {
+        if (values.Count > MaxListEntries)
+        {
+            return $"'{name}' holds {values.Count} entries; at most {MaxListEntries} are accepted.";
+        }
+
+        foreach (var value in values)
+        {
+            if (value.Length > MaxEntryLength)
+            {
+                return $"'{name}' holds an entry of {value.Length} characters; at most {MaxEntryLength} are accepted.";
+            }
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// A change to one API key's policies, sent to the admin API. Carries only the policies: a key's
+/// name, scopes and grants are a different capability with different consequences, and the route
+/// that edits policies must not be able to widen what a key may call.
+/// </summary>
+public sealed record ApiKeyPolicyUpdate
+{
+    /// <summary>The new client-certificate policy, or null to state none.</summary>
+    public ApiKeyMtlsPolicy? Mtls { get; init; }
+
+    /// <summary>The new CORS policy, or null to state none, so the server-wide default applies.</summary>
+    public ApiKeyCorsPolicy? Cors { get; init; }
+}
+
+/// <summary>
+/// The answer to a policy change: the stored key, plus anything the operator should know that is not
+/// a refusal.
+/// </summary>
+public sealed record ApiKeyPolicyUpdated
+{
+    /// <summary>The key as stored, with its new policies.</summary>
+    public required ApiKeyInfo Key { get; init; }
+
+    /// <summary>
+    /// A warning about the saved policy in English, or null when there is nothing to say. The one case
+    /// today is a client-certificate policy saved while <c>Weir:Mtls</c> is switched off: no
+    /// certificate can reach a request then, so the key will be refused every call. Saving is still
+    /// allowed, because configuring keys before enabling mTLS is a perfectly ordinary order of work -
+    /// but an operator who is not told would be left with a key that stopped working for no visible
+    /// reason.
+    /// <para>
+    /// This text is for callers that have nowhere to translate it - a script, a log. The admin UI
+    /// renders its own localized wording from <see cref="WarningCode"/> instead, because the panel is
+    /// bilingual and an English sentence in the middle of a Russian screen is a loose end.
+    /// </para>
+    /// </summary>
+    public string? Warning { get; init; }
+
+    /// <summary>
+    /// A stable identifier for <see cref="Warning"/>, so a client can say the same thing in its own
+    /// language. Null when there is no warning. See <see cref="ApiKeyPolicyWarnings"/>.
+    /// </summary>
+    public string? WarningCode { get; init; }
+}
+
+/// <summary>The warning codes <see cref="ApiKeyPolicyUpdated.WarningCode"/> can carry.</summary>
+public static class ApiKeyPolicyWarnings
+{
+    /// <summary>
+    /// A client-certificate policy was saved while server-wide mTLS is switched off, so no certificate
+    /// can reach a request and the key will be refused every call until mTLS is enabled.
+    /// </summary>
+    public const string MtlsDisabled = "mtls-disabled";
 }
