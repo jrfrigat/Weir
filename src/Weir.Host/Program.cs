@@ -227,16 +227,9 @@ builder.Services.AddOptions<NetworkOptions>()
 // proxy, where it can only arrive in a header the proxy sets - and that header is believed only from
 // a proxy named in Weir:Network:TrustedProxies, which is why this section leans on that one.
 var mtlsOptions = builder.Configuration.GetSection(MtlsOptions.SectionName).Get<MtlsOptions>() ?? new MtlsOptions();
+builder.Services.AddSingleton<IValidateOptions<MtlsOptions>, MtlsOptionsValidator>();
 builder.Services.AddOptions<MtlsOptions>()
     .Bind(builder.Configuration.GetSection(MtlsOptions.SectionName))
-    .Validate(
-        o =>
-        {
-            o.Validate(out var error);
-            return error is null;
-        },
-        "Weir:Mtls is not usable: check that every TrustedCaFiles entry exists, that every "
-        + "TrustedCaThumbprints entry is a hex thumbprint, and that MaxForwardedCertificateBytes is positive.")
     .Validate(
         o => !o.ReadsForwardedHeader || networkOptions.Enabled,
         "Weir:Mtls:ForwardedCertificateHeader is set but Weir:Network:TrustedProxies is empty, so no "

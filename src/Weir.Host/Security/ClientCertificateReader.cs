@@ -18,10 +18,18 @@ namespace Weir.Host.Security;
 /// depends on which key is calling and is taken per request, where it belongs.
 /// </para>
 /// </summary>
-public sealed class ClientCertificateReader
+public sealed class ClientCertificateReader : IDisposable
 {
     /// <summary>How long a certificate's derived facts stay memoized.</summary>
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How many certificates the memo holds. Bounded on purpose: the memo is keyed by whatever a
+    /// caller presents, a refusal is memoized too, and a client that churns through certificates
+    /// would otherwise make Weir keep an entry for every one of them. The cache is also the reader's
+    /// own rather than the shared one, so this limit cannot start evicting resolved API keys.
+    /// </summary>
+    private const long CacheEntries = 1024;
 
     /// <summary>The mTLS settings.</summary>
     private readonly MtlsOptions _options;
@@ -29,25 +37,27 @@ public sealed class ClientCertificateReader
     /// <summary>The configured authorities, loaded once at startup.</summary>
     private readonly X509Certificate2Collection _authorities;
 
-    /// <summary>Cache for derived certificate facts, keyed by certificate content.</summary>
-    private readonly IMemoryCache _cache;
+    /// <summary>Bounded cache for derived certificate facts, keyed by certificate content.</summary>
+    private readonly MemoryCache _cache;
 
     /// <summary>Logger for rejected chains and unusable headers.</summary>
     private readonly ILogger _log;
 
     /// <summary>Creates the reader and loads the configured authorities.</summary>
     /// <param name="options">The mTLS settings.</param>
-    /// <param name="cache">Cache for derived certificate facts.</param>
     /// <param name="loggerFactory">Factory for the security logger.</param>
-    public ClientCertificateReader(IOptions<MtlsOptions> options, IMemoryCache cache, ILoggerFactory loggerFactory)
+    public ClientCertificateReader(IOptions<MtlsOptions> options, ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         _options = options.Value;
-        _cache = cache;
+        _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = CacheEntries });
         _log = loggerFactory.CreateLogger("Weir.Security.Mtls");
         _authorities = _options.Enabled ? _options.LoadTrustedAuthorities() : [];
     }
+
+    /// <summary>Disposes the reader's own certificate memo.</summary>
+    public void Dispose() => _cache.Dispose();
 
     /// <summary>
     /// Reads the facts off a certificate presented on the connection, or returns null when its chain

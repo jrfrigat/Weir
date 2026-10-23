@@ -58,7 +58,14 @@ public static class ClientCertificateMiddleware
         var network = app.ApplicationServices.GetRequiredService<IOptions<NetworkOptions>>().Value;
         var log = app.ApplicationServices.GetRequiredService<ILoggerFactory>().CreateLogger("Weir.Security.Mtls");
 
-        network.ParseTrustedProxies(out var trustedProxies, out var trustedNetworks, out _);
+        // Parsed once, here, rather than per request: these entries do not change while the host runs.
+        network.ParseTrustedProxies(out var trustedProxies, out var parsedNetworks, out _);
+        var trustedNetworks = new List<IPNetwork>(parsedNetworks.Count);
+        foreach (var (prefix, length) in parsedNetworks)
+        {
+            trustedNetworks.Add(new IPNetwork(prefix, length));
+        }
+
         var header = options.ForwardedCertificateHeader;
 
         return app.Use(async (context, next) =>
@@ -100,10 +107,7 @@ public static class ClientCertificateMiddleware
     /// <param name="proxies">Trusted single addresses.</param>
     /// <param name="networks">Trusted networks.</param>
     /// <returns>True when the peer may speak for a client.</returns>
-    private static bool IsTrustedProxy(
-        IPAddress? remote,
-        List<IPAddress> proxies,
-        List<(IPAddress Prefix, int Length)> networks)
+    private static bool IsTrustedProxy(IPAddress? remote, List<IPAddress> proxies, List<IPNetwork> networks)
     {
         if (remote is null)
         {
@@ -123,9 +127,8 @@ public static class ClientCertificateMiddleware
             }
         }
 
-        foreach (var (prefix, length) in networks)
+        foreach (var network in networks)
         {
-            var network = new IPNetwork(prefix, length);
             if (network.Contains(remote) || network.Contains(mapped))
             {
                 return true;
