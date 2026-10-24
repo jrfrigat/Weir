@@ -1,0 +1,35 @@
+@inherits LocalizedPage
+
+@* An [i] beside a field label that opens its explanation on click.
+
+   For the few settings whose name cannot carry what the reader needs to know. Helper text under the
+   field says the same thing, but it is always on screen: two long helper texts in a row of five
+   fields pushed their two fields a line higher than the rest, which is what this replaces.
+
+   Click, not hover: a hover-only explanation is unreachable from a touch screen and awkward from a
+   keyboard. FlarePopover does both from one Trigger, so no behaviour is hand-rolled here.
+
+   Two things about FlarePopover that cost a measurement each:
+   - its Click trigger drives the Open PARAMETER, so without @bind-Open nothing opens, however
+     correct the markup looks;
+   - the trigger it wraps AnchorContent in is already role="button" with its own tab stop, so the
+     anchor must be the icon itself. A FlareIconButton in there nests a button inside a button and
+     stops the click reaching the trigger. The name the trigger then lacks comes from the
+     visually-hidden label beside the icon. *@
+<FlarePopover @bind-Open="_open" Trigger="PopoverTrigger.Click" Placement="Placement.BottomStart" MaxWidth="24rem" Arrow="true">
+    <AnchorContent>
+        <FlareIconView Value="@MaterialDesign3Icons.Regular.Info" Size="1rem" Color="FlareColor.OnSurfaceVariant" />
+        <span class="flare-visually-hidden">@AdminStrings.Common_MoreInfo</span>
+    </AnchorContent>
+    <ChildContent>
+        <FlareText Typo="TypographyScale.BodySmall">@Text</FlareText>
+    </ChildContent>
+</FlarePopover>
+
+@code {
+    /// <summary>Whether the explanation is showing. Bound, because the Click trigger drives it.</summary>
+    private bool _open;
+
+    /// <summary>The explanation to show. The same words the field used to carry as helper text.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+}

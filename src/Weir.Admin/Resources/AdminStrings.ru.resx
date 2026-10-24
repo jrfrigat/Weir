@@ -1832,4 +1832,7 @@
   <data name="Dashboard_ChartNoData" xml:space="preserve">
     <value>В этом окне пока нет данных.</value>
   </data>
+  <data name="Common_MoreInfo" xml:space="preserve">
+    <value>Подробнее</value>
+  </data>
 </root>

@@ -31,8 +31,22 @@
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxRows" Min="SettingsBounds.MaxRows.Min" Max="SettingsBounds.MaxRows.Max" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_RequestTimeoutLabel" Size="FieldSize.Sm" @bind-Value="_requestTimeoutSeconds" Min="SettingsBounds.RequestTimeoutSeconds.Min" Max="SettingsBounds.RequestTimeoutSeconds.Max" HelperText="@DurationHint.Humanize(_requestTimeoutSeconds)" Style="max-width:12rem;" />
                     <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxTvpRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxTvpRows" Min="SettingsBounds.MaxTvpRows.Min" Max="SettingsBounds.MaxTvpRows.Max" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxImportRowsLabel" Size="FieldSize.Sm" @bind-Value="_maxImportRows" Min="SettingsBounds.MaxImportRows.Min" Max="SettingsBounds.MaxImportRows.Max" HelperText="@AdminStrings.Settings_MaxImportRowsHelp" Style="max-width:12rem;" />
-                    <FlareNumericField TValue="int" Label="@AdminStrings.Settings_MaxBinaryBytesLabel" Size="FieldSize.Sm" @bind-Value="_maxBinaryBytes" Min="SettingsBounds.MaxBinaryBytes.Min" Max="SettingsBounds.MaxBinaryBytes.Max" HelperText="@AdminStrings.Settings_MaxBinaryBytesHelp" Style="max-width:14rem;" />
+                    <FlareNumericField TValue="int" Size="FieldSize.Sm" @bind-Value="_maxImportRows" Min="SettingsBounds.MaxImportRows.Min" Max="SettingsBounds.MaxImportRows.Max" Style="max-width:12rem;">
+                        <LabelContent>
+                            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                                <span>@AdminStrings.Settings_MaxImportRowsLabel</span>
+                                <InfoPopover Text="@AdminStrings.Settings_MaxImportRowsHelp" />
+                            </FlareStack>
+                        </LabelContent>
+                    </FlareNumericField>
+                    <FlareNumericField TValue="int" Size="FieldSize.Sm" @bind-Value="_maxBinaryBytes" Min="SettingsBounds.MaxBinaryBytes.Min" Max="SettingsBounds.MaxBinaryBytes.Max" Style="max-width:14rem;">
+                        <LabelContent>
+                            <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                                <span>@AdminStrings.Settings_MaxBinaryBytesLabel</span>
+                                <InfoPopover Text="@AdminStrings.Settings_MaxBinaryBytesHelp" />
+                            </FlareStack>
+                        </LabelContent>
+                    </FlareNumericField>
                 </FlareStack>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_DataPlaneLimitsHelp</FlareText>
             </FlareStack>

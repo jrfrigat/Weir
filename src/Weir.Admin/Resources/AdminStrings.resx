@@ -1832,4 +1832,7 @@
   <data name="Dashboard_ChartNoData" xml:space="preserve">
     <value>No data in this window yet.</value>
   </data>
+  <data name="Common_MoreInfo" xml:space="preserve">
+    <value>More information</value>
+  </data>
 </root>

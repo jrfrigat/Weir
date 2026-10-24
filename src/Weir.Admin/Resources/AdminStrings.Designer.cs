@@ -5318,5 +5318,14 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Dashboard_ChartNoData", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на More information.
+        /// </summary>
+        public static string Common_MoreInfo {
+            get {
+                return ResourceManager.GetString("Common_MoreInfo", resourceCulture);
+            }
+        }
     }
 }
