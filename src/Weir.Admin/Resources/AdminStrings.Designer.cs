@@ -430,7 +430,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Create an admin account above..
+        ///   Ищет локализованную строку, похожую на Create an admin account so someone else can sign in to this console..
         /// </summary>
         public static string Admins_EmptyDescription {
             get {
@@ -3945,7 +3945,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Add a scope above to grant API keys access..
+        ///   Ищет локализованную строку, похожую на Create a scope to grant API keys access to endpoints..
         /// </summary>
         public static string Scopes_EmptyDescription {
             get {
@@ -5064,6 +5064,51 @@ namespace Weir.Admin.Resources {
         public static string Title_NotFound {
             get {
                 return ResourceManager.GetString("Title_NotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Nothing matches.
+        /// </summary>
+        public static string Common_NoMatchTitle {
+            get {
+                return ResourceManager.GetString("Common_NoMatchTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The rows are there, but none of them matches the filters in effect..
+        /// </summary>
+        public static string Common_NoMatchDescription {
+            get {
+                return ResourceManager.GetString("Common_NoMatchDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Clear filters.
+        /// </summary>
+        public static string Common_ClearFilters {
+            get {
+                return ResourceManager.GetString("Common_ClearFilters", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Entries appear here as admins sign in and change the configuration..
+        /// </summary>
+        public static string Audit_EmptyDescription {
+            get {
+                return ResourceManager.GetString("Audit_EmptyDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Requests were logged, but none of them passes the filters in effect..
+        /// </summary>
+        public static string Logs_FilteredEmptyDescription {
+            get {
+                return ResourceManager.GetString("Logs_FilteredEmptyDescription", resourceCulture);
             }
         }
     }

@@ -40,11 +40,15 @@
     {
         <FlareEmptyState Title="@AdminStrings.Keys_EmptyTitle" Description="@AdminStrings.Keys_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Key" /></IconContent>
+            <ActionContent>
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="OpenCreate">@AdminStrings.Keys_CreateKey</FlareButton>
+            </ActionContent>
         </FlareEmptyState>
     }
     else
     {
-        <FlareDataGrid Items="@_keys" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
+        <FlareDataGrid @ref="_grid" Items="@_keys" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
+            <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
             <Columns>
                 <FlareColumn TItem="ApiKeyInfo" Id="name" Title="@AdminStrings.Common_Name" Field="@(k => (object?)k.Name)" Sortable="true" Filterable="true" />
                 <FlareColumn TItem="ApiKeyInfo" Id="key" Title="@AdminStrings.Keys_ColumnKey">
@@ -187,6 +191,14 @@
     private string? _createError;
     private bool _showPolicies;
     private ApiKeyInfo? _policyKey;
+    private FlareDataGrid<ApiKeyInfo>? _grid;
+
+    /// <summary>
+    /// Clears the grid's column and quick filters, which are the only filters on this page, so the
+    /// no-match state's button brings every key back.
+    /// </summary>
+    /// <returns>A task that completes once the grid has re-filtered.</returns>
+    private Task ClearFiltersAsync() => _grid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
     private PolicyEdit _policy = new();
     private string? _policyError;
     private string? _policyWarning;

@@ -34,15 +34,25 @@
     {
         <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
     }
+    else if (_entries.Count == 0 && IsQueryFiltered)
+    {
+        @* The page filters go into the query, so they empty _entries itself. Without this branch the
+           page would claim no request was ever logged while the log is merely being narrowed. *@
+        <NoMatchState Compact="false" Description="@AdminStrings.Logs_FilteredEmptyDescription" OnClear="ClearQueryFiltersAsync" />
+    }
     else if (_entries.Count == 0)
     {
         <FlareEmptyState Title="@AdminStrings.Logs_EmptyTitle" Description="@AdminStrings.Logs_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.ReceiptLong" /></IconContent>
+            <ActionContent>
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="RefreshAsync" Loading="_loading">@AdminStrings.Common_Refresh</FlareButton>
+            </ActionContent>
         </FlareEmptyState>
     }
     else
     {
-        <FlareDataGrid TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" FillHeight RowClick="@(e => OpenDetail(e))">
+        <FlareDataGrid @ref="_grid" TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" FillHeight RowClick="@(e => OpenDetail(e))">
+            <EmptyStateContent><NoMatchState OnClear="ClearAllFiltersAsync" /></EmptyStateContent>
             <ToolbarContent>
                 @if (_hasMore)
                 {
@@ -215,6 +225,7 @@
     private string? _endpointLabel;
     private bool _slowOnly;
     private bool _errorsOnly;
+    private FlareDataGrid<RequestLogEntry>? _grid;
     private bool _loading;
     private bool _loadingMore;
     private bool _hasMore;
@@ -342,6 +353,43 @@
         _endpointLabel = null;
         Nav.NavigateTo("logs");
         await RefreshAsync();
+    }
+
+    /// <summary>
+    /// Whether anything that narrows the server query is on: the endpoint the page was deep-linked
+    /// with, or either of the slow / errors switches. These shrink the fetched set, so an empty
+    /// result means "nothing matches", not "nothing was logged".
+    /// </summary>
+    private bool IsQueryFiltered => _endpointId is not null || _route is not null || _slowOnly || _errorsOnly;
+
+    /// <summary>
+    /// Drops every query filter and re-fetches. Leaves the deep link behind too, since the endpoint
+    /// chip is one of the filters hiding rows.
+    /// </summary>
+    /// <returns>A task that completes once the unfiltered page has loaded.</returns>
+    private async Task ClearQueryFiltersAsync()
+    {
+        _slowOnly = false;
+        _errorsOnly = false;
+        await ClearEndpoint();
+    }
+
+    /// <summary>
+    /// Clears the grid's own column filters as well as the query filters, for the no-match state
+    /// inside the grid: there either kind may be what emptied the table.
+    /// </summary>
+    /// <returns>A task that completes once the page has re-fetched and the grid re-filtered.</returns>
+    private async Task ClearAllFiltersAsync()
+    {
+        if (_grid is not null)
+        {
+            await _grid.ClearAllFiltersAsync();
+        }
+
+        if (IsQueryFiltered)
+        {
+            await ClearQueryFiltersAsync();
+        }
     }
 
     private void OpenDetail(RequestLogEntry entry) => _selected = entry;

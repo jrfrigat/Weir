@@ -518,7 +518,7 @@
     <value>No admin accounts</value>
   </data>
   <data name="Admins_EmptyDescription" xml:space="preserve">
-    <value>Create an admin account above.</value>
+    <value>Create an admin account so someone else can sign in to this console.</value>
   </data>
   <data name="Admins_Login" xml:space="preserve">
     <value>Login</value>
@@ -1365,7 +1365,7 @@
     <value>No scopes yet</value>
   </data>
   <data name="Scopes_EmptyDescription" xml:space="preserve">
-    <value>Add a scope above to grant API keys access.</value>
+    <value>Create a scope to grant API keys access to endpoints.</value>
   </data>
   <data name="Scopes_ColumnScope" xml:space="preserve">
     <value>Scope</value>
@@ -1747,5 +1747,20 @@
   </data>
   <data name="Title_NotFound" xml:space="preserve">
     <value>Page not found</value>
+  </data>
+  <data name="Common_NoMatchTitle" xml:space="preserve">
+    <value>Nothing matches</value>
+  </data>
+  <data name="Common_NoMatchDescription" xml:space="preserve">
+    <value>The rows are there, but none of them matches the filters in effect.</value>
+  </data>
+  <data name="Common_ClearFilters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="Audit_EmptyDescription" xml:space="preserve">
+    <value>Entries appear here as admins sign in and change the configuration.</value>
+  </data>
+  <data name="Logs_FilteredEmptyDescription" xml:space="preserve">
+    <value>Requests were logged, but none of them passes the filters in effect.</value>
   </data>
 </root>

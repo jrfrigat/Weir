@@ -1,0 +1,28 @@
+@inherits LocalizedPage
+
+@* The "your filters match nothing" state, shared by every list so the wording and the way out are
+   the same everywhere. Distinct from a page's own empty state, which says the list itself is empty:
+   this one says the data is there and the filters are hiding it, and hands over the reset. *@
+<FlareEmptyState Title="@AdminStrings.Common_NoMatchTitle" Description="@(Description ?? AdminStrings.Common_NoMatchDescription)" Compact="@Compact">
+    <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.SearchOff" /></IconContent>
+    <ActionContent>
+        <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="OnClear">@AdminStrings.Common_ClearFilters</FlareButton>
+    </ActionContent>
+</FlareEmptyState>
+
+@code {
+    /// <summary>
+    /// Clears every filter that could be hiding the rows. A page whose filters live both on the page
+    /// and in the grid clears both here, so the button means the same thing wherever it appears.
+    /// </summary>
+    [Parameter, EditorRequired] public EventCallback OnClear { get; set; }
+
+    /// <summary>
+    /// Overrides the description when a page can say something more useful about which filters are
+    /// in play. Null keeps the shared wording.
+    /// </summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Whether to use the tighter layout, for a state rendered inside a grid or a card.</summary>
+    [Parameter] public bool Compact { get; set; } = true;
+}

@@ -36,11 +36,15 @@
     {
         <FlareEmptyState Title="@AdminStrings.Scopes_EmptyTitle" Description="@AdminStrings.Scopes_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Lock" /></IconContent>
+            <ActionContent>
+                <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = true">@AdminStrings.Scopes_NewScope</FlareButton>
+            </ActionContent>
         </FlareEmptyState>
     }
     else
     {
-        <FlareDataGrid Items="@_scopes" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
+        <FlareDataGrid @ref="_grid" Items="@_scopes" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto">
+            <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
             <Columns>
                 <FlareColumn TItem="Scope" Id="scope" Title="@AdminStrings.Scopes_ColumnScope" Field="@(s => (object?)s.Name)" Sortable="true" Filterable="true">
                     <Template><FlareCode>@context.Name</FlareCode></Template>
@@ -70,6 +74,14 @@
     private string? _description;
     private bool _showAdd;
     private string? _error;
+    private FlareDataGrid<Scope>? _grid;
+
+    /// <summary>
+    /// Clears the grid's column and quick filters, which are the only filters on this page, so the
+    /// no-match state's button brings every scope back.
+    /// </summary>
+    /// <returns>A task that completes once the grid has re-filtered.</returns>
+    private Task ClearFiltersAsync() => _grid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
 
     /// <summary>Loads the scope list plus keys and endpoints (for the usage counts).</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();

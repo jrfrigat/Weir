@@ -18,13 +18,17 @@
     }
     else if (_entries.Count == 0)
     {
-        <FlareEmptyState Title="@AdminStrings.Audit_EmptyTitle">
+        <FlareEmptyState Title="@AdminStrings.Audit_EmptyTitle" Description="@AdminStrings.Audit_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.History" /></IconContent>
+            <ActionContent>
+                <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadLatestAsync">@AdminStrings.Common_Refresh</FlareButton>
+            </ActionContent>
         </FlareEmptyState>
     }
     else
     {
-        <FlareDataGrid Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
+        <FlareDataGrid @ref="_grid" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
+            <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
             <ToolbarContent>
                 <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
                 @if (_hasMore)
@@ -74,9 +78,29 @@
     private bool _loadingMore;
     private HubConnection? _hub;
     private bool _disposed;
+    private FlareDataGrid<AuditEntry>? _grid;
+
+    /// <summary>
+    /// Clears the grid's column and quick filters, which are the only filters on this page, so the
+    /// no-match state's button brings every entry back.
+    /// </summary>
+    /// <returns>A task that completes once the grid has re-filtered.</returns>
+    private Task ClearFiltersAsync() => _grid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
 
     /// <summary>Loads the most recent audit entries (first keyset page), then subscribes to the live feed.</summary>
     protected override async Task OnInitializedAsync()
+    {
+        await LoadLatestAsync();
+        await ConnectHubAsync();
+    }
+
+    /// <summary>
+    /// Loads the first keyset page, replacing whatever is on screen. Also the empty state's action:
+    /// a load that failed leaves an empty list behind, and without a way to retry the page would
+    /// keep claiming there are no entries until the whole app is reloaded.
+    /// </summary>
+    /// <returns>A task that completes once the page has entries or the failure has been reported.</returns>
+    private async Task LoadLatestAsync()
     {
         try
         {
@@ -90,8 +114,6 @@
             _entries = [];
             Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
         }
-
-        await ConnectHubAsync();
     }
 
     /// <summary>Turns on the shell's screen-fit region once the page has rendered.</summary>

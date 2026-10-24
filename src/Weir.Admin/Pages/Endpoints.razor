@@ -43,6 +43,9 @@
             {
                 <FlareEmptyState Title="@AdminStrings.Endpoints_EmptyTitle" Description="@AdminStrings.Endpoints_EmptyDescription">
                     <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Api" /></IconContent>
+                    <ActionContent>
+                        <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="NewEndpoint">@AdminStrings.Endpoints_NewEndpoint</FlareButton>
+                    </ActionContent>
                 </FlareEmptyState>
             }
             else
@@ -57,8 +60,9 @@
                         <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
                     }
                 </FlareStack>
-                <FlareDataGrid Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
+                <FlareDataGrid @ref="_grid" Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
                     <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
+                    <EmptyStateContent><NoMatchState OnClear="ClearAllFiltersAsync" /></EmptyStateContent>
                     <Columns>
                         <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
                             <Template><FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Filled" Color="@(context.Enabled ? FlareColor.Success : FlareColor.Default)" Label="@(context.Enabled ? AdminStrings.Common_Enabled : AdminStrings.Endpoints_StatusDisabled)" /></Template>
@@ -750,6 +754,8 @@
 
     // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------
 
+    private FlareDataGrid<EndpointDefinition>? _grid;
+
     /// <summary>Whether a scope or key filter is currently applied.</summary>
     private bool IsFiltered => !string.IsNullOrEmpty(_filterScope) || !string.IsNullOrEmpty(_filterKeyId);
 
@@ -837,6 +843,21 @@
     {
         _filterScope = string.Empty;
         _filterKeyId = string.Empty;
+    }
+
+    /// <summary>
+    /// Clears every filter that can hide a row on this tab: the page's scope and key selects, which
+    /// decide what the grid is even given, and the grid's own column and quick filters. The no-match
+    /// state cannot tell which of the two emptied the table, so its button has to undo both.
+    /// </summary>
+    /// <returns>A task that completes once the grid has re-filtered.</returns>
+    private async Task ClearAllFiltersAsync()
+    {
+        ClearFilters();
+        if (_grid is not null)
+        {
+            await _grid.ClearAllFiltersAsync();
+        }
     }
 
     /// <summary>Reloads the endpoint list and the linked-object set.</summary>

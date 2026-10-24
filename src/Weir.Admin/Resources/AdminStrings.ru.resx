@@ -518,7 +518,7 @@
     <value>Нет учетных записей администраторов</value>
   </data>
   <data name="Admins_EmptyDescription" xml:space="preserve">
-    <value>Создайте учетную запись администратора выше.</value>
+    <value>Создайте учетную запись администратора, чтобы в консоль мог войти кто-то ещё.</value>
   </data>
   <data name="Admins_Login" xml:space="preserve">
     <value>Логин</value>
@@ -1365,7 +1365,7 @@
     <value>Скоупов пока нет</value>
   </data>
   <data name="Scopes_EmptyDescription" xml:space="preserve">
-    <value>Добавьте скоуп выше, чтобы выдать доступ API-ключам.</value>
+    <value>Создайте скоуп, чтобы выдавать API-ключам доступ к эндпоинтам.</value>
   </data>
   <data name="Scopes_ColumnScope" xml:space="preserve">
     <value>Скоуп</value>
@@ -1747,5 +1747,20 @@
   </data>
   <data name="Title_NotFound" xml:space="preserve">
     <value>Страница не найдена</value>
+  </data>
+  <data name="Common_NoMatchTitle" xml:space="preserve">
+    <value>Ничего не найдено</value>
+  </data>
+  <data name="Common_NoMatchDescription" xml:space="preserve">
+    <value>Строки есть, но ни одна не подходит под действующие фильтры.</value>
+  </data>
+  <data name="Common_ClearFilters" xml:space="preserve">
+    <value>Сбросить фильтры</value>
+  </data>
+  <data name="Audit_EmptyDescription" xml:space="preserve">
+    <value>Записи появляются здесь по мере того, как администраторы входят и меняют конфигурацию.</value>
+  </data>
+  <data name="Logs_FilteredEmptyDescription" xml:space="preserve">
+    <value>Запросы в журнале есть, но действующие фильтры не оставили ни одного.</value>
   </data>
 </root>
