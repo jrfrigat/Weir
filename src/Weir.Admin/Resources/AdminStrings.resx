@@ -1015,9 +1015,6 @@
   <data name="Endpoints_OutputParametersHint" xml:space="preserve">
     <value>The procedure fills these in - there is nothing to send. They come back in the response's "output" object.</value>
   </data>
-  <data name="Common_LoadFailed" xml:space="preserve">
-    <value>Could not load the data. Check the connection and try again.</value>
-  </data>
   <data name="Endpoints_AddRow" xml:space="preserve">
     <value>Add row</value>
   </data>
@@ -1762,5 +1759,26 @@
   </data>
   <data name="Logs_FilteredEmptyDescription" xml:space="preserve">
     <value>Requests were logged, but none of them passes the filters in effect.</value>
+  </data>
+  <data name="Admins_PasswordReset" xml:space="preserve">
+    <value>Password reset</value>
+  </data>
+  <data name="Account_TokenRevoked" xml:space="preserve">
+    <value>Token revoked</value>
+  </data>
+  <data name="Account_TokenRevokeFailed" xml:space="preserve">
+    <value>The token could not be revoked.</value>
+  </data>
+  <data name="Audit_LoadFailedBody" xml:space="preserve">
+    <value>The audit log could not be loaded. Check that the gateway is reachable, then refresh.</value>
+  </data>
+  <data name="Audit_LoadOlderFailedBody" xml:space="preserve">
+    <value>Older entries could not be loaded. What is on screen is still current.</value>
+  </data>
+  <data name="Logs_LoadFailedBody" xml:space="preserve">
+    <value>The request log could not be loaded. Check that the gateway is reachable, then refresh.</value>
+  </data>
+  <data name="Logs_LoadOlderFailedBody" xml:space="preserve">
+    <value>Older requests could not be loaded. What is on screen is still current.</value>
   </data>
 </root>

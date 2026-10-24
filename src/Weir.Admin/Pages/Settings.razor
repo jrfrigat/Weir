@@ -4,6 +4,7 @@
 @inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IFlareDownload Download
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Settings_Title" Description="@AdminStrings.Settings_PageDescription" />
@@ -18,9 +19,9 @@
     }
     else
     {
-        @if (_status is not null)
+        @if (_saveError is not null)
         {
-            <FlareAlert Severity="@(_statusError ? AlertSeverity.Error : AlertSeverity.Success)">@_status</FlareAlert>
+            <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_saveError</FlareAlert>
         }
 
         <FlareCard Variant="CardVariant.Outlined">
@@ -190,8 +191,7 @@
     private bool _loading = true;
     private bool _loadFailed;
     private bool _saving;
-    private string? _status;
-    private bool _statusError;
+    private string? _saveError;
 
     private int _maxRows;
     private int _requestTimeoutSeconds;
@@ -270,25 +270,22 @@
     private async Task ExportAsync()
     {
         _exporting = true;
-        _status = null;
+        _saveError = null;
         try
         {
             var json = await Api.GetControlPlaneExportAsync();
             if (json is null)
             {
-                _status = AdminStrings.Settings_ExportRejected;
-                _statusError = true;
+                _saveError = AdminStrings.Settings_ExportRejected;
                 return;
             }
 
             await Download.DownloadAsync("weir-control-plane.json", json, "application/json");
-            _status = AdminStrings.Settings_ExportDownloaded;
-            _statusError = false;
+            Snackbar.Show(AdminStrings.Settings_ExportDownloaded, SnackbarSeverity.Success);
         }
         catch (HttpRequestException)
         {
-            _status = AdminStrings.Settings_ExportServiceUnavailable;
-            _statusError = true;
+            _saveError = AdminStrings.Settings_ExportServiceUnavailable;
         }
         finally
         {
@@ -325,34 +322,30 @@
         // rejection itself instead of sending a request it knows the server will refuse.
         if (SettingsBounds.FirstViolation(edited) is { } violation)
         {
-            _status = string.Format(
+            _saveError = string.Format(
                 CultureInfo.CurrentCulture, AdminStrings.Settings_ValueOutOfRange,
                 BoundLabel(violation.Setting), violation.Min, violation.Max);
-            _statusError = true;
             return;
         }
 
         _saving = true;
-        _status = null;
+        _saveError = null;
         try
         {
             var applied = await Api.UpdateSettingsAsync(edited);
 
             if (applied is null)
             {
-                _status = AdminStrings.Settings_UpdateRejected;
-                _statusError = true;
+                _saveError = AdminStrings.Settings_UpdateRejected;
             }
             else
             {
-                _status = AdminStrings.Settings_SavedAndApplied;
-                _statusError = false;
+                Snackbar.Show(AdminStrings.Settings_SavedAndApplied, SnackbarSeverity.Success);
             }
         }
         catch (HttpRequestException)
         {
-            _status = AdminStrings.Settings_SettingsServiceUnavailable;
-            _statusError = true;
+            _saveError = AdminStrings.Settings_SettingsServiceUnavailable;
         }
         finally
         {

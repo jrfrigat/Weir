@@ -30,6 +30,11 @@
         }
     </FlareStack>
 
+    @if (_loadError is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Error">@_loadError</FlareAlert>
+    }
+
     @if (_entries is null)
     {
         <TableSkeleton Rows="8" />
@@ -226,6 +231,7 @@
     private bool _slowOnly;
     private bool _errorsOnly;
     private FlareDataGrid<RequestLogEntry>? _grid;
+    private string? _loadError;
     private bool _loading;
     private bool _loadingMore;
     private bool _hasMore;
@@ -295,7 +301,7 @@
             // Uncaught, this reached the ErrorBoundary and blanked the page, which says nothing about
             // what went wrong and loses the filters the reader had set.
             _entries ??= [];
-            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+            _loadError = AdminStrings.Logs_LoadFailedBody;
         }
         finally
         {
@@ -325,7 +331,7 @@
         catch (HttpRequestException)
         {
             // The pages already loaded stay on screen; only the one that failed is reported.
-            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+            _loadError = AdminStrings.Logs_LoadOlderFailedBody;
         }
         finally
         {

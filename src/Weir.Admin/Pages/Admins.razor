@@ -19,9 +19,9 @@
                 <FlarePasswordField Label="@AdminStrings.Admins_Password" @bind-Value="_password" autocomplete="new-password" />
                 <FlareSelect TValue="string" Label="@AdminStrings.Admins_Role" @bind-Value="_role" Items="_roles" ItemLabel="RoleLabel" />
                 <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="CreateAsync">@AdminStrings.Common_Create</FlareButton>
-                @if (_createMessage is not null)
+                @if (_createError is not null)
                 {
-                    <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_createMessage</FlareText>
+                    <FlareAlert Severity="AlertSeverity.Error">@_createError</FlareAlert>
                 }
             </FlareStack>
         </FlareCard>
@@ -121,7 +121,7 @@
     private string _username = string.Empty;
     private string _password = string.Empty;
     private string _role = AdminRoles.Admin;
-    private string? _createMessage;
+    private string? _createError;
     private Guid? _resettingId;
     private string _resetPassword = string.Empty;
     private bool _resetBusy;
@@ -149,10 +149,10 @@
     /// <summary>Creates an admin account and reloads.</summary>
     private async Task CreateAsync()
     {
-        _createMessage = null;
+        _createError = null;
         if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
         {
-            _createMessage = AdminStrings.Admins_EnterUsernameAndPassword;
+            _createError = AdminStrings.Admins_EnterUsernameAndPassword;
             return;
         }
 
@@ -162,7 +162,7 @@
         }
         catch (WeirApiException ex)
         {
-            _createMessage = ex.Message;
+            _createError = ex.Message;
             return;
         }
 
@@ -199,6 +199,10 @@
         try
         {
             _actionError = await call();
+            if (_actionError is null)
+            {
+                Snackbar.Show(AdminStrings.Common_Saved, SnackbarSeverity.Success);
+            }
         }
         finally
         {
@@ -234,6 +238,7 @@
         {
             _resettingId = null;
             _resetPassword = string.Empty;
+            Snackbar.Show(AdminStrings.Admins_PasswordReset, SnackbarSeverity.Success);
         }
         else
         {

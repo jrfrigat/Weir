@@ -3,6 +3,7 @@
 @inherits LocalizedPage
 @inject WeirApiClient Api
 @inject IFlareClipboard Clipboard
+@inject ISnackbarService Snackbar
 
 <FlareStack Gap="FlareSpacing.Medium" Style="max-width:34rem;">
     <PageHeader Title="@AdminStrings.Account_Title" Description="@AdminStrings.Account_Description" />
@@ -34,9 +35,9 @@
             <FlareStack Row>
                 <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="ChangeAsync" Loading="_busy">@AdminStrings.Account_ChangePasswordButton</FlareButton>
             </FlareStack>
-            @if (_message is not null)
+            @if (_changeError is not null)
             {
-                <FlareAlert Severity="@(_ok ? AlertSeverity.Success : AlertSeverity.Error)">@_message</FlareAlert>
+                <FlareAlert Severity="AlertSeverity.Error">@_changeError</FlareAlert>
             }
         </FlareStack>
     </FlareCard>
@@ -110,8 +111,7 @@
     private string _new = string.Empty;
     private string _confirm = string.Empty;
     private bool _busy;
-    private bool _ok;
-    private string? _message;
+    private string? _changeError;
 
     private List<AdminTokenInfo>? _tokens;
     private string _tokenName = string.Empty;
@@ -173,7 +173,18 @@
     /// <param name="id">The token id.</param>
     private async Task RevokeTokenAsync(Guid id)
     {
-        await Api.RevokeAccountTokenAsync(id);
+        _tokenError = null;
+        try
+        {
+            await Api.RevokeAccountTokenAsync(id);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or WeirApiException)
+        {
+            _tokenError = AdminStrings.Account_TokenRevokeFailed;
+            return;
+        }
+
+        Snackbar.Show(AdminStrings.Account_TokenRevoked, SnackbarSeverity.Success);
         await LoadTokensAsync();
     }
 
@@ -188,16 +199,16 @@
     /// <summary>Validates and submits the self password change.</summary>
     private async Task ChangeAsync()
     {
-        _message = null;
+        _changeError = null;
         if (string.IsNullOrEmpty(_current) || string.IsNullOrEmpty(_new))
         {
-            (_ok, _message) = (false, AdminStrings.Account_ErrorPasswordFieldsRequired);
+            _changeError = AdminStrings.Account_ErrorPasswordFieldsRequired;
             return;
         }
 
         if (_new != _confirm)
         {
-            (_ok, _message) = (false, AdminStrings.Account_ErrorPasswordMismatch);
+            _changeError = AdminStrings.Account_ErrorPasswordMismatch;
             return;
         }
 
@@ -207,12 +218,12 @@
 
         if (ok)
         {
-            (_ok, _message) = (true, AdminStrings.Account_PasswordChanged);
+            Snackbar.Show(AdminStrings.Account_PasswordChanged, SnackbarSeverity.Success);
             _current = _new = _confirm = string.Empty;
         }
         else
         {
-            (_ok, _message) = (false, AdminStrings.Account_ErrorCurrentPasswordIncorrect);
+            _changeError = AdminStrings.Account_ErrorCurrentPasswordIncorrect;
         }
     }
 }

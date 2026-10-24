@@ -2348,15 +2348,6 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Could not load the data. Check the connection and try again..
-        /// </summary>
-        public static string Common_LoadFailed {
-            get {
-                return ResourceManager.GetString("Common_LoadFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на This endpoint takes no input parameters..
         /// </summary>
         public static string Endpoints_NoInputParameters {
@@ -5109,6 +5100,69 @@ namespace Weir.Admin.Resources {
         public static string Logs_FilteredEmptyDescription {
             get {
                 return ResourceManager.GetString("Logs_FilteredEmptyDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Password reset.
+        /// </summary>
+        public static string Admins_PasswordReset {
+            get {
+                return ResourceManager.GetString("Admins_PasswordReset", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Token revoked.
+        /// </summary>
+        public static string Account_TokenRevoked {
+            get {
+                return ResourceManager.GetString("Account_TokenRevoked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The token could not be revoked..
+        /// </summary>
+        public static string Account_TokenRevokeFailed {
+            get {
+                return ResourceManager.GetString("Account_TokenRevokeFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The audit log could not be loaded. Check that the gateway is reachable, then refresh..
+        /// </summary>
+        public static string Audit_LoadFailedBody {
+            get {
+                return ResourceManager.GetString("Audit_LoadFailedBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Older entries could not be loaded. What is on screen is still current..
+        /// </summary>
+        public static string Audit_LoadOlderFailedBody {
+            get {
+                return ResourceManager.GetString("Audit_LoadOlderFailedBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The request log could not be loaded. Check that the gateway is reachable, then refresh..
+        /// </summary>
+        public static string Logs_LoadFailedBody {
+            get {
+                return ResourceManager.GetString("Logs_LoadFailedBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Older requests could not be loaded. What is on screen is still current..
+        /// </summary>
+        public static string Logs_LoadOlderFailedBody {
+            get {
+                return ResourceManager.GetString("Logs_LoadOlderFailedBody", resourceCulture);
             }
         }
     }

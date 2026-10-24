@@ -1015,9 +1015,6 @@
   <data name="Endpoints_OutputParametersHint" xml:space="preserve">
     <value>Их заполняет процедура - отправлять нечего. Они возвращаются в объекте "output" ответа.</value>
   </data>
-  <data name="Common_LoadFailed" xml:space="preserve">
-    <value>Не удалось загрузить данные. Проверьте соединение и повторите.</value>
-  </data>
   <data name="Endpoints_AddRow" xml:space="preserve">
     <value>Добавить строку</value>
   </data>
@@ -1762,5 +1759,26 @@
   </data>
   <data name="Logs_FilteredEmptyDescription" xml:space="preserve">
     <value>Запросы в журнале есть, но действующие фильтры не оставили ни одного.</value>
+  </data>
+  <data name="Admins_PasswordReset" xml:space="preserve">
+    <value>Пароль сброшен</value>
+  </data>
+  <data name="Account_TokenRevoked" xml:space="preserve">
+    <value>Токен отозван</value>
+  </data>
+  <data name="Account_TokenRevokeFailed" xml:space="preserve">
+    <value>Не удалось отозвать токен.</value>
+  </data>
+  <data name="Audit_LoadFailedBody" xml:space="preserve">
+    <value>Не удалось загрузить журнал аудита. Проверьте, доступен ли шлюз, и обновите.</value>
+  </data>
+  <data name="Audit_LoadOlderFailedBody" xml:space="preserve">
+    <value>Не удалось загрузить более старые записи. То, что на экране, по-прежнему актуально.</value>
+  </data>
+  <data name="Logs_LoadFailedBody" xml:space="preserve">
+    <value>Не удалось загрузить журнал запросов. Проверьте, доступен ли шлюз, и обновите.</value>
+  </data>
+  <data name="Logs_LoadOlderFailedBody" xml:space="preserve">
+    <value>Не удалось загрузить более старые запросы. То, что на экране, по-прежнему актуально.</value>
   </data>
 </root>

@@ -12,6 +12,11 @@
 <FlareStack FillHeight Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Audit_Title" Description="@AdminStrings.Audit_Description" />
 
+    @if (_loadError is not null)
+    {
+        <FlareAlert Severity="AlertSeverity.Error">@_loadError</FlareAlert>
+    }
+
     @if (_entries is null)
     {
         <TableSkeleton Rows="8" />
@@ -76,6 +81,7 @@
     private List<AuditEntry>? _entries;
     private bool _hasMore;
     private bool _loadingMore;
+    private string? _loadError;
     private HubConnection? _hub;
     private bool _disposed;
     private FlareDataGrid<AuditEntry>? _grid;
@@ -104,6 +110,7 @@
     {
         try
         {
+            _loadError = null;
             _entries = await Api.GetAuditAsync(PageSize);
             _hasMore = _entries is { Count: PageSize };
         }
@@ -112,7 +119,7 @@
             // An empty list rather than null: the page then draws its "nothing here" state next to the
             // error, instead of the loading spinner it would otherwise sit on forever.
             _entries = [];
-            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+            _loadError = AdminStrings.Audit_LoadFailedBody;
         }
     }
 
@@ -211,7 +218,7 @@
         }
         catch (HttpRequestException)
         {
-            Snackbar.Show(AdminStrings.Common_LoadFailed, SnackbarSeverity.Error);
+            _loadError = AdminStrings.Audit_LoadOlderFailedBody;
         }
         finally
         {

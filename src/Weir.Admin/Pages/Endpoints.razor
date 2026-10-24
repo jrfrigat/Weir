@@ -23,14 +23,9 @@
         </Actions>
     </PageHeader>
 
-    @if (_notice is not null)
+    @if (_actionError is not null)
     {
-        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@_notice</FlareText>
-    }
-
-    @if (_deleteError is not null)
-    {
-        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_deleteError</FlareAlert>
+        <FlareAlert Severity="AlertSeverity.Error" Title="@AdminStrings.Common_ActionFailed">@_actionError</FlareAlert>
     }
 
     <FlareTabs FillHeight ActiveIndex="_epTabIndex" ActiveIndexChanged="OnTabChangedAsync">
@@ -681,8 +676,7 @@
     private bool _loadingColumns;
     private string? _columnsError;
     private string? _saveError;
-    private string? _deleteError;
-    private string? _notice;
+    private string? _actionError;
     private bool _openApiBusy;
     private bool _syncBusy;
 
@@ -1060,14 +1054,14 @@
             return;
         }
 
-        _deleteError = null;
+        _actionError = null;
         try
         {
             await Api.DeleteEndpointAsync(endpoint.Id);
         }
         catch (WeirApiException ex)
         {
-            _deleteError = ex.Message;
+            _actionError = ex.Message;
             return;
         }
 
@@ -1131,9 +1125,11 @@
     {
         _syncBusy = true;
         var results = await Api.SyncAllEndpointsAsync();
-        _notice = results is null
-            ? AdminStrings.Endpoints_NothingToSync
-            : string.Format(AdminStrings.Endpoints_SyncedCount, results.Count);
+        Snackbar.Show(
+            results is null
+                ? AdminStrings.Endpoints_NothingToSync
+                : string.Format(AdminStrings.Endpoints_SyncedCount, results.Count),
+            results is null ? SnackbarSeverity.Info : SnackbarSeverity.Success);
         _syncBusy = false;
         await LoadAsync();
     }
@@ -1142,9 +1138,11 @@
     {
         _syncBusy = true;
         var result = await Api.SyncEndpointAsync(id);
-        _notice = result is null
-            ? AdminStrings.Endpoints_NothingToSync
-            : string.Format(AdminStrings.Endpoints_SyncedSummary, ChangeSummary(result));
+        Snackbar.Show(
+            result is null
+                ? AdminStrings.Endpoints_NothingToSync
+                : string.Format(AdminStrings.Endpoints_SyncedSummary, ChangeSummary(result)),
+            result is null ? SnackbarSeverity.Info : SnackbarSeverity.Success);
         _syncBusy = false;
         await LoadAsync();
     }
@@ -1154,9 +1152,14 @@
     private async Task PurgeCacheAsync(EndpointDefinition endpoint)
     {
         var result = await Api.PurgeEndpointCacheAsync(endpoint.Id);
-        _notice = result is null
-            ? string.Format(AdminStrings.Endpoints_CachePurgeFailed, endpoint.Route)
-            : string.Format(AdminStrings.Endpoints_CachePurged, endpoint.Route);
+        if (result is null)
+        {
+            _actionError = string.Format(AdminStrings.Endpoints_CachePurgeFailed, endpoint.Route);
+            return;
+        }
+
+        _actionError = null;
+        Snackbar.Show(string.Format(AdminStrings.Endpoints_CachePurged, endpoint.Route), SnackbarSeverity.Success);
     }
 
     private static string ChangeSummary(EndpointSyncResult result)
@@ -1178,7 +1181,9 @@
         _openApiBusy = true;
         var json = await Api.GetOpenApiAsync(FilterKeyId, string.IsNullOrEmpty(_filterScope) ? null : _filterScope);
         await Download.DownloadAsync("weir-openapi.json", json, "application/json");
-        _notice = IsFiltered ? AdminStrings.Endpoints_DownloadedOpenApiFiltered : AdminStrings.Endpoints_DownloadedOpenApi;
+        Snackbar.Show(
+            IsFiltered ? AdminStrings.Endpoints_DownloadedOpenApiFiltered : AdminStrings.Endpoints_DownloadedOpenApi,
+            SnackbarSeverity.Success);
         _openApiBusy = false;
     }
 
@@ -1186,9 +1191,11 @@
     {
         var json = JsonSerializer.Serialize(FilteredEndpoints, new JsonSerializerOptions { WriteIndented = true });
         await Download.DownloadAsync("weir-endpoints.json", json, "application/json");
-        _notice = IsFiltered
-            ? string.Format(AdminStrings.Endpoints_DownloadedFilteredEndpoints, FilteredEndpoints.Count)
-            : AdminStrings.Endpoints_DownloadedEndpoints;
+        Snackbar.Show(
+            IsFiltered
+                ? string.Format(AdminStrings.Endpoints_DownloadedFilteredEndpoints, FilteredEndpoints.Count)
+                : AdminStrings.Endpoints_DownloadedEndpoints,
+            SnackbarSeverity.Success);
     }
 
     /// <summary>Imports endpoint definitions from the file the user picked via the Flare upload button.</summary>
@@ -1200,7 +1207,6 @@
             return;
         }
 
-        _notice = null;
         try
         {
             await using var stream = file.OpenReadStream(5 * 1024 * 1024);
@@ -1208,17 +1214,17 @@
             if (endpoints is { Count: > 0 })
             {
                 var imported = await Api.ImportEndpointsAsync(endpoints);
-                _notice = string.Format(AdminStrings.Endpoints_ImportedCount, imported);
+                Snackbar.Show(string.Format(AdminStrings.Endpoints_ImportedCount, imported), SnackbarSeverity.Success);
                 await LoadAsync();
             }
             else
             {
-                _notice = AdminStrings.Endpoints_ImportNoEndpoints;
+                Snackbar.Show(AdminStrings.Endpoints_ImportNoEndpoints, SnackbarSeverity.Info);
             }
         }
         catch (Exception ex)
         {
-            _notice = string.Format(AdminStrings.Endpoints_ImportFailed, ex.Message);
+            _actionError = string.Format(AdminStrings.Endpoints_ImportFailed, ex.Message);
         }
     }
 
