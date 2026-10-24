@@ -1668,7 +1668,7 @@
     <value>closed</value>
   </data>
   <data name="Keys_CorsSummaryOrigins" xml:space="preserve">
-    <value>{0} origins</value>
+    <value>origins: {0}</value>
   </data>
   <data name="Keys_ListPlaceholder" xml:space="preserve">
     <value>comma-separated</value>

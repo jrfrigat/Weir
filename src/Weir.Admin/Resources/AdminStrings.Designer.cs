@@ -4591,7 +4591,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_Mtls.
+        ///   Ищет локализованную строку, похожую на mTLS.
         /// </summary>
         public static string Keys_Mtls {
             get {
@@ -4600,7 +4600,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_Cors.
+        ///   Ищет локализованную строку, похожую на CORS.
         /// </summary>
         public static string Keys_Cors {
             get {
@@ -4609,7 +4609,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_EditPolicies.
+        ///   Ищет локализованную строку, похожую на Policies.
         /// </summary>
         public static string Keys_EditPolicies {
             get {
@@ -4618,7 +4618,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_PoliciesDialogTitle.
+        ///   Ищет локализованную строку, похожую на Key policies.
         /// </summary>
         public static string Keys_PoliciesDialogTitle {
             get {
@@ -4627,7 +4627,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_PoliciesHelp.
+        ///   Ищет локализованную строку, похожую на These apply to this key alone. Leave a section empty and the key behaves as it does today: the server-wide settings apply to it and nothing else does..
         /// </summary>
         public static string Keys_PoliciesHelp {
             get {
@@ -4636,7 +4636,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_PoliciesSaved.
+        ///   Ищет локализованную строку, похожую на Policies saved.
         /// </summary>
         public static string Keys_PoliciesSaved {
             get {
@@ -4645,7 +4645,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_PolicySavedTitle.
+        ///   Ищет локализованную строку, похожую на Saved, with one thing to know.
         /// </summary>
         public static string Keys_PolicySavedTitle {
             get {
@@ -4654,7 +4654,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsHelp.
+        ///   Ищет локализованную строку, похожую на Which client certificate this key accepts. The three lists are alternatives: a certificate matching by thumbprint does not also have to match a subject. An empty list does not restrict..
         /// </summary>
         public static string Keys_MtlsHelp {
             get {
@@ -4663,7 +4663,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsRequire.
+        ///   Ищет локализованную строку, похожую на Require a client certificate.
         /// </summary>
         public static string Keys_MtlsRequire {
             get {
@@ -4672,7 +4672,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsThumbprints.
+        ///   Ищет локализованную строку, похожую на Certificate thumbprints.
         /// </summary>
         public static string Keys_MtlsThumbprints {
             get {
@@ -4681,7 +4681,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsIssuers.
+        ///   Ищет локализованную строку, похожую на Issuer thumbprints.
         /// </summary>
         public static string Keys_MtlsIssuers {
             get {
@@ -4690,7 +4690,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsSubjects.
+        ///   Ищет локализованную строку, похожую на Subject patterns.
         /// </summary>
         public static string Keys_MtlsSubjects {
             get {
@@ -4699,7 +4699,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsSubjectPlaceholder.
+        ///   Ищет локализованную строку, похожую на CN=svc-*, OU=payments*.
         /// </summary>
         public static string Keys_MtlsSubjectPlaceholder {
             get {
@@ -4708,7 +4708,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryRequired.
+        ///   Ищет локализованную строку, похожую на required.
         /// </summary>
         public static string Keys_MtlsSummaryRequired {
             get {
@@ -4717,7 +4717,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryRequiredLimited.
+        ///   Ищет локализованную строку, похожую на required, {0} allowed.
         /// </summary>
         public static string Keys_MtlsSummaryRequiredLimited {
             get {
@@ -4726,7 +4726,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_MtlsSummaryLimited.
+        ///   Ищет локализованную строку, похожую на {0} allowed.
         /// </summary>
         public static string Keys_MtlsSummaryLimited {
             get {
@@ -4735,7 +4735,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsHelp.
+        ///   Ищет локализованную строку, похожую на Which browser origins may call with this key. Setting any of these replaces the server-wide CORS default for this key rather than adding to it..
         /// </summary>
         public static string Keys_CorsHelp {
             get {
@@ -4744,7 +4744,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsOrigins.
+        ///   Ищет локализованную строку, похожую на Allowed origins.
         /// </summary>
         public static string Keys_CorsOrigins {
             get {
@@ -4753,7 +4753,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsOriginPlaceholder.
+        ///   Ищет локализованную строку, похожую на https://app.example.com.
         /// </summary>
         public static string Keys_CorsOriginPlaceholder {
             get {
@@ -4762,7 +4762,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsMethods.
+        ///   Ищет локализованную строку, похожую на Allowed methods.
         /// </summary>
         public static string Keys_CorsMethods {
             get {
@@ -4771,7 +4771,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsMethodPlaceholder.
+        ///   Ищет локализованную строку, похожую на GET, POST.
         /// </summary>
         public static string Keys_CorsMethodPlaceholder {
             get {
@@ -4780,7 +4780,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsHeaders.
+        ///   Ищет локализованную строку, похожую на Allowed request headers.
         /// </summary>
         public static string Keys_CorsHeaders {
             get {
@@ -4789,7 +4789,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsExposed.
+        ///   Ищет локализованную строку, похожую на Exposed response headers.
         /// </summary>
         public static string Keys_CorsExposed {
             get {
@@ -4798,7 +4798,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsCredentials.
+        ///   Ищет локализованную строку, похожую на Allow credentials.
         /// </summary>
         public static string Keys_CorsCredentials {
             get {
@@ -4807,7 +4807,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsMaxAge.
+        ///   Ищет локализованную строку, похожую на Preflight cache, seconds.
         /// </summary>
         public static string Keys_CorsMaxAge {
             get {
@@ -4816,7 +4816,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsSummaryClosed.
+        ///   Ищет локализованную строку, похожую на closed.
         /// </summary>
         public static string Keys_CorsSummaryClosed {
             get {
@@ -4825,7 +4825,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_CorsSummaryOrigins.
+        ///   Ищет локализованную строку, похожую на origins: {0}.
         /// </summary>
         public static string Keys_CorsSummaryOrigins {
             get {
@@ -4834,7 +4834,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_ListPlaceholder.
+        ///   Ищет локализованную строку, похожую на comma-separated.
         /// </summary>
         public static string Keys_ListPlaceholder {
             get {
@@ -4843,7 +4843,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_SectionMtls.
+        ///   Ищет локализованную строку, похожую на CLIENT CERTIFICATES.
         /// </summary>
         public static string Settings_SectionMtls {
             get {
@@ -4852,7 +4852,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_MtlsMode.
+        ///   Ищет локализованную строку, похожую на Mode.
         /// </summary>
         public static string Settings_MtlsMode {
             get {
@@ -4861,7 +4861,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_MtlsAuthorities.
+        ///   Ищет локализованную строку, похожую на Trusted authorities.
         /// </summary>
         public static string Settings_MtlsAuthorities {
             get {
@@ -4870,7 +4870,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_MtlsUnverifiedChain.
+        ///   Ищет локализованную строку, похожую на Accept unverified chain.
         /// </summary>
         public static string Settings_MtlsUnverifiedChain {
             get {
@@ -4879,7 +4879,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_MtlsForwardedHeader.
+        ///   Ищет локализованную строку, похожую на Forwarded certificate header.
         /// </summary>
         public static string Settings_MtlsForwardedHeader {
             get {
@@ -4888,7 +4888,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_MtlsHelp.
+        ///   Ищет локализованную строку, похожую на Read-only: applied at startup, so changing it needs a restart. A key's own mTLS policy does nothing while the mode is None..
         /// </summary>
         public static string Settings_MtlsHelp {
             get {
@@ -4897,7 +4897,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_SectionCors.
+        ///   Ищет локализованную строку, похожую на CORS DEFAULT.
         /// </summary>
         public static string Settings_SectionCors {
             get {
@@ -4906,7 +4906,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_CorsOrigins.
+        ///   Ищет локализованную строку, похожую на Allowed origins.
         /// </summary>
         public static string Settings_CorsOrigins {
             get {
@@ -4915,7 +4915,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_CorsCredentials.
+        ///   Ищет локализованную строку, похожую на Allow credentials.
         /// </summary>
         public static string Settings_CorsCredentials {
             get {
@@ -4924,7 +4924,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_CorsMaxAge.
+        ///   Ищет локализованную строку, похожую на Preflight cache, seconds.
         /// </summary>
         public static string Settings_CorsMaxAge {
             get {
@@ -4933,7 +4933,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_CorsHelp.
+        ///   Ищет локализованную строку, похожую на Read-only: applied at startup. This is what a key that states no CORS policy of its own falls back to..
         /// </summary>
         public static string Settings_CorsHelp {
             get {
@@ -4942,7 +4942,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Settings_None.
+        ///   Ищет локализованную строку, похожую на none.
         /// </summary>
         public static string Settings_None {
             get {
@@ -4951,7 +4951,7 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку с ключом Keys_PolicyMtlsOffWarning.
+        ///   Ищет локализованную строку, похожую на Client certificates are switched off on this server (Weir:Mtls:Mode is None), so no certificate can reach a request. This key will be refused every call until mTLS is enabled and the host restarted..
         /// </summary>
         public static string Keys_PolicyMtlsOffWarning {
             get {
