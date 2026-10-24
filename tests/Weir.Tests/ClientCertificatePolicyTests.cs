@@ -1,5 +1,6 @@
 using System.Net;
-using System.Net.Http.Headers;
+using Grpc.Core;
+using Grpc.Net.Client;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Host.Audit;
+using Weir.Host.Grpc;
 using Weir.Host.Security;
 using Xunit;
 
@@ -171,6 +173,58 @@ public class ClientCertificatePolicyTests
         Assert.Equal("websocket", entry.Detail);
         Assert.Equal((int)HttpStatusCode.Forbidden, entry.StatusCode);
         Assert.Equal(key.Prefix, entry.Actor);
+    }
+
+    [Fact]
+    public async Task A_Grpc_Call_Is_Refused_With_Permission_Denied_And_Audited_With_The_Key()
+    {
+        using var factory = new HostFactory(MtlsMode: "Require");
+        var key = await factory.CreateKeyAsync("grpc-cert");
+        var channel = GrpcChannel.ForAddress(factory.Server.BaseAddress, new GrpcChannelOptions
+        {
+            HttpHandler = factory.Server.CreateHandler(),
+        });
+        var client = new WeirGateway.WeirGatewayClient(channel);
+        var metadata = new Metadata { { "x-api-key", key.PlainText } };
+
+        var error = await Assert.ThrowsAsync<RpcException>(
+            () => client.InvokeAsync(new InvokeRequest { Route = "anything", Method = "GET" }, metadata).ResponseAsync);
+
+        // PermissionDenied, not Unauthenticated: the key authenticated and only the certificate was
+        // unacceptable. This is the gRPC spelling of the 403 the other two doors answer, and the whole
+        // point of the shared refusal is that all three agree.
+        Assert.Equal(StatusCode.PermissionDenied, error.StatusCode);
+
+        var entry = Assert.Single(factory.Auditor.Entries);
+        Assert.Equal("grpc", entry.Detail);
+        Assert.Equal((int)HttpStatusCode.Forbidden, entry.StatusCode);
+        Assert.Equal(key.Prefix, entry.Actor);
+    }
+
+    [Fact]
+    public async Task A_Grpc_Call_With_A_Forwarded_Certificate_Gets_Past_The_Gate()
+    {
+        using var certificate = NewCertificate("CN=svc-orders");
+        using var factory = new HostFactory(MtlsMode: "Require");
+        var key = await factory.CreateKeyAsync("grpc-cert-ok");
+        var channel = GrpcChannel.ForAddress(factory.Server.BaseAddress, new GrpcChannelOptions
+        {
+            HttpHandler = factory.Server.CreateHandler(),
+        });
+        var client = new WeirGateway.WeirGatewayClient(channel);
+        var metadata = new Metadata
+        {
+            { "x-api-key", key.PlainText },
+            { "x-client-cert", Uri.EscapeDataString(ToPem(certificate)) },
+        };
+
+        var error = await Assert.ThrowsAsync<RpcException>(
+            () => client.InvokeAsync(new InvokeRequest { Route = "anything", Method = "GET" }, metadata).ResponseAsync);
+
+        // NotFound for a route this host does not have: the certificate gate let the call through, which
+        // is what distinguishes this from the test above. gRPC metadata is HTTP/2 headers, so the same
+        // middleware reads the certificate here as on an /api request.
+        Assert.Equal(StatusCode.NotFound, error.StatusCode);
     }
 
     /// <summary>Calls a route this host does not serve, so the answer reports how far the call got.</summary>
