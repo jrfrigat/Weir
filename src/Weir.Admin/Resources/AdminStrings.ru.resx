@@ -1712,4 +1712,40 @@
   <data name="Keys_PolicyMtlsOffWarning" xml:space="preserve">
     <value>Клиентские сертификаты на этом сервере выключены (Weir:Mtls:Mode - None), поэтому сертификат не может попасть в запрос. Этот ключ будет получать отказ на каждый вызов, пока mTLS не включат и хост не перезапустят.</value>
   </data>
+  <data name="Title_Format" xml:space="preserve">
+    <value>{0} - Weir Admin</value>
+  </data>
+  <data name="Title_Dashboard" xml:space="preserve">
+    <value>Дашборд</value>
+  </data>
+  <data name="Title_Endpoints" xml:space="preserve">
+    <value>Эндпоинты</value>
+  </data>
+  <data name="Title_Scopes" xml:space="preserve">
+    <value>Скоупы</value>
+  </data>
+  <data name="Title_Keys" xml:space="preserve">
+    <value>Ключи</value>
+  </data>
+  <data name="Title_Admins" xml:space="preserve">
+    <value>Администраторы</value>
+  </data>
+  <data name="Title_Logs" xml:space="preserve">
+    <value>Логи</value>
+  </data>
+  <data name="Title_Audit" xml:space="preserve">
+    <value>Аудит</value>
+  </data>
+  <data name="Title_Settings" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="Title_Account" xml:space="preserve">
+    <value>Аккаунт</value>
+  </data>
+  <data name="Title_Login" xml:space="preserve">
+    <value>Вход</value>
+  </data>
+  <data name="Title_NotFound" xml:space="preserve">
+    <value>Страница не найдена</value>
+  </data>
 </root>

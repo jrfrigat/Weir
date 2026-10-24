@@ -1712,4 +1712,40 @@
   <data name="Keys_PolicyMtlsOffWarning" xml:space="preserve">
     <value>Client certificates are switched off on this server (Weir:Mtls:Mode is None), so no certificate can reach a request. This key will be refused every call until mTLS is enabled and the host restarted.</value>
   </data>
+  <data name="Title_Format" xml:space="preserve">
+    <value>{0} - Weir Admin</value>
+  </data>
+  <data name="Title_Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="Title_Endpoints" xml:space="preserve">
+    <value>Endpoints</value>
+  </data>
+  <data name="Title_Scopes" xml:space="preserve">
+    <value>Scopes</value>
+  </data>
+  <data name="Title_Keys" xml:space="preserve">
+    <value>Keys</value>
+  </data>
+  <data name="Title_Admins" xml:space="preserve">
+    <value>Admins</value>
+  </data>
+  <data name="Title_Logs" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="Title_Audit" xml:space="preserve">
+    <value>Audit</value>
+  </data>
+  <data name="Title_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Title_Account" xml:space="preserve">
+    <value>Account</value>
+  </data>
+  <data name="Title_Login" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="Title_NotFound" xml:space="preserve">
+    <value>Page not found</value>
+  </data>
 </root>

@@ -1,0 +1,73 @@
+@inherits LocalizedPage
+@inject NavigationManager Navigation
+
+@* Sets the browser tab, history-entry and PWA window title from the current route. Rendered once by
+   App.razor, so no page has to remember a PageTitle of its own - and none can leave a stale one
+   behind, which is what happens in Blazor when a route renders no PageTitle at all: HeadOutlet emits
+   nothing and the previous page's title stays up. The route is the single input, so back and forward
+   restore the right title without any extra bookkeeping. *@
+<PageTitle>@string.Format(AdminStrings.Title_Format, SectionName())</PageTitle>
+
+@code {
+    /// <summary>
+    /// Subscribes to route changes on top of the language changes the base class follows. The title
+    /// has to be recomputed on both, and this component takes no parameters, so neither event would
+    /// otherwise reach it.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    /// <summary>Unsubscribes from route changes, then from the language.</summary>
+    public override void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        base.Dispose();
+    }
+
+    /// <summary>Re-renders the title after a navigation.</summary>
+    /// <param name="sender">The navigation manager raising the event.</param>
+    /// <param name="e">The event payload, carrying the new location.</param>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// The localized name of the section the current route belongs to. An unrecognized route is the
+    /// not-found page (App.razor renders it like any other), so it reports that rather than falling
+    /// back to the brand alone: a route that gained a page but no entry here then shows a plainly
+    /// wrong title instead of a plausible one.
+    /// </summary>
+    /// <returns>The section name to put in front of the product name.</returns>
+    private string SectionName() => CurrentRoute() switch
+    {
+        "" => AdminStrings.Title_Dashboard,
+        "endpoints" => AdminStrings.Title_Endpoints,
+        "scopes" => AdminStrings.Title_Scopes,
+        "keys" => AdminStrings.Title_Keys,
+        "admins" => AdminStrings.Title_Admins,
+        "logs" => AdminStrings.Title_Logs,
+        "audit" => AdminStrings.Title_Audit,
+        "settings" => AdminStrings.Title_Settings,
+        "account" => AdminStrings.Title_Account,
+        "login" => AdminStrings.Title_Login,
+        _ => AdminStrings.Title_NotFound,
+    };
+
+    /// <summary>
+    /// The current route as a bare lowercase path with no query string, fragment or surrounding
+    /// slashes, so the dashboard reads as an empty string and "/settings?tab=limits" as "settings".
+    /// </summary>
+    /// <returns>The normalized route of the current location.</returns>
+    private string CurrentRoute()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var cut = path.IndexOfAny(['?', '#']);
+        if (cut >= 0)
+        {
+            path = path[..cut];
+        }
+
+        return path.Trim('/').ToLowerInvariant();
+    }
+}

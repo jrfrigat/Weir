@@ -2,6 +2,9 @@
 
 <CascadingAuthenticationState>
     <FlareThemeProvider>
+        @* Keeps the tab, history-entry and PWA window title in step with the route. Here rather than
+           on each page: a route that renders no PageTitle leaves the previous page's title up. *@
+        <DocumentTitle />
         <Router AppAssembly="@typeof(App).Assembly">
             <Found Context="routeData">
                 <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">

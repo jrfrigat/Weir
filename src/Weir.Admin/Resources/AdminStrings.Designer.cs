@@ -4958,5 +4958,113 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Keys_PolicyMtlsOffWarning", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} - Weir Admin.
+        /// </summary>
+        public static string Title_Format {
+            get {
+                return ResourceManager.GetString("Title_Format", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Dashboard.
+        /// </summary>
+        public static string Title_Dashboard {
+            get {
+                return ResourceManager.GetString("Title_Dashboard", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Endpoints.
+        /// </summary>
+        public static string Title_Endpoints {
+            get {
+                return ResourceManager.GetString("Title_Endpoints", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Scopes.
+        /// </summary>
+        public static string Title_Scopes {
+            get {
+                return ResourceManager.GetString("Title_Scopes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Keys.
+        /// </summary>
+        public static string Title_Keys {
+            get {
+                return ResourceManager.GetString("Title_Keys", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Admins.
+        /// </summary>
+        public static string Title_Admins {
+            get {
+                return ResourceManager.GetString("Title_Admins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Logs.
+        /// </summary>
+        public static string Title_Logs {
+            get {
+                return ResourceManager.GetString("Title_Logs", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Audit.
+        /// </summary>
+        public static string Title_Audit {
+            get {
+                return ResourceManager.GetString("Title_Audit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Settings.
+        /// </summary>
+        public static string Title_Settings {
+            get {
+                return ResourceManager.GetString("Title_Settings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Account.
+        /// </summary>
+        public static string Title_Account {
+            get {
+                return ResourceManager.GetString("Title_Account", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Sign in.
+        /// </summary>
+        public static string Title_Login {
+            get {
+                return ResourceManager.GetString("Title_Login", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Page not found.
+        /// </summary>
+        public static string Title_NotFound {
+            get {
+                return ResourceManager.GetString("Title_NotFound", resourceCulture);
+            }
+        }
     }
 }
