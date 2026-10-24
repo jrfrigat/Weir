@@ -24,26 +24,26 @@
             <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
                 <FlareIconView Value="@(total == 0 ? MaterialDesign3Icons.Regular.Pending : allOk ? MaterialDesign3Icons.Regular.MonitorHeart : MaterialDesign3Icons.Regular.Error)" Color="@(total == 0 ? FlareColor.OnSurfaceVariant : allOk ? FlareColor.Primary : FlareColor.Error)" Size="1.4rem" />
                 <FlareStack Gap="FlareSpacing.None">
-                    <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? AdminStrings.Dashboard_StatusStarting : allOk ? AdminStrings.Dashboard_StatusOperational : AdminStrings.Dashboard_StatusDegraded)</FlareText>
+                    <FlareText Element="span" Typo="TypographyScale.TitleMedium" Mono="true" Color="@(allOk ? FlareColor.Primary : total == 0 ? FlareColor.OnSurfaceVariant : FlareColor.Error)">@(total == 0 ? AdminStrings.Dashboard_StatusStarting : allOk ? AdminStrings.Dashboard_StatusOperational : AdminStrings.Dashboard_StatusDegraded)</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(total == 0 ? AdminStrings.Dashboard_StatusCheckingConnections : allOk ? AdminStrings.Dashboard_StatusAllNominal : string.Format(AdminStrings.Dashboard_StatusConnectionsDown, total - healthy, total))</FlareText>
                 </FlareStack>
             </FlareStack>
             <FlareDivider Vertical="true" Style="height:38px;" />
             <FlareStack Gap="FlareSpacing.None">
-                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
+                <FlareText Element="span" Typo="TypographyScale.HeadlineSmall" Mono="true">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_ThroughputCaption</FlareText>
             </FlareStack>
             <FlareStack Gap="FlareSpacing.None">
-                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@Compact(_overview?.TotalRequests ?? 0)</FlareText>
+                <FlareText Element="span" Typo="TypographyScale.HeadlineSmall" Mono="true">@Compact(_overview?.TotalRequests ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_TotalRequestsCaption</FlareText>
             </FlareStack>
             <FlareStack Gap="FlareSpacing.None">
-                <FlareText Typo="TypographyScale.HeadlineSmall" Mono="true">@(_overview?.ActiveRequests ?? 0)</FlareText>
+                <FlareText Element="span" Typo="TypographyScale.HeadlineSmall" Mono="true">@(_overview?.ActiveRequests ?? 0)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_InFlightCaption</FlareText>
             </FlareStack>
             <FlareSpacer />
             <FlareStack Gap="FlareSpacing.None" Align="FlareAlignItems.End">
-                <FlareText Typo="TypographyScale.TitleMedium" Mono="true" Color="FlareColor.OnSurfaceVariant">@FormatClock(_overview?.Uptime ?? TimeSpan.Zero)</FlareText>
+                <FlareText Element="span" Typo="TypographyScale.TitleMedium" Mono="true" Color="FlareColor.OnSurfaceVariant">@FormatClock(_overview?.Uptime ?? TimeSpan.Zero)</FlareText>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Dashboard_UptimeErrorsCaption, Num(_overview?.TotalErrors ?? 0), Pct2(_overview?.ErrorRate ?? 0))</FlareText>
             </FlareStack>
         </FlareStack>
@@ -100,7 +100,7 @@
                     <FlareText Typo="TypographyScale.LabelLarge" Mono="true">@AdminStrings.Dashboard_ThroughputChartTitle</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">req/s - 5m</FlareText>
                     <FlareSpacer />
-                    <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
+                    <FlareText Element="span" Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 </FlareStack>
                 <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_thrData" Style="padding:6px 0;" />
             </FlareCard>
@@ -109,7 +109,7 @@
                     <FlareText Typo="TypographyScale.LabelLarge" Mono="true">@AdminStrings.Dashboard_LatencyChartTitle</FlareText>
                     <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Mono="true">ms - 5m</FlareText>
                     <FlareSpacer />
-                    <FlareText Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
+                    <FlareText Element="span" Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
                 </FlareStack>
                 <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_latData" Style="padding:6px 0;" />
             </FlareCard>

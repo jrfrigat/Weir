@@ -89,7 +89,7 @@
         {
             <FlareCard Variant="CardVariant.Outlined" Style="max-width:34rem;">
                 <FlareStack Gap="FlareSpacing.Small">
-                    <FlareText Typo="TypographyScale.TitleSmall">@AdminStrings.Admins_ResetPassword</FlareText>
+                    <FlareText Element="h2" Typo="TypographyScale.TitleSmall">@AdminStrings.Admins_ResetPassword</FlareText>
                     <FlarePasswordField Label="@AdminStrings.Admins_NewPassword" @bind-Value="_resetPassword" autocomplete="new-password" />
                     <FlareStack Row Gap="FlareSpacing.Small">
                         <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="@(() => ResetAsync(_resettingId!.Value))" Loading="_resetBusy">@AdminStrings.Common_Save</FlareButton>

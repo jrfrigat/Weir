@@ -200,7 +200,7 @@
 
 @* ===== Editor drawer ===== *@
 <FlareDrawer Open="@(_editing is not null)" OpenChanged="@(open => { if (!open) CancelEdit(); })" Anchor="DrawerAnchor.Right" Width="min(44rem, 100vw)" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
-    <HeaderContent><FlareText Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></HeaderContent>
+    <HeaderContent><FlareText Element="h2" Typo="TypographyScale.TitleMedium">@(_editing is { Id: var id } && id != Guid.Empty ? AdminStrings.Endpoints_EditEndpoint : AdminStrings.Endpoints_NewEndpoint)</FlareText></HeaderContent>
     <ChildContent>
         @if (_editing is not null)
         {
@@ -560,7 +560,7 @@
 <FlareDrawer Open="@(_testing is not null)" OpenChanged="@(open => { if (!open) CloseTest(); })" Anchor="DrawerAnchor.Right" Width="min(44rem, 100vw)" ContentPadding="FlareSpacing.Large" Variant="DrawerVariant.Temporary">
     <HeaderContent>
         <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Endpoints_Test</FlareText>
+            <FlareText Element="h2" Typo="TypographyScale.TitleMedium">@AdminStrings.Endpoints_Test</FlareText>
             @if (_testing is not null)
             {
                 <FlareText Element="span" Mono="true" Weight="FontWeight.Bold" Color="@MethodColor(_testing.HttpMethod)">@_testing.HttpMethod</FlareText>
@@ -573,7 +573,7 @@
         {
             <FlareStack Gap="FlareSpacing.Medium">
                 <FlareStack Row Align="FlareAlignItems.Center" Justify="FlareJustifyContent.SpaceBetween">
-                    <FlareText Typo="TypographyScale.TitleSmall">@AdminStrings.Endpoints_ParametersSection</FlareText>
+                    <FlareText Element="h3" Typo="TypographyScale.TitleSmall">@AdminStrings.Endpoints_ParametersSection</FlareText>
                     <FlareSwitch Value="_testRaw" ValueChanged="ToggleRaw" Label="@AdminStrings.Endpoints_RawJsonLabel" />
                 </FlareStack>
 

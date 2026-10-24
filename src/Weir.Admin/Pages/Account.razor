@@ -9,7 +9,7 @@
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_Profile</FlareText>
+            <FlareText Element="h2" Typo="TypographyScale.TitleMedium">@AdminStrings.Account_Profile</FlareText>
             <FlareDescriptionList>
                 <FlareDescriptionItem Label="@AdminStrings.Account_Username"><FlareText Mono="true">@(_me?.Username ?? "...")</FlareText></FlareDescriptionItem>
                 <FlareDescriptionItem Label="@AdminStrings.Account_Role">
@@ -27,7 +27,7 @@
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_ChangePasswordHeading</FlareText>
+            <FlareText Element="h2" Typo="TypographyScale.TitleMedium">@AdminStrings.Account_ChangePasswordHeading</FlareText>
             <FlarePasswordField Label="@AdminStrings.Account_CurrentPassword" @bind-Value="_current" autocomplete="current-password" />
             <FlarePasswordField Label="@AdminStrings.Account_NewPassword" @bind-Value="_new" autocomplete="new-password" />
             <FlarePasswordField Label="@AdminStrings.Account_ConfirmNewPassword" @bind-Value="_confirm" autocomplete="new-password" />
@@ -43,7 +43,7 @@
 
     <FlareCard Variant="CardVariant.Outlined">
         <FlareStack Gap="FlareSpacing.Small">
-            <FlareText Typo="TypographyScale.TitleMedium">@AdminStrings.Account_AccessTokens</FlareText>
+            <FlareText Element="h2" Typo="TypographyScale.TitleMedium">@AdminStrings.Account_AccessTokens</FlareText>
             <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
                 @AdminStrings.Account_TokensIntro
                 <FlareCode>Authorization: Bearer &lt;token&gt;</FlareCode>.
