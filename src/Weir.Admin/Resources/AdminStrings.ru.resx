@@ -1781,4 +1781,19 @@
   <data name="Logs_LoadOlderFailedBody" xml:space="preserve">
     <value>Не удалось загрузить более старые запросы. То, что на экране, по-прежнему актуально.</value>
   </data>
+  <data name="Admins_DisableConfirmTitle" xml:space="preserve">
+    <value>Отключить учётную запись?</value>
+  </data>
+  <data name="Admins_DisableConfirmBody" xml:space="preserve">
+    <value>{0} не сможет войти, пока учётную запись не включат снова.</value>
+  </data>
+  <data name="Admins_DisableSelfConfirmBody" xml:space="preserve">
+    <value>{0} - это учётная запись, под которой вы вошли. Её отключение завершит сеанс и выбросит вас из консоли.</value>
+  </data>
+  <data name="Admins_EnableConfirmTitle" xml:space="preserve">
+    <value>Включить учётную запись?</value>
+  </data>
+  <data name="Admins_EnableConfirmBody" xml:space="preserve">
+    <value>{0} снова сможет входить.</value>
+  </data>
 </root>

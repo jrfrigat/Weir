@@ -5165,5 +5165,50 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Logs_LoadOlderFailedBody", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Disable this account?.
+        /// </summary>
+        public static string Admins_DisableConfirmTitle {
+            get {
+                return ResourceManager.GetString("Admins_DisableConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} will not be able to sign in until the account is enabled again..
+        /// </summary>
+        public static string Admins_DisableConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_DisableConfirmBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} is the account you are signed in with. Disabling it ends this session and signs you out..
+        /// </summary>
+        public static string Admins_DisableSelfConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_DisableSelfConfirmBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enable this account?.
+        /// </summary>
+        public static string Admins_EnableConfirmTitle {
+            get {
+                return ResourceManager.GetString("Admins_EnableConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} will be able to sign in again..
+        /// </summary>
+        public static string Admins_EnableConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_EnableConfirmBody", resourceCulture);
+            }
+        }
     }
 }

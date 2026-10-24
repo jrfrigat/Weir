@@ -1781,4 +1781,19 @@
   <data name="Logs_LoadOlderFailedBody" xml:space="preserve">
     <value>Older requests could not be loaded. What is on screen is still current.</value>
   </data>
+  <data name="Admins_DisableConfirmTitle" xml:space="preserve">
+    <value>Disable this account?</value>
+  </data>
+  <data name="Admins_DisableConfirmBody" xml:space="preserve">
+    <value>{0} will not be able to sign in until the account is enabled again.</value>
+  </data>
+  <data name="Admins_DisableSelfConfirmBody" xml:space="preserve">
+    <value>{0} is the account you are signed in with. Disabling it ends this session and signs you out.</value>
+  </data>
+  <data name="Admins_EnableConfirmTitle" xml:space="preserve">
+    <value>Enable this account?</value>
+  </data>
+  <data name="Admins_EnableConfirmBody" xml:space="preserve">
+    <value>{0} will be able to sign in again.</value>
+  </data>
 </root>

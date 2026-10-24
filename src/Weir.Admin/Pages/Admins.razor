@@ -1,8 +1,11 @@
 @page "/admins"
+@using System.Globalization
 @attribute [Authorize]
 @inherits LocalizedPage
 @inject WeirApiClient Api
 @inject ISnackbarService Snackbar
+@inject IDialogService Dialog
+@inject AuthenticationStateProvider AuthState
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Admins_Title" Description="@AdminStrings.Admins_Description">
@@ -129,6 +132,7 @@
     private Guid? _busyId;
     private string? _actionError;
     private FlareDataGrid<AdminUserInfo>? _grid;
+    private string? _currentUser;
 
     /// <summary>
     /// Clears the grid's column and quick filters, which are the only filters on this page, so the
@@ -137,8 +141,15 @@
     /// <returns>A task that completes once the grid has re-filtered.</returns>
     private Task ClearFiltersAsync() => _grid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
 
-    /// <summary>Loads the admin list.</summary>
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    /// <summary>
+    /// Loads the admin list and remembers who is signed in, so that disabling your own account can
+    /// warn you about it before it happens rather than after.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUser = (await AuthState.GetAuthenticationStateAsync()).User.Identity?.Name;
+        await LoadAsync();
+    }
 
     /// <summary>Reloads the admin list.</summary>
     private async Task LoadAsync() => _admins = await Api.GetAdminsAsync();
@@ -180,10 +191,37 @@
         RunAsync(admin.Id, () => Api.SetAdminRoleAsync(
             admin.Id, admin.Role == AdminRoles.Admin ? AdminRoles.Viewer : AdminRoles.Admin));
 
-    /// <summary>Enables or disables an admin account.</summary>
+    /// <summary>
+    /// Enables or disables an admin account, after asking. Both directions are confirmed, not just
+    /// the destructive one: the buttons sit next to each other in a dense row, and a misclick either
+    /// way changes who can get into the console. Disabling the account you are signed in with is
+    /// called out separately, because it also ends the session you are reading the dialog in.
+    /// </summary>
     /// <param name="admin">The admin being enabled or disabled.</param>
-    private Task ToggleEnabledAsync(AdminUserInfo admin) =>
-        RunAsync(admin.Id, () => Api.SetAdminEnabledAsync(admin.Id, !admin.Enabled));
+    /// <returns>A task that completes once the change has run, or the user has declined it.</returns>
+    private async Task ToggleEnabledAsync(AdminUserInfo admin)
+    {
+        var disabling = admin.Enabled;
+        var self = string.Equals(admin.Username, _currentUser, StringComparison.Ordinal);
+        var body = disabling
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                self ? AdminStrings.Admins_DisableSelfConfirmBody : AdminStrings.Admins_DisableConfirmBody,
+                admin.Username)
+            : string.Format(CultureInfo.CurrentCulture, AdminStrings.Admins_EnableConfirmBody, admin.Username);
+
+        var confirmed = await Dialog.ConfirmAsync(
+            disabling ? AdminStrings.Admins_DisableConfirmTitle : AdminStrings.Admins_EnableConfirmTitle,
+            body,
+            disabling ? AdminStrings.Admins_Disable : AdminStrings.Admins_Enable,
+            AdminStrings.Common_Cancel);
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunAsync(admin.Id, () => Api.SetAdminEnabledAsync(admin.Id, !admin.Enabled));
+    }
 
     /// <summary>
     /// Runs one admin change, showing the server's reason when it refuses. The server declines a change
