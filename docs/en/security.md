@@ -47,6 +47,54 @@ connection, schema and object. A key with **no** grants is unrestricted (still s
 so existing keys keep working. Both checks apply: the key must satisfy the endpoint's required
 scopes **and** be granted the resource. A key that is not granted the procedure receives HTTP 403.
 
+## Client certificates (mTLS)
+
+A key can require that the caller also present a TLS client certificate, and say which certificates
+it accepts. Switch mTLS on with [`Weir:Mtls`](configuration.md#client-certificates-mtls); the
+per-key policy is edited on the Keys screen of the admin panel.
+
+| Policy field | Meaning |
+| :-- | :-- |
+| Require a client certificate | The key may only be used over a connection that presented one. |
+| Certificate thumbprints | Accepted certificates, by thumbprint. |
+| Issuer thumbprints | Accepted issuers - pins the key to one internal CA without listing every certificate that CA will sign. |
+| Subject patterns | Accepted subjects, with `*` for any run of characters, e.g. `CN=svc-*`. |
+
+**The three lists are alternatives, not three demands.** A certificate matching by thumbprint does
+not also have to match a subject pattern: they are three ways of naming the same trusted client. An
+empty list does not restrict, exactly as a key with no resource grants is unrestricted. A policy that
+asks for nothing allows what no policy allows.
+
+A key whose certificate does not satisfy its policy receives HTTP 403 - not 401. The key
+authenticated; it is the certificate that is unacceptable, and a caller told to "present valid
+credentials" would go and reissue a perfectly good key instead of fixing the certificate. The same
+refusal is answered the same way on every door: `problem+json` 403 on HTTP, a refused handshake on
+the WebSocket door (the socket is never accepted), and `PermissionDenied` on gRPC. It is logged as a
+security event and recorded in the audit naming the refused key.
+
+### Behind a reverse proxy
+
+Weir reads a client certificate from the connection when it terminates TLS itself, and from a header
+when a reverse proxy terminated TLS instead - the common deployment, described in
+[deployment](deployment.md#forwarding-a-client-certificate).
+
+That header is caller input. Weir therefore believes it **only** when the request actually came from
+a proxy listed in `Weir:Network:TrustedProxies`. Honouring it from anywhere else would let anyone
+forge a client certificate with one header, which is worse than having no mTLS at all: the key
+policy would look like protection while being none. A certificate header arriving from any other
+address is ignored and logged.
+
+Weir refuses to start when `Weir:Mtls:ForwardedCertificateHeader` is set while
+`Weir:Network:TrustedProxies` is empty, because no forwarded certificate could ever be believed.
+
+### What it does not do
+
+Weir does not issue, renew or revoke certificates. It checks the one presented against the
+authorities you configured and the policy on the key. Certificate lifecycle belongs to your PKI.
+
+mTLS applies to the data plane. The admin API and dashboard have their own origin and their own
+authentication, and are not gated by a key's certificate policy.
+
 ## Admin accounts
 
 - The admin UI is protected by local accounts. Passwords are stored with PBKDF2 (SHA-256) and must be

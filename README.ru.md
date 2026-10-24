@@ -138,7 +138,7 @@ Content-Type: application/json
 | [Эндпоинты и контракт API](docs/ru/endpoints.md) | Параметры, TVP, справочники и импорт, конверт запроса/ответа |
 | [Транспорты](docs/ru/transports.md) | Три двери, которые может назвать эндпоинт: HTTP, gRPC, WebSocket |
 | [Клиент для .NET](docs/ru/client.md) | Пакет FrigaT.Weir.Client: типизированные вызовы, страницы, импорт, ошибки |
-| [Безопасность](docs/ru/security.md) | API-ключи и скоупы, аккаунты админов и JWT |
+| [Безопасность](docs/ru/security.md) | API-ключи и скоупы, клиентские сертификаты (mTLS) и CORS на каждый ключ, аккаунты админов и JWT |
 | [Конфигурация](docs/ru/configuration.md) | Все настройки и переменные окружения |
 | [Деплой](docs/ru/deployment.md) | Docker-образ и docker-compose |
 | [Админка](docs/ru/admin-ui.md) | Дашборд и страницы управления |

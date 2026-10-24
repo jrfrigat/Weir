@@ -239,14 +239,67 @@ Weir__Admin__Password=a-strong-password
 Weir__Jwt__SigningKey=a-stable-secret
 ```
 
+## Client certificates (mTLS)
+
+Off by default. With `Mode` at `None` nothing here runs and no request pays for it.
+
+| Key | Default | Meaning |
+| :-- | :-- | :-- |
+| Weir:Mtls:Mode | `None` | `None`, `Allow` (read a certificate when one is presented) or `Require` (every data-plane request must present an acceptable one). |
+| Weir:Mtls:TrustedCaFiles | `[]` | PEM or DER files holding the accepted certificate authorities. When set, chains are verified against these roots **only**, not the machine trust store. |
+| Weir:Mtls:TrustedCaThumbprints | `[]` | Thumbprints that at least one certificate in the built chain must match. Pins an issuer without deploying its file. |
+| Weir:Mtls:AllowUnverifiedChain | `false` | Accept a certificate whose chain does not verify (a self-signed one in development). Logged as a warning at startup. |
+| Weir:Mtls:RevocationMode | `NoCheck` | `NoCheck`, `Offline` or `Online`. The default is deliberate: an internal CA usually has no reachable CRL or OCSP responder, and `Online` then does not check anything - it stalls the handshake until the lookup times out. |
+| Weir:Mtls:ForwardedCertificateHeader | empty | Header a trusted reverse proxy puts the certificate in. Empty means no header is read, so TLS must terminate at Kestrel. |
+| Weir:Mtls:MaxForwardedCertificateBytes | `16384` | Largest forwarded header Weir will try to parse. The header is caller input; a real certificate is a few kilobytes. |
+
+Two levels decide whether a call is allowed, and they answer different questions. `Mode` answers
+"does this deployment let anyone in without a certificate at all". A key's own policy - set in the
+admin panel, see [security](security.md#client-certificates-mtls) - answers "which certificate does
+*this* key accept". Either can refuse on its own.
+
+Setting a certificate policy on a key while `Mode` is `None` leaves that key unable to authenticate:
+no certificate can reach a request, so the policy can never be satisfied. That is a refusal in the
+closing direction rather than a mistake, and configuring keys before enabling mTLS is a normal order
+of work - the admin panel warns when you save such a policy.
+
+Weir never asks Kestrel to *require* a certificate at the TLS layer, even at `Mode=Require`. The
+same listener serves the admin PWA, and a TLS-level requirement would make an operator's browser
+produce a client certificate just to open the dashboard. The requirement is applied per request
+instead, which is also the only form of it that works behind a proxy, where Weir terminates no TLS
+at all. A deployment that wants the handshake itself to refuse should split the surfaces with
+[`Weir:Ports`](#weirports) and configure that on the listener or the proxy.
+
 ## CORS
 
 Browser clients that call the data-plane API from another origin need CORS. CORS is enabled only
 when the allowed-origins list is non-empty.
 
-| Key | Meaning |
-| :-- | :-- |
-| Weir:Cors:AllowedOrigins | Array of allowed origins, e.g. `[ "https://app.example.com" ]`. |
+| Key | Default | Meaning |
+| :-- | :-- | :-- |
+| Weir:Cors:AllowedOrigins | `[]` | Array of allowed origins, e.g. `[ "https://app.example.com" ]`. Empty leaves CORS off. |
+| Weir:Cors:AllowedMethods | `[]` | Methods the preflight answer permits. Empty answers with the data plane's own methods. |
+| Weir:Cors:AllowedHeaders | `[]` | Request headers the preflight permits. Empty echoes what the preflight asked for. |
+| Weir:Cors:ExposedHeaders | `[]` | Response headers the browser may read, beyond the CORS-safelisted ones. |
+| Weir:Cors:AllowCredentials | `false` | Whether the browser may send credentials. Refused at startup together with the `*` origin, which the specification forbids and browsers reject. |
+| Weir:Cors:MaxAgeSeconds | unset | How long the browser may cache a preflight answer. |
+
+This section is the server-wide default, and a key that states no CORS policy of its own is answered
+with it. A key that *does* state one is answered with that policy instead - it **replaces** the
+default rather than adding to it, so a key with its own origins does not also get the server's. A
+policy that is present but names no origin closes cross-origin access for that key alone, and the
+server default does not open it back up.
+
+A CORS preflight carries no API key - the browser does not send one, because it is still deciding
+whether it will send the caller's headers at all. So a preflight is answered from the origin alone,
+matched against the policies of every enabled key plus the server default. Two consequences are
+worth knowing:
+
+- where the server default and a key both name the same origin, the preflight carries the server's
+  answer, even if the key's is narrower;
+- `AllowedMethods` is therefore advice to the browser, not an authorization rule. Nothing on the
+  server consults it again. What a key may actually call is decided by its scopes, its resource
+  grants and the endpoint's own method.
 
 ## Rate limiting
 

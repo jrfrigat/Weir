@@ -149,6 +149,50 @@ compresses by buffering, and how long it waits between chunks. Check yours with 
 `stream` command, once against Weir directly and once through the proxy
 ([samples/README.md](../../samples/README.md#streaming-check)).
 
+### Forwarding a client certificate
+
+When the proxy terminates TLS, the client certificate is presented to the proxy, not to Weir - so the
+proxy has to pass it on. With nginx, ask for one and forward it:
+
+```nginx
+server {
+    listen 443 ssl;
+
+    ssl_client_certificate /etc/nginx/certs/client-ca.pem;
+    # "optional" lets a caller without a certificate still reach Weir, which is what you want when
+    # only some keys require one. Use "on" to refuse at the handshake instead.
+    ssl_verify_client optional;
+
+    location / {
+        proxy_pass http://weir:8080;
+        proxy_set_header X-Client-Cert $ssl_client_escaped_cert;
+    }
+}
+```
+
+Then point Weir at that header, and name the proxy:
+
+```json
+{
+  "Weir": {
+    "Mtls": { "Mode": "Allow", "ForwardedCertificateHeader": "X-Client-Cert" },
+    "Network": { "TrustedProxies": [ "172.18.0.5" ] }
+  }
+}
+```
+
+`$ssl_client_escaped_cert` is a percent-encoded PEM. Weir accepts that, a plain PEM, and bare base64
+with the armour stripped, so another proxy's spelling of the same thing works without translation.
+
+The header is believed **only** from an address in `Weir:Network:TrustedProxies`. From anywhere else
+it is ignored and logged: it is caller input, and accepting it from an untrusted peer would let
+anyone forge a client certificate with one header. Weir refuses to start if the header is configured
+while no trusted proxies are, because nothing could ever be believed.
+
+Note that `ssl_verify_client on` makes the handshake itself refuse a caller without a certificate -
+including a browser opening the admin dashboard through the same server block. Split the surfaces
+(below) before turning it on, or leave it `optional` and let the per-key policy decide.
+
 ## Splitting the two surfaces onto separate ports
 
 One port carries everything by default: the endpoint API, the admin API, the dashboard hub, the admin

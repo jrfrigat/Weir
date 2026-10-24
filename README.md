@@ -135,7 +135,7 @@ Full docs live in **[docs/](docs/README.md)** (English and Russian):
 | [Endpoints and API contract](docs/en/endpoints.md) | Parameters, TVP, dictionary and import endpoints, request/response envelope |
 | [Transports](docs/en/transports.md) | The three front doors an endpoint can name: HTTP, gRPC, WebSocket |
 | [.NET client](docs/en/client.md) | The FrigaT.Weir.Client package: typed calls, paging, imports, errors |
-| [Security](docs/en/security.md) | API keys and scopes, admin accounts and JWT |
+| [Security](docs/en/security.md) | API keys and scopes, client certificates (mTLS) and per-key CORS, admin accounts and JWT |
 | [Configuration](docs/en/configuration.md) | Every setting and environment variable |
 | [Deployment](docs/en/deployment.md) | Docker image and docker-compose |
 | [Admin UI](docs/en/admin-ui.md) | Dashboard and management pages |

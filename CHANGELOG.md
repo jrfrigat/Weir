@@ -8,7 +8,49 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Client certificates (mTLS), configured per API key. A key can require a client certificate and
+  name the ones it accepts, by thumbprint, by issuer thumbprint or by subject pattern; the three
+  lists are alternatives, and an empty one does not restrict. The check lives in one place - the
+  API-key authenticator - so HTTP, WebSocket and gRPC all apply it, and all three refuse the same
+  way: 403 rather than 401, because the key authenticated and only the certificate was unacceptable
+  (gRPC answers `PermissionDenied`). The refusal is logged as a security event and audited naming
+  the refused key. Server-wide settings live under `Weir:Mtls`: `Mode` (`None`, `Allow`, `Require`),
+  trusted authorities by file or thumbprint, revocation mode and an unverified-chain escape for
+  development.
+- A client certificate is read from the connection when Weir terminates TLS, and from a header when
+  a reverse proxy does - which is the common deployment. The header is believed only when the
+  request came from a proxy listed in `Weir:Network:TrustedProxies`: it is caller input, and
+  accepting it from anywhere would let anyone forge a client certificate with one header. Weir
+  refuses to start when the header is configured and no trusted proxies are. Percent-encoded PEM
+  (nginx's `$ssl_client_escaped_cert`), plain PEM and bare base64 are all accepted.
+- CORS, configured per API key. The data plane now answers CORS itself: a preflight carries no API
+  key, so it is resolved from the `Origin` alone against the policies of every enabled key plus the
+  server-wide default, while a real request is answered by the policy of the key that sent it. A
+  key's own policy replaces the server default rather than adding to it, and a policy that names no
+  origin closes cross-origin access for that key alone. `Weir:Cors` grows methods, headers, exposed
+  headers, credentials and max-age beyond the origin list it had, and keeps its previous meaning.
+  Everything outside the data plane keeps the framework's CORS middleware and the same default
+  policy it had before.
+- Key policies are created and edited in the admin panel (Keys screen, both locales), validated
+  against one shared bounds table, audited, and take effect immediately. Saving a certificate policy
+  while mTLS is switched off is allowed - configuring keys first is an ordinary order of work - but
+  warns, because such a key is refused every call until mTLS is enabled. The server-wide `Weir:Mtls`
+  and `Weir:Cors` values are shown read-only on the Settings screen.
+
 ### Changed
+
+- **Breaking for a third-party `IControlPlaneStore`.** The port gains
+  `UpdateApiKeyPoliciesAsync`, which replaces a key's certificate and CORS policies and nothing
+  else. It has no default implementation on purpose: storing a policy cannot be stubbed with
+  something that silently writes nothing, and a compiler error is the loud, immediate way to find
+  out. All three shipped stores implement it; the schema adds two nullable columns to `ApiKeys`
+  (SQLite v17, PostgreSQL v16, SQL Server v16), with no default, so a key that predates them states
+  no policy and behaves exactly as it did.
+- **Breaking for code that constructs `ApiKeyAuthenticator` itself.** Its constructor takes the
+  client-certificate gate as well. Code that resolves the authenticator from the container is
+  unaffected.
 
 - Update Flare from 0.42.0 to 0.51.0 and use its explicit theme registration. The admin inherits
   chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
