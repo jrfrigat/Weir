@@ -5273,5 +5273,50 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Endpoints_FilterHonouredByExport", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Requests per second.
+        /// </summary>
+        public static string Dashboard_ThroughputChartMetric {
+            get {
+                return ResourceManager.GetString("Dashboard_ThroughputChartMetric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на P50 latency in milliseconds.
+        /// </summary>
+        public static string Dashboard_LatencyChartMetric {
+            get {
+                return ResourceManager.GetString("Dashboard_LatencyChartMetric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0}, last {1} minutes.
+        /// </summary>
+        public static string Dashboard_ChartAccessibleName {
+            get {
+                return ResourceManager.GetString("Dashboard_ChartAccessibleName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Now {0}, lowest {1}, highest {2}..
+        /// </summary>
+        public static string Dashboard_ChartSummary {
+            get {
+                return ResourceManager.GetString("Dashboard_ChartSummary", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на No data in this window yet..
+        /// </summary>
+        public static string Dashboard_ChartNoData {
+            get {
+                return ResourceManager.GetString("Dashboard_ChartNoData", resourceCulture);
+            }
+        }
     }
 }

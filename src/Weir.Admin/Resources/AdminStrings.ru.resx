@@ -1817,4 +1817,19 @@
   <data name="Endpoints_FilterHonouredByExport" xml:space="preserve">
     <value>Экспорт и OpenAPI учитывают этот фильтр.</value>
   </data>
+  <data name="Dashboard_ThroughputChartMetric" xml:space="preserve">
+    <value>Запросов в секунду</value>
+  </data>
+  <data name="Dashboard_LatencyChartMetric" xml:space="preserve">
+    <value>Задержка p50 в миллисекундах</value>
+  </data>
+  <data name="Dashboard_ChartAccessibleName" xml:space="preserve">
+    <value>{0}, за последние {1} мин</value>
+  </data>
+  <data name="Dashboard_ChartSummary" xml:space="preserve">
+    <value>Сейчас {0}, минимум {1}, максимум {2}.</value>
+  </data>
+  <data name="Dashboard_ChartNoData" xml:space="preserve">
+    <value>В этом окне пока нет данных.</value>
+  </data>
 </root>

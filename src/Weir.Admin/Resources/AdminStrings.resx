@@ -1817,4 +1817,19 @@
   <data name="Endpoints_FilterHonouredByExport" xml:space="preserve">
     <value>Export and OpenAPI honour this filter.</value>
   </data>
+  <data name="Dashboard_ThroughputChartMetric" xml:space="preserve">
+    <value>Requests per second</value>
+  </data>
+  <data name="Dashboard_LatencyChartMetric" xml:space="preserve">
+    <value>P50 latency in milliseconds</value>
+  </data>
+  <data name="Dashboard_ChartAccessibleName" xml:space="preserve">
+    <value>{0}, last {1} minutes</value>
+  </data>
+  <data name="Dashboard_ChartSummary" xml:space="preserve">
+    <value>Now {0}, lowest {1}, highest {2}.</value>
+  </data>
+  <data name="Dashboard_ChartNoData" xml:space="preserve">
+    <value>No data in this window yet.</value>
+  </data>
 </root>

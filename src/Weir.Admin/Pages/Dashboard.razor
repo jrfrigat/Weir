@@ -102,7 +102,12 @@
                     <FlareSpacer />
                     <FlareText Element="span" Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Primary">@Num(_overview?.RequestsPerSecond ?? 0)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_thrData" Style="padding:6px 0;" />
+                @* Title feeds the SVG accessible name; on a sparkline Flare draws no visible heading
+                   for it (FlareChart renders the title block only when the chart is not a sparkline),
+                   so this names the chart without repeating the caption above it. *@
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_thrData" Style="padding:6px 0;"
+                            Title="@ChartName(AdminStrings.Dashboard_ThroughputChartMetric)"
+                            Description="@ChartSummary(_thrData, Num)" />
             </FlareCard>
             <FlareCard Variant="CardVariant.Outlined">
                 <FlareStack Row Align="FlareAlignItems.Baseline" Gap="FlareSpacing.Small">
@@ -111,7 +116,9 @@
                     <FlareSpacer />
                     <FlareText Element="span" Typo="TypographyScale.TitleSmall" Mono="true" Color="FlareColor.Success">@Lat(_overview?.P50LatencyMs)</FlareText>
                 </FlareStack>
-                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_latData" Style="padding:6px 0;" />
+                <FlareChart Type="ChartType.Line" Sparkline Area Smooth StickyDomain AnimateUpdates YMin="0" Height="150" Data="_latData" Style="padding:6px 0;"
+                            Title="@ChartName(AdminStrings.Dashboard_LatencyChartMetric)"
+                            Description="@ChartSummary(_latData, v => Lat(v))" />
             </FlareCard>
         </FlareStack>
     </FlareStack>
@@ -329,6 +336,43 @@
     {
         var values = series?.Points.Select(p => p.Value).ToList() ?? [];
         return new ChartData([new ChartSeries(label, values, color)]);
+    }
+
+    /// <summary>
+    /// The accessible name of a sparkline: the metric plus the window it covers. The window comes
+    /// from the same constant the data is fetched with, so the name cannot come to disagree with the
+    /// chart.
+    /// </summary>
+    /// <param name="metric">The localized metric name.</param>
+    /// <returns>The name a screen reader reads for the chart.</returns>
+    private static string ChartName(string metric) =>
+        string.Format(CultureInfo.CurrentCulture, AdminStrings.Dashboard_ChartAccessibleName, metric, ChartWindowSeconds / 60);
+
+    /// <summary>
+    /// What the chart would say if it could be read aloud: the latest value and the range around it.
+    /// A shape conveys nothing to a screen reader, and these three numbers are what a sighted reader
+    /// takes from the sparkline at a glance. NaN points are the gaps Flare draws as breaks, so they
+    /// are left out rather than counted as zero.
+    /// </summary>
+    /// <param name="data">The series behind the chart, or null before the first load.</param>
+    /// <param name="format">The same formatter the visible value beside the chart uses.</param>
+    /// <returns>A sentence naming the current, lowest and highest value, or that there is no data.</returns>
+    private static string ChartSummary(ChartData? data, Func<double, string> format)
+    {
+        var values = data?.Series.Count > 0
+            ? data.Series[0].Values.Where(v => !double.IsNaN(v)).ToList()
+            : [];
+        if (values.Count == 0)
+        {
+            return AdminStrings.Dashboard_ChartNoData;
+        }
+
+        return string.Format(
+            CultureInfo.CurrentCulture,
+            AdminStrings.Dashboard_ChartSummary,
+            format(values[^1]),
+            format(values.Min()),
+            format(values.Max()));
     }
 
     /// <summary>Formats an integer-ish value with thousands separators (e.g. 1,284).</summary>
