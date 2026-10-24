@@ -8,6 +8,60 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-24
+
+A release about the admin console. Nothing in the gateway changed: no new settings, no API change,
+no migration. What changed is what the console tells you while you use it.
+
+### Added
+
+- Every list page states what to do when it is empty, and says so differently when it is the filters
+  that emptied it. An empty list offers its own action - create an endpoint, a key, a scope, an admin
+  account, reload the log - and a list that filters down to nothing says "nothing matches" and offers
+  to clear the filters, clearing the page's own filters and the grid's together. Nine grids are
+  covered, not only the six list pages: the database object picker and the per-route table on the
+  dashboard filter down to nothing just as readily.
+- The browser tab, the history entry and the PWA window name the open section - "Endpoints - Weir
+  Admin" - in the current language, and back and forward restore the right one. One component
+  computes it from the route, so a page cannot leave the previous page's title up, which is what
+  Blazor does when a route renders no title of its own.
+- While a page loads, it shows the shape of what is coming - a table of placeholder rows, or the
+  cards of the settings form - instead of the word "Loading". The bar heights come from measuring a
+  live grid, so the top edge of the region does not move when the data arrives. One placeholder per
+  region announces itself to a screen reader; the rest are decorative.
+- Both dashboard charts name themselves: "Requests per second, last 5 minutes" and "P50 latency in
+  milliseconds, last 5 minutes", with a spoken summary of the current, lowest and highest value. They
+  used to be called "Chart".
+- The settings page tracks unsaved changes. A change raises an "unsaved changes" marker, leaving the
+  page asks for confirmation - inside the app and on closing the tab - and saving clears it. The save
+  button is pinned to the bottom of the window, so it is reachable from anywhere on a page eleven
+  cards long. The marker is computed by comparing values, so changing a field and changing it back
+  clears it rather than leaving the page guarded for nothing.
+- Enabling or disabling an admin account asks first, naming the account. Disabling the account you
+  are signed in with says plainly that it ends the session you are reading the dialog in.
+
+### Changed
+
+- One way of reporting how an action went, everywhere. A success is a toast; an error belonging to a
+  form is an alert beside that form; a page that could not load its data says so in a banner at the
+  top. Three actions that used to finish in silence now answer: revoking an access token, resetting
+  another admin's password, and changing an admin's role or enabled state. Two inline success alerts
+  remain on purpose - the plaintext API key and the new access token - because a toast would vanish
+  before either could be copied.
+- Each list page now has one filter block: a full-width search box that says what it searches
+  ("Search endpoints" rather than "Filter..."), the page's own filters beside it, the active ones as
+  chips you can drop one at a time, a clear-all and a result count. The search box used to sit in the
+  grid's toolbar, which is right-aligned and does not wrap, so on a narrow window the controls ran off
+  the end instead of onto a second line. At 390px wide the block is now a single column with no
+  horizontal scrolling.
+- The key policy dialog is split into an mTLS tab and a CORS tab, so it fits on screen without
+  scrolling. Only the showing is split: one form, one Save, both policies sent together as before.
+- The two settings whose explanation did not fit on one line - the import row cap and the binary
+  byte cap - carry an [i] beside the label that opens the explanation on click, instead of a line of
+  helper text under the field. The text is unchanged; the row of limit fields is now level.
+- The admin console has a sound heading outline: one h1 per page and no heading used for its
+  appearance. Page section headings, drawer titles and the brand are now what they actually are.
+
 ## [3.0.0] - 2026-10-24
 
 ### Added
@@ -1526,6 +1580,7 @@ Initial release.
   library; verified at runtime by the SQLite-backed tests.
 
 [Unreleased]: https://github.com/jrfrigat/weir/compare/v3.0.0...HEAD
+[3.1.0]: https://github.com/jrfrigat/weir/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0
 [2.3.1]: https://github.com/jrfrigat/weir/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/jrfrigat/weir/compare/v2.2.0...v2.3.0
