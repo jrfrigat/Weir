@@ -145,29 +145,34 @@
 
             <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_PoliciesHelp</FlareText>
 
-            <div>
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Mtls</FlareText>
-                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_MtlsHelp</FlareText>
-                <FlareStack Gap="FlareSpacing.Small" Style="margin-top:.5rem;">
-                    <FlareSwitch @bind-Value="_policy.RequireCertificate" Label="@AdminStrings.Keys_MtlsRequire" />
-                    <FlareField TValue="string" @bind-Value="_policy.Thumbprints" Label="@AdminStrings.Keys_MtlsThumbprints" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
-                    <FlareField TValue="string" @bind-Value="_policy.IssuerThumbprints" Label="@AdminStrings.Keys_MtlsIssuers" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
-                    <FlareField TValue="string" @bind-Value="_policy.SubjectPatterns" Label="@AdminStrings.Keys_MtlsSubjects" Placeholder="@AdminStrings.Keys_MtlsSubjectPlaceholder" />
-                </FlareStack>
-            </div>
-
-            <div>
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_Cors</FlareText>
-                <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_CorsHelp</FlareText>
-                <FlareStack Gap="FlareSpacing.Small" Style="margin-top:.5rem;">
-                    <FlareField TValue="string" @bind-Value="_policy.AllowedOrigins" Label="@AdminStrings.Keys_CorsOrigins" Placeholder="@AdminStrings.Keys_CorsOriginPlaceholder" />
-                    <FlareField TValue="string" @bind-Value="_policy.AllowedMethods" Label="@AdminStrings.Keys_CorsMethods" Placeholder="@AdminStrings.Keys_CorsMethodPlaceholder" />
-                    <FlareField TValue="string" @bind-Value="_policy.AllowedHeaders" Label="@AdminStrings.Keys_CorsHeaders" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
-                    <FlareField TValue="string" @bind-Value="_policy.ExposedHeaders" Label="@AdminStrings.Keys_CorsExposed" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
-                    <FlareSwitch @bind-Value="_policy.AllowCredentials" Label="@AdminStrings.Keys_CorsCredentials" />
-                    <FlareNumericField TValue="int?" @bind-Value="_policy.MaxAgeSeconds" Label="@AdminStrings.Keys_CorsMaxAge" Min="0" Max="ApiKeyPolicyBounds.MaxCorsMaxAgeSeconds" />
-                </FlareStack>
-            </div>
+            @* Two tabs, one form, one Save: the showing is split, the saving is not. Both policies go
+               to the server together, exactly as before, and PolicyEdit.ToUpdate still decides what
+               counts as stated. The alerts above stay outside the tabs on purpose - a refusal or a
+               warning must be readable whichever tab the reader is on, and the one warning there is
+               (mTLS switched off server-side) arrives in the ANSWER to a save, when the reader may
+               well be looking at the CORS tab. *@
+            <FlareTabs>
+                <FlareTab Label="@AdminStrings.Keys_Mtls">
+                    <FlareStack Gap="FlareSpacing.Small" Style="padding-top:.75rem;">
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_MtlsHelp</FlareText>
+                        <FlareSwitch @bind-Value="_policy.RequireCertificate" Label="@AdminStrings.Keys_MtlsRequire" />
+                        <FlareField TValue="string" @bind-Value="_policy.Thumbprints" Label="@AdminStrings.Keys_MtlsThumbprints" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                        <FlareField TValue="string" @bind-Value="_policy.IssuerThumbprints" Label="@AdminStrings.Keys_MtlsIssuers" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                        <FlareField TValue="string" @bind-Value="_policy.SubjectPatterns" Label="@AdminStrings.Keys_MtlsSubjects" Placeholder="@AdminStrings.Keys_MtlsSubjectPlaceholder" />
+                    </FlareStack>
+                </FlareTab>
+                <FlareTab Label="@AdminStrings.Keys_Cors">
+                    <FlareStack Gap="FlareSpacing.Small" Style="padding-top:.75rem;">
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Keys_CorsHelp</FlareText>
+                        <FlareField TValue="string" @bind-Value="_policy.AllowedOrigins" Label="@AdminStrings.Keys_CorsOrigins" Placeholder="@AdminStrings.Keys_CorsOriginPlaceholder" />
+                        <FlareField TValue="string" @bind-Value="_policy.AllowedMethods" Label="@AdminStrings.Keys_CorsMethods" Placeholder="@AdminStrings.Keys_CorsMethodPlaceholder" />
+                        <FlareField TValue="string" @bind-Value="_policy.AllowedHeaders" Label="@AdminStrings.Keys_CorsHeaders" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                        <FlareField TValue="string" @bind-Value="_policy.ExposedHeaders" Label="@AdminStrings.Keys_CorsExposed" Placeholder="@AdminStrings.Keys_ListPlaceholder" />
+                        <FlareSwitch @bind-Value="_policy.AllowCredentials" Label="@AdminStrings.Keys_CorsCredentials" />
+                        <FlareNumericField TValue="int?" @bind-Value="_policy.MaxAgeSeconds" Label="@AdminStrings.Keys_CorsMaxAge" Min="0" Max="ApiKeyPolicyBounds.MaxCorsMaxAgeSeconds" />
+                    </FlareStack>
+                </FlareTab>
+            </FlareTabs>
         </FlareStack>
     </ChildContent>
     <ActionsContent>
