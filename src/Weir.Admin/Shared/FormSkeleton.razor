@@ -1,0 +1,35 @@
+@* Stands in for a page of settings cards while they load: each block is a section label over a row
+   of fields, which is the shape Settings actually renders. Fewer blocks than the page ends up with -
+   enough to fill what is on screen, so the visible area does not jump, without shimmering through a
+   whole page of placeholder.
+
+   As in TableSkeleton, only the first bar announces itself; the rest are decorative. *@
+<FlareStack Gap="FlareSpacing.Medium" aria-busy="true">
+    @for (var section = 0; section < Sections; section++)
+    {
+        @* The local matters. A `for` declares its counter once for the whole loop, and the content
+           below sits inside FlareCard's ChildContent, which Flare invokes after the loop has run -
+           by then the counter is past the end, so `section == 0` would be false for every card and
+           nothing would announce. A variable declared inside the body is per-iteration. *@
+        var announce = section == 0;
+        <FlareCard Variant="CardVariant.Outlined">
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareSkeleton Announce="@announce" Height="1rem" Width="12rem" />
+                <FlareStack Row Gap="FlareSpacing.Medium" Wrap="true">
+                    @for (var field = 0; field < Fields; field++)
+                    {
+                        <FlareSkeleton Height="2.4rem" Width="12rem" />
+                    }
+                </FlareStack>
+            </FlareStack>
+        </FlareCard>
+    }
+</FlareStack>
+
+@code {
+    /// <summary>How many section cards to stand in for.</summary>
+    [Parameter] public int Sections { get; set; } = 4;
+
+    /// <summary>How many field placeholders each section card shows.</summary>
+    [Parameter] public int Fields { get; set; } = 3;
+}

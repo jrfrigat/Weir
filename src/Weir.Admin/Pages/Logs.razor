@@ -32,7 +32,7 @@
 
     @if (_entries is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+        <TableSkeleton Rows="8" />
     }
     else if (_entries.Count == 0 && IsQueryFiltered)
     {
@@ -51,7 +51,7 @@
     }
     else
     {
-        <FlareDataGrid @ref="_grid" TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" FillHeight RowClick="@(e => OpenDetail(e))">
+        <FlareDataGrid @ref="_grid" TItem="RequestLogEntry" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Simple" PageSize="50" FillHeight RowClick="@(e => OpenDetail(e))" aria-busy="@_loadingMore">
             <EmptyStateContent><NoMatchState OnClear="ClearAllFiltersAsync" /></EmptyStateContent>
             <ToolbarContent>
                 @if (_hasMore)

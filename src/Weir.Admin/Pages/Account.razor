@@ -75,7 +75,7 @@
 
             @if (_tokens is null)
             {
-                <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                <TableSkeleton Rows="3" HeaderRows="1" />
             }
             else if (_tokens.Count == 0)
             {

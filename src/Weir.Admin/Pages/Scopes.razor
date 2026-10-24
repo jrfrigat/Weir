@@ -30,7 +30,7 @@
 
     @if (_scopes is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+        <TableSkeleton Rows="6" />
     }
     else if (_scopes.Count == 0)
     {

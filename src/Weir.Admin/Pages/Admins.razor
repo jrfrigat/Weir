@@ -29,7 +29,7 @@
 
     @if (_admins is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+        <TableSkeleton Rows="5" />
     }
     else if (_admins.Count == 0)
     {

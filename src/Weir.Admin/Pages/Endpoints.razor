@@ -37,7 +37,7 @@
         <FlareTab Label="@AdminStrings.Endpoints_TabEndpoints">
             @if (_endpoints is null)
             {
-                <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                <TableSkeleton Rows="8" />
             }
             else if (_endpoints.Count == 0)
             {
@@ -115,7 +115,7 @@
                     <div style="flex:2 1 26rem;min-width:0;">
                         @if (_objects is null)
                         {
-                            <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                            <TableSkeleton Rows="6" />
                         }
                         else if (_objects.Count == 0)
                         {
@@ -174,7 +174,7 @@
                                 </div>
                                 @if (_selectedParameters is null)
                                 {
-                                    <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+                                    <TableSkeleton Rows="4" HeaderRows="0" />
                                 }
                                 else
                                 {

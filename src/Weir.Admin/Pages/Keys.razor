@@ -34,7 +34,7 @@
 
     @if (_keys is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+        <TableSkeleton Rows="5" />
     }
     else if (_keys.Count == 0)
     {

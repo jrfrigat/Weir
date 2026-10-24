@@ -1,0 +1,28 @@
+@* Stands in for a data grid while its rows are being fetched, instead of the one muted word the
+   admin used to show. The bar heights come from measuring a live dense grid - 25px for the column
+   titles, 42px for the inline filter row, 27px per data row - so the placeholder occupies roughly
+   the space the grid will, and the page does not jump when the rows arrive.
+
+   Only the first bar announces itself (FlareSkeleton.Announce): the rest are decorative and hidden
+   from assistive technology, so a screen reader says "loading" once instead of once per bar. *@
+<div aria-busy="true" style="display:flex;flex-direction:column;gap:.25rem;">
+    @for (var i = 0; i < HeaderRows; i++)
+    {
+        <FlareSkeleton Announce="@(i == 0)" Height="@(i == 0 ? "1.5rem" : "2.6rem")" Width="100%" />
+    }
+    @for (var i = 0; i < Rows; i++)
+    {
+        <FlareSkeleton Height="1.7rem" Width="100%" />
+    }
+</div>
+
+@code {
+    /// <summary>How many data rows to stand in for. Enough to fill the usual viewport, not the page.</summary>
+    [Parameter] public int Rows { get; set; } = 8;
+
+    /// <summary>
+    /// How many bars the grid's head needs: 2 where the grid shows an inline filter row under the
+    /// column titles, 1 where its filters live in a column menu instead.
+    /// </summary>
+    [Parameter] public int HeaderRows { get; set; } = 2;
+}

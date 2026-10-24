@@ -14,7 +14,7 @@
 
     @if (_entries is null)
     {
-        <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Loading</FlareText>
+        <TableSkeleton Rows="8" />
     }
     else if (_entries.Count == 0)
     {
@@ -27,7 +27,7 @@
     }
     else
     {
-        <FlareDataGrid @ref="_grid" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
+        <FlareDataGrid @ref="_grid" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight aria-busy="@_loadingMore">
             <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
             <ToolbarContent>
                 <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
