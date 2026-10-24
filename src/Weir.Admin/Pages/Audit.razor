@@ -32,10 +32,11 @@
     }
     else
     {
+        <ListFilterBar TItem="AuditEntry" Grid="_grid" Placeholder="@AdminStrings.Audit_SearchPlaceholder" OnClearAll="ClearFiltersAsync" />
+
         <FlareDataGrid @ref="_grid" Items="@_entries" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight aria-busy="@_loadingMore">
             <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
             <ToolbarContent>
-                <FlareDataGridQuickFilter Placeholder="@AdminStrings.Audit_FilterPlaceholder" />
                 @if (_hasMore)
                 {
                     <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadOlderAsync" Disabled="_loadingMore">@AdminStrings.Audit_LoadOlder</FlareButton>
@@ -85,6 +86,7 @@
     private HubConnection? _hub;
     private bool _disposed;
     private FlareDataGrid<AuditEntry>? _grid;
+    private bool _searchBound;
 
     /// <summary>
     /// Clears the grid's column and quick filters, which are the only filters on this page, so the
@@ -129,6 +131,14 @@
         if (firstRender)
         {
             ScreenFit.Set(true);
+        }
+
+        if (_grid is not null && !_searchBound)
+        {
+            // The grid reference lands during the render that creates it, so the search box above it
+            // rendered with nothing to narrow. One more render gives it the grid.
+            _searchBound = true;
+            StateHasChanged();
         }
 
         await base.OnAfterRenderAsync(firstRender);

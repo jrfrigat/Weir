@@ -11,24 +11,32 @@
 <FlareStack FillHeight Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Logs_Title" Description="@AdminStrings.Logs_Description">
         <Actions>
-            @if (_endpointLabel is not null)
-            {
-                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Label="@string.Format(AdminStrings.Logs_EndpointChip, _endpointLabel)" />
-                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearEndpoint">@AdminStrings.Logs_Clear</FlareButton>
-            }
             <FlareButton Variant="ButtonVariant.Outlined" Size="ButtonSize.Sm" OnClick="RefreshAsync" Loading="_loading">@AdminStrings.Common_Refresh</FlareButton>
         </Actions>
     </PageHeader>
 
-    <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.Medium" Wrap="true">
-        <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;">@AdminStrings.Logs_SectionFilter</FlareText>
-        <FlareSwitch Value="_slowOnly" ValueChanged="OnSlowOnlyChanged" Label="@AdminStrings.Logs_SlowOnly" />
-        <FlareSwitch Value="_errorsOnly" ValueChanged="OnErrorsOnlyChanged" Label="@AdminStrings.Logs_ErrorsOnly" />
-        @if (_entries is { Count: > 0 })
-        {
-            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@string.Format(AdminStrings.Logs_LoadedCount, _entries.Count)</FlareText>
-        }
-    </FlareStack>
+    <ListFilterBar TItem="RequestLogEntry" Grid="_grid" Placeholder="@AdminStrings.Logs_SearchPlaceholder"
+                   HasChips="@IsQueryFiltered" OnClearAll="ClearAllFiltersAsync"
+                   Summary="@(_entries is { Count: > 0 } ? string.Format(AdminStrings.Logs_LoadedCount, _entries.Count) : null)">
+        <Controls>
+            <FlareSwitch Value="_slowOnly" ValueChanged="OnSlowOnlyChanged" Label="@AdminStrings.Logs_SlowOnly" />
+            <FlareSwitch Value="_errorsOnly" ValueChanged="OnErrorsOnlyChanged" Label="@AdminStrings.Logs_ErrorsOnly" />
+        </Controls>
+        <Chips>
+            @if (_slowOnly)
+            {
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Closeable="true" OnClose="@(() => OnSlowOnlyChanged(false))" Label="@AdminStrings.Logs_ChipSlowOnly" />
+            }
+            @if (_errorsOnly)
+            {
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Closeable="true" OnClose="@(() => OnErrorsOnlyChanged(false))" Label="@AdminStrings.Logs_ChipErrorsOnly" />
+            }
+            @if (_endpointLabel is not null)
+            {
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Closeable="true" OnClose="ClearEndpoint" Label="@string.Format(AdminStrings.Logs_EndpointChip, _endpointLabel)" />
+            }
+        </Chips>
+    </ListFilterBar>
 
     @if (_loadError is not null)
     {
@@ -231,6 +239,7 @@
     private bool _slowOnly;
     private bool _errorsOnly;
     private FlareDataGrid<RequestLogEntry>? _grid;
+    private bool _searchBound;
     private string? _loadError;
     private bool _loading;
     private bool _loadingMore;
@@ -281,6 +290,14 @@
         if (firstRender)
         {
             ScreenFit.Set(true);
+        }
+
+        if (_grid is not null && !_searchBound)
+        {
+            // The grid reference lands during the render that creates it, so the search box above it
+            // rendered with nothing to narrow. One more render gives it the grid.
+            _searchBound = true;
+            StateHasChanged();
         }
 
         await base.OnAfterRenderAsync(firstRender);

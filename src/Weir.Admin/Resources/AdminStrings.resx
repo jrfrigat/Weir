@@ -1811,4 +1811,31 @@
   <data name="Settings_LeaveDiscard" xml:space="preserve">
     <value>Discard changes</value>
   </data>
+  <data name="Endpoints_SearchPlaceholder" xml:space="preserve">
+    <value>Search endpoints</value>
+  </data>
+  <data name="Audit_SearchPlaceholder" xml:space="preserve">
+    <value>Search audit entries</value>
+  </data>
+  <data name="Logs_SearchPlaceholder" xml:space="preserve">
+    <value>Search requests</value>
+  </data>
+  <data name="Endpoints_ChipScope" xml:space="preserve">
+    <value>Scope: {0}</value>
+  </data>
+  <data name="Endpoints_ChipKey" xml:space="preserve">
+    <value>Key: {0}</value>
+  </data>
+  <data name="Logs_ChipSlowOnly" xml:space="preserve">
+    <value>Slow only</value>
+  </data>
+  <data name="Logs_ChipErrorsOnly" xml:space="preserve">
+    <value>Errors only</value>
+  </data>
+  <data name="Common_ShowingOfTotal" xml:space="preserve">
+    <value>{0} of {1} shown</value>
+  </data>
+  <data name="Endpoints_FilterHonouredByExport" xml:space="preserve">
+    <value>Export and OpenAPI honour this filter.</value>
+  </data>
 </root>

@@ -5255,5 +5255,86 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Settings_LeaveDiscard", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Search endpoints.
+        /// </summary>
+        public static string Endpoints_SearchPlaceholder {
+            get {
+                return ResourceManager.GetString("Endpoints_SearchPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Search audit entries.
+        /// </summary>
+        public static string Audit_SearchPlaceholder {
+            get {
+                return ResourceManager.GetString("Audit_SearchPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Search requests.
+        /// </summary>
+        public static string Logs_SearchPlaceholder {
+            get {
+                return ResourceManager.GetString("Logs_SearchPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Scope: {0}.
+        /// </summary>
+        public static string Endpoints_ChipScope {
+            get {
+                return ResourceManager.GetString("Endpoints_ChipScope", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Key: {0}.
+        /// </summary>
+        public static string Endpoints_ChipKey {
+            get {
+                return ResourceManager.GetString("Endpoints_ChipKey", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Slow only.
+        /// </summary>
+        public static string Logs_ChipSlowOnly {
+            get {
+                return ResourceManager.GetString("Logs_ChipSlowOnly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Errors only.
+        /// </summary>
+        public static string Logs_ChipErrorsOnly {
+            get {
+                return ResourceManager.GetString("Logs_ChipErrorsOnly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} of {1} shown.
+        /// </summary>
+        public static string Common_ShowingOfTotal {
+            get {
+                return ResourceManager.GetString("Common_ShowingOfTotal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Export and OpenAPI honour this filter..
+        /// </summary>
+        public static string Endpoints_FilterHonouredByExport {
+            get {
+                return ResourceManager.GetString("Endpoints_FilterHonouredByExport", resourceCulture);
+            }
+        }
     }
 }

@@ -45,18 +45,31 @@
             }
             else
             {
-                <FlareStack Row Align="FlareAlignItems.End" Gap="FlareSpacing.Small" Wrap="true">
-                    <FlareText Typo="TypographyScale.LabelMedium" Mono="true" Color="FlareColor.OnSurfaceVariant" Style="letter-spacing:.1em;align-self:center;">@AdminStrings.Endpoints_FilterSectionHeader</FlareText>
-                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterScopeLabel" Size="FieldSize.Sm" Value="_filterScope" ValueChanged="OnFilterScopeChanged" Items="ScopeFilterOptions" ItemLabel="ScopeFilterLabel" Style="min-width:12rem;" />
-                    <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterKeyLabel" Size="FieldSize.Sm" Value="_filterKeyId" ValueChanged="OnFilterKeyChanged" Items="KeyFilterOptions" ItemLabel="KeyFilterLabel" Style="min-width:14rem;" />
-                    @if (IsFiltered)
-                    {
-                        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" Style="align-self:center;">@string.Format(AdminStrings.Endpoints_FilterSummary, FilteredEndpoints.Count, _endpoints.Count)</FlareText>
-                        <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="ClearFilters">@AdminStrings.Endpoints_ClearFilters</FlareButton>
-                    }
-                </FlareStack>
+                <ListFilterBar TItem="EndpointDefinition" Grid="_grid" Placeholder="@AdminStrings.Endpoints_SearchPlaceholder"
+                               HasChips="@IsFiltered" OnClearAll="ClearAllFiltersAsync"
+                               Summary="@string.Format(AdminStrings.Common_ShowingOfTotal, FilteredEndpoints.Count, _endpoints.Count)">
+                    <Controls>
+                        <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterScopeLabel" Size="FieldSize.Sm" Value="_filterScope" ValueChanged="OnFilterScopeChanged" Items="ScopeFilterOptions" ItemLabel="ScopeFilterLabel" Style="min-width:12rem;" />
+                        <FlareSelect TValue="string" Label="@AdminStrings.Endpoints_FilterKeyLabel" Size="FieldSize.Sm" Value="_filterKeyId" ValueChanged="OnFilterKeyChanged" Items="KeyFilterOptions" ItemLabel="KeyFilterLabel" Style="min-width:14rem;" />
+                    </Controls>
+                    <Chips>
+                        @if (!string.IsNullOrEmpty(_filterScope))
+                        {
+                            <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Closeable="true" OnClose="@(() => OnFilterScopeChanged(string.Empty))"
+                                       Label="@string.Format(AdminStrings.Endpoints_ChipScope, _filterScope)" />
+                        }
+                        @if (!string.IsNullOrEmpty(_filterKeyId))
+                        {
+                            <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Primary" Closeable="true" OnClose="@(() => OnFilterKeyChanged(string.Empty))"
+                                       Label="@string.Format(AdminStrings.Endpoints_ChipKey, KeyFilterLabel(_filterKeyId))" />
+                        }
+                    </Chips>
+                </ListFilterBar>
+                @if (IsFiltered)
+                {
+                    <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Endpoints_FilterHonouredByExport</FlareText>
+                }
                 <FlareDataGrid @ref="_grid" Items="@FilteredEndpoints" Dense="true" Striped="true" Hoverable="true" FilterMode="DataGridFilterMode.Menu" PageSize="50" FillHeight>
-                    <ToolbarContent><FlareDataGridQuickFilter Placeholder="@AdminStrings.Endpoints_QuickFilterPlaceholder" /></ToolbarContent>
                     <EmptyStateContent><NoMatchState OnClear="ClearAllFiltersAsync" /></EmptyStateContent>
                     <Columns>
                         <FlareColumn TItem="EndpointDefinition" Id="status" Title="@AdminStrings.Endpoints_StatusColumn">
@@ -744,12 +757,21 @@
             ScreenFit.Set(true);
         }
 
+        if (_grid is not null && !_searchBound)
+        {
+            // The grid reference lands during the render that creates it, so the search box above it
+            // rendered with nothing to narrow. One more render gives it the grid.
+            _searchBound = true;
+            StateHasChanged();
+        }
+
         await base.OnAfterRenderAsync(firstRender);
     }
 
     // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------
 
     private FlareDataGrid<EndpointDefinition>? _grid;
+    private bool _searchBound;
     private FlareDataGrid<DbObjectDescriptor>? _objectGrid;
 
     /// <summary>

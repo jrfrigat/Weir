@@ -1811,4 +1811,31 @@
   <data name="Settings_LeaveDiscard" xml:space="preserve">
     <value>Уйти без сохранения</value>
   </data>
+  <data name="Endpoints_SearchPlaceholder" xml:space="preserve">
+    <value>Поиск по эндпоинтам</value>
+  </data>
+  <data name="Audit_SearchPlaceholder" xml:space="preserve">
+    <value>Поиск по записям аудита</value>
+  </data>
+  <data name="Logs_SearchPlaceholder" xml:space="preserve">
+    <value>Поиск по запросам</value>
+  </data>
+  <data name="Endpoints_ChipScope" xml:space="preserve">
+    <value>Скоуп: {0}</value>
+  </data>
+  <data name="Endpoints_ChipKey" xml:space="preserve">
+    <value>Ключ: {0}</value>
+  </data>
+  <data name="Logs_ChipSlowOnly" xml:space="preserve">
+    <value>Только медленные</value>
+  </data>
+  <data name="Logs_ChipErrorsOnly" xml:space="preserve">
+    <value>Только с ошибками</value>
+  </data>
+  <data name="Common_ShowingOfTotal" xml:space="preserve">
+    <value>показано {0} из {1}</value>
+  </data>
+  <data name="Endpoints_FilterHonouredByExport" xml:space="preserve">
+    <value>Экспорт и OpenAPI учитывают этот фильтр.</value>
+  </data>
 </root>

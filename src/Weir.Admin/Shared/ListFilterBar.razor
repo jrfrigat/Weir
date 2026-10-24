@@ -1,0 +1,69 @@
+@typeparam TItem
+@inherits LocalizedPage
+
+@* One filter block per list page: the search box, the page's own filter controls beside it, and the
+   active filters underneath as chips you can drop one at a time.
+
+   Why it is here and not in the grid's toolbar, where the search box used to live: that toolbar is
+   `display:flex; justify-content:flex-end` with no wrapping, which is what pushed the search box to
+   the right edge, away from the filters it belongs with, and what made a narrow window push the
+   controls off the end instead of onto a second line. Flare's own CSS is not ours to override, and
+   FlareDataGridQuickFilter is built to be placed anywhere and pointed at a grid, so the block lives
+   on the page and wraps as a block should. *@
+<FlareStack Gap="FlareSpacing.XSmall" Style="width:100%;">
+    <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.End" Wrap="true" Style="width:100%;">
+        @* Grows to fill the row but gives way when the controls beside it need the width. *@
+        <div style="flex:1 1 14rem;min-width:0;">
+            <FlareDataGridQuickFilter TItem="TItem" Grid="Grid" Placeholder="@Placeholder" />
+        </div>
+        @Controls
+    </FlareStack>
+
+    @if (HasChips || !string.IsNullOrEmpty(Summary))
+    {
+        <FlareStack Row Gap="FlareSpacing.XSmall" Align="FlareAlignItems.Center" Wrap="true" Style="width:100%;">
+            @Chips
+            @if (HasChips)
+            {
+                <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Sm" OnClick="OnClearAll">@AdminStrings.Common_ClearFilters</FlareButton>
+            }
+            @if (!string.IsNullOrEmpty(Summary))
+            {
+                <FlareSpacer />
+                @* A status, so a screen reader hears the new count after a filter changes without
+                   being interrupted mid-typing the way an alert would. *@
+                <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant" role="status">@Summary</FlareText>
+            }
+        </FlareStack>
+    }
+</FlareStack>
+
+@code {
+    /// <summary>
+    /// The grid the search box narrows. Set from the page's own <c>@ref</c>, which Blazor fills in
+    /// during the render that creates the grid - so the first render here sees null and the page
+    /// re-renders once to hand it over.
+    /// </summary>
+    [Parameter] public FlareDataGrid<TItem>? Grid { get; set; }
+
+    /// <summary>
+    /// What the search box says it searches. A concrete noun ("Search endpoints") rather than the
+    /// bare "Filter..." it replaces, which left the reader to guess what was being filtered.
+    /// </summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>The page's own filter controls, laid out in the same wrapping row as the search box.</summary>
+    [Parameter] public RenderFragment? Controls { get; set; }
+
+    /// <summary>One chip per active filter, each able to drop just that one.</summary>
+    [Parameter] public RenderFragment? Chips { get; set; }
+
+    /// <summary>Whether any chip is being shown, which is what decides if "clear filters" is offered.</summary>
+    [Parameter] public bool HasChips { get; set; }
+
+    /// <summary>The result count, shown at the end of the chip row.</summary>
+    [Parameter] public string? Summary { get; set; }
+
+    /// <summary>Drops every filter at once, the page's own as well as the grid's.</summary>
+    [Parameter] public EventCallback OnClearAll { get; set; }
+}
