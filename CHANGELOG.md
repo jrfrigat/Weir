@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-24
+
 ### Added
 
 - Client certificates (mTLS), configured per API key. A key can require a client certificate and
@@ -51,6 +53,12 @@ All notable changes to this project are documented here. The format is based on
 - **Breaking for code that constructs `ApiKeyAuthenticator` itself.** Its constructor takes the
   client-certificate gate as well. Code that resolves the authenticator from the container is
   unaffected.
+
+- **The data plane answers CORS itself**, where the framework's middleware answered before. Paths
+  outside `/api` and `/ws` keep that middleware and the policy they had, so an admin surface relying
+  on `Weir:Cors` is untouched. On the data plane one detail changes for a deployment that already
+  used `Weir:Cors`: a preflight is now answered by Weir, and with no `AllowedHeaders` configured it
+  echoes the headers the preflight asked for rather than allowing any header.
 
 - Update Flare from 0.42.0 to 0.51.0 and use its explicit theme registration. The admin inherits
   chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
@@ -1503,7 +1511,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0
 [1.8.0]: https://github.com/jrfrigat/weir/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/jrfrigat/weir/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/jrfrigat/weir/compare/v1.6.1...v1.6.2
