@@ -1796,4 +1796,19 @@
   <data name="Admins_EnableConfirmBody" xml:space="preserve">
     <value>{0} снова сможет входить.</value>
   </data>
+  <data name="Settings_UnsavedChanges" xml:space="preserve">
+    <value>Есть несохранённые изменения</value>
+  </data>
+  <data name="Settings_LeaveTitle" xml:space="preserve">
+    <value>Уйти без сохранения?</value>
+  </data>
+  <data name="Settings_LeaveBody" xml:space="preserve">
+    <value>Изменения на этой странице не применены. Если уйти сейчас, они пропадут.</value>
+  </data>
+  <data name="Settings_LeaveStay" xml:space="preserve">
+    <value>Остаться на странице</value>
+  </data>
+  <data name="Settings_LeaveDiscard" xml:space="preserve">
+    <value>Уйти без сохранения</value>
+  </data>
 </root>

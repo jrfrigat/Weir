@@ -1796,4 +1796,19 @@
   <data name="Admins_EnableConfirmBody" xml:space="preserve">
     <value>{0} will be able to sign in again.</value>
   </data>
+  <data name="Settings_UnsavedChanges" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="Settings_LeaveTitle" xml:space="preserve">
+    <value>Leave without saving?</value>
+  </data>
+  <data name="Settings_LeaveBody" xml:space="preserve">
+    <value>The changes on this page have not been applied. Leaving now discards them.</value>
+  </data>
+  <data name="Settings_LeaveStay" xml:space="preserve">
+    <value>Stay on the page</value>
+  </data>
+  <data name="Settings_LeaveDiscard" xml:space="preserve">
+    <value>Discard changes</value>
+  </data>
 </root>

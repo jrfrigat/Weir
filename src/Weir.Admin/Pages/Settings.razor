@@ -113,11 +113,22 @@
             </FlareStack>
         </FlareCard>
 
-        <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center">
+        @* Pinned to the bottom of the viewport rather than left in the middle of a page eleven cards
+           long: Save and the unsaved-changes marker are the two things the reader needs to see
+           without scrolling back. The surface colour keeps the fields from showing through it. *@
+        <FlareStack Row Gap="FlareSpacing.Small" Align="FlareAlignItems.Center" Wrap="true"
+                    Style="position:sticky;bottom:0;z-index:2;padding:.5rem 0;background:var(--flare-color-surface);">
             <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" OnClick="SaveAsync" Disabled="_saving">@AdminStrings.Settings_SaveButton</FlareButton>
             @if (_saving)
             {
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Common_Saving</FlareText>
+            }
+            else if (IsDirty)
+            {
+                @* role=status, not an alert: unsaved work is a state the reader should hear about
+                   when they get to it, not an interruption on every keystroke. *@
+                <FlareChip Size="ChipSize.Sm" Variant="ChipVariant.Outlined" Color="FlareColor.Warning"
+                           Label="@AdminStrings.Settings_UnsavedChanges" role="status" />
             }
         </FlareStack>
 
@@ -185,6 +196,13 @@
             </FlareCard>
         }
     }
+    @* Flare does both halves the card asks for - the in-app confirmation and the browser prompt -
+       from one IsDirty flag, so neither is hand-rolled here. *@
+    <FlareNavigationGuard IsDirty="@IsDirty"
+                          Title="@AdminStrings.Settings_LeaveTitle"
+                          Message="@AdminStrings.Settings_LeaveBody"
+                          StayLabel="@AdminStrings.Settings_LeaveStay"
+                          LeaveLabel="@AdminStrings.Settings_LeaveDiscard" />
 </FlareStack>
 
 @code {
@@ -192,6 +210,16 @@
     private bool _loadFailed;
     private bool _saving;
     private string? _saveError;
+
+    /// <summary>
+    /// The settings as they were last loaded or saved. The page is dirty when the values in the
+    /// fields no longer build this - a record comparison over scalars, which is exact and needs no
+    /// per-field change handler. Null while the page has not loaded, when nothing can be dirty.
+    /// </summary>
+    private WeirSystemSettings? _loaded;
+
+    /// <summary>Whether the fields differ from what was last loaded or saved.</summary>
+    private bool IsDirty => _loaded is not null && BuildEdited() != _loaded;
 
     private int _maxRows;
     private int _requestTimeoutSeconds;
@@ -255,6 +283,7 @@
             _logging = view.Logging;
             _mtls = view.Mtls;
             _cors = view.Cors;
+            _loaded = BuildEdited();
         }
         catch (HttpRequestException)
         {
@@ -293,30 +322,38 @@
         }
     }
 
+    /// <summary>
+    /// Builds the settings record the fields currently describe. One builder serves both the save
+    /// and the dirty check, so the two cannot drift apart: a field added to the form but forgotten
+    /// here would neither be saved nor mark the page unsaved, which loses work without a word.
+    /// </summary>
+    /// <returns>The settings as the form has them.</returns>
+    private WeirSystemSettings BuildEdited() => new()
+    {
+        MaxRows = _maxRows,
+        RequestTimeoutSeconds = _requestTimeoutSeconds,
+        MaxTvpRows = _maxTvpRows,
+        MaxImportRows = _maxImportRows,
+        MaxBinaryBytes = _maxBinaryBytes,
+        DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
+        ApiKeyFailureThreshold = _apiKeyFailureThreshold,
+        AuditRetentionDays = _auditRetentionDays,
+        MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
+        CircuitBreakerFailureThreshold = _circuitBreakerThreshold,
+        CircuitBreakerResetSeconds = _circuitBreakerResetSeconds,
+        RequestLogEnabled = _requestLogEnabled,
+        SlowRequestThresholdPercent = _slowThresholdPercent,
+        RequestLogRetentionDays = _requestLogRetentionDays,
+        ResponseCacheMaxBytes = _responseCacheMaxBytes,
+        ResponseDeliveryMode = _responseDeliveryMode,
+        ResponseFlushBytes = _responseFlushBytes,
+        ResponseCompressionMode = _responseCompressionMode,
+    };
+
     /// <summary>Validates and persists the edited settings, surfacing success or the failure reason.</summary>
     private async Task SaveAsync()
     {
-        var edited = new WeirSystemSettings
-        {
-            MaxRows = _maxRows,
-            RequestTimeoutSeconds = _requestTimeoutSeconds,
-            MaxTvpRows = _maxTvpRows,
-            MaxImportRows = _maxImportRows,
-            MaxBinaryBytes = _maxBinaryBytes,
-            DefaultApiKeyRateLimitPerMinute = _defaultRateLimit,
-            ApiKeyFailureThreshold = _apiKeyFailureThreshold,
-            AuditRetentionDays = _auditRetentionDays,
-            MaxConcurrentRequestsPerConnection = _maxConcurrentPerConnection,
-            CircuitBreakerFailureThreshold = _circuitBreakerThreshold,
-            CircuitBreakerResetSeconds = _circuitBreakerResetSeconds,
-            RequestLogEnabled = _requestLogEnabled,
-            SlowRequestThresholdPercent = _slowThresholdPercent,
-            RequestLogRetentionDays = _requestLogRetentionDays,
-            ResponseCacheMaxBytes = _responseCacheMaxBytes,
-            ResponseDeliveryMode = _responseDeliveryMode,
-            ResponseFlushBytes = _responseFlushBytes,
-            ResponseCompressionMode = _responseCompressionMode,
-        };
+        var edited = BuildEdited();
 
         // The same table the fields are bounded by and the API validates against, so the page reports the
         // rejection itself instead of sending a request it knows the server will refuse.
@@ -340,6 +377,9 @@
             }
             else
             {
+                // What the form holds is now what the gateway holds, so the page is clean again and
+                // leaving it stops being guarded.
+                _loaded = edited;
                 Snackbar.Show(AdminStrings.Settings_SavedAndApplied, SnackbarSeverity.Success);
             }
         }

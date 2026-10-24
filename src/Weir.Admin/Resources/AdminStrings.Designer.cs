@@ -5210,5 +5210,50 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Admins_EnableConfirmBody", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Unsaved changes.
+        /// </summary>
+        public static string Settings_UnsavedChanges {
+            get {
+                return ResourceManager.GetString("Settings_UnsavedChanges", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Leave without saving?.
+        /// </summary>
+        public static string Settings_LeaveTitle {
+            get {
+                return ResourceManager.GetString("Settings_LeaveTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The changes on this page have not been applied. Leaving now discards them..
+        /// </summary>
+        public static string Settings_LeaveBody {
+            get {
+                return ResourceManager.GetString("Settings_LeaveBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Stay on the page.
+        /// </summary>
+        public static string Settings_LeaveStay {
+            get {
+                return ResourceManager.GetString("Settings_LeaveStay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Discard changes.
+        /// </summary>
+        public static string Settings_LeaveDiscard {
+            get {
+                return ResourceManager.GetString("Settings_LeaveDiscard", resourceCulture);
+            }
+        }
     }
 }
