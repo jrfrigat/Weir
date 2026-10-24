@@ -129,7 +129,8 @@
         }
         else
         {
-            <FlareDataGrid TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
+            <FlareDataGrid @ref="_grid" TItem="EndpointMetrics" Items="@(_endpoints.OrderByDescending(e => e.Count).ToList())" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="@(e => Nav.NavigateTo($"/logs?route={Uri.EscapeDataString(e.Route)}"))">
+                <EmptyStateContent><NoMatchState OnClear="ClearFiltersAsync" /></EmptyStateContent>
                 <Columns>
                     <FlareColumn TItem="EndpointMetrics" Id="route" Title="@AdminStrings.Dashboard_ColumnRoute" Field="@(e => (object?)e.Route)" Sortable="true" Filterable="true" />
                     <FlareColumn TItem="EndpointMetrics" Id="object" Title="@AdminStrings.Dashboard_ColumnObject" Field="@(e => (object?)e.ObjectName)" Sortable="true" Filterable="true" />
@@ -157,6 +158,14 @@
     private ChartData? _thrData;
     private ChartData? _latData;
     private List<ConnectionHealth>? _connections;
+    private FlareDataGrid<EndpointMetrics>? _grid;
+
+    /// <summary>
+    /// Clears the per-route grid's column filters. The route and object columns are filterable, so
+    /// this grid can be narrowed to nothing just like a list page's.
+    /// </summary>
+    /// <returns>A task that completes once the grid has re-filtered.</returns>
+    private Task ClearFiltersAsync() => _grid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
     /// <summary>The window the two sparklines cover, in seconds. Matches what the hub pushes.</summary>
     private const int ChartWindowSeconds = 300;
 

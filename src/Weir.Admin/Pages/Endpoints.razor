@@ -123,7 +123,8 @@
                         }
                         else
                         {
-                            <FlareDataGrid TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="OnObjectRowClick">
+                            <FlareDataGrid @ref="_objectGrid" TItem="DbObjectDescriptor" Items="@_objects" Dense="true" Striped="true" Hoverable="true" PageSize="50" Height="auto" RowClick="OnObjectRowClick">
+                                <EmptyStateContent><NoMatchState OnClear="ClearObjectFiltersAsync" /></EmptyStateContent>
                                 <Columns>
                                     <FlareColumn TItem="DbObjectDescriptor" Id="object-schema" Title="@AdminStrings.Endpoints_SchemaLabel" Field="@(o => (object?)o.Schema)" Sortable="true" Filterable="true" />
                                     <FlareColumn TItem="DbObjectDescriptor" Id="object-name" Title="@AdminStrings.Endpoints_ObjectLabel" Field="@(o => (object?)o.Name)" Sortable="true" Filterable="true">
@@ -755,6 +756,14 @@
     // ----- Endpoint filter (by required scope / reachable by key) ---------------------------------
 
     private FlareDataGrid<EndpointDefinition>? _grid;
+    private FlareDataGrid<DbObjectDescriptor>? _objectGrid;
+
+    /// <summary>
+    /// Clears the column filters on the Database tab's object picker. That list is browsed by
+    /// filtering, so it dead-ends on a typo exactly like the endpoint list does.
+    /// </summary>
+    /// <returns>A task that completes once the object grid has re-filtered.</returns>
+    private Task ClearObjectFiltersAsync() => _objectGrid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
 
     /// <summary>Whether a scope or key filter is currently applied.</summary>
     private bool IsFiltered => !string.IsNullOrEmpty(_filterScope) || !string.IsNullOrEmpty(_filterKeyId);
