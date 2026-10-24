@@ -592,9 +592,6 @@
   <data name="Audit_EmptyTitle" xml:space="preserve">
     <value>Нет записей аудита</value>
   </data>
-  <data name="Audit_FilterPlaceholder" xml:space="preserve">
-    <value>Фильтр...</value>
-  </data>
   <data name="Audit_ColumnTime" xml:space="preserve">
     <value>Время</value>
   </data>
@@ -751,23 +748,11 @@
   <data name="Endpoints_EmptyDescription" xml:space="preserve">
     <value>Создайте эндпоинт или свяжите объект БД на вкладке "База данных".</value>
   </data>
-  <data name="Endpoints_FilterSectionHeader" xml:space="preserve">
-    <value>// ФИЛЬТР</value>
-  </data>
   <data name="Endpoints_FilterScopeLabel" xml:space="preserve">
     <value>Требуемый скоуп</value>
   </data>
   <data name="Endpoints_FilterKeyLabel" xml:space="preserve">
     <value>Доступен по ключу</value>
-  </data>
-  <data name="Endpoints_FilterSummary" xml:space="preserve">
-    <value>показано {0} из {1} - Экспорт и OpenAPI учитывают этот фильтр</value>
-  </data>
-  <data name="Endpoints_ClearFilters" xml:space="preserve">
-    <value>Сбросить</value>
-  </data>
-  <data name="Endpoints_QuickFilterPlaceholder" xml:space="preserve">
-    <value>Фильтр...</value>
   </data>
   <data name="Endpoints_StatusColumn" xml:space="preserve">
     <value>Статус</value>
@@ -1224,12 +1209,6 @@
   </data>
   <data name="Logs_EndpointChip" xml:space="preserve">
     <value>эндпоинт: {0}</value>
-  </data>
-  <data name="Logs_Clear" xml:space="preserve">
-    <value>Сбросить</value>
-  </data>
-  <data name="Logs_SectionFilter" xml:space="preserve">
-    <value>// ФИЛЬТР</value>
   </data>
   <data name="Logs_SlowOnly" xml:space="preserve">
     <value>Только медленные</value>

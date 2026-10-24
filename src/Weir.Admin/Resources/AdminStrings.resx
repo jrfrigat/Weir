@@ -592,9 +592,6 @@
   <data name="Audit_EmptyTitle" xml:space="preserve">
     <value>No audit entries</value>
   </data>
-  <data name="Audit_FilterPlaceholder" xml:space="preserve">
-    <value>Filter...</value>
-  </data>
   <data name="Audit_ColumnTime" xml:space="preserve">
     <value>Time</value>
   </data>
@@ -751,23 +748,11 @@
   <data name="Endpoints_EmptyDescription" xml:space="preserve">
     <value>Create one, or map a database object from the Database tab.</value>
   </data>
-  <data name="Endpoints_FilterSectionHeader" xml:space="preserve">
-    <value>// FILTER</value>
-  </data>
   <data name="Endpoints_FilterScopeLabel" xml:space="preserve">
     <value>Required scope</value>
   </data>
   <data name="Endpoints_FilterKeyLabel" xml:space="preserve">
     <value>Reachable by key</value>
-  </data>
-  <data name="Endpoints_FilterSummary" xml:space="preserve">
-    <value>showing {0} of {1} - Export and OpenAPI honour this filter</value>
-  </data>
-  <data name="Endpoints_ClearFilters" xml:space="preserve">
-    <value>Clear</value>
-  </data>
-  <data name="Endpoints_QuickFilterPlaceholder" xml:space="preserve">
-    <value>Filter...</value>
   </data>
   <data name="Endpoints_StatusColumn" xml:space="preserve">
     <value>Status</value>
@@ -1224,12 +1209,6 @@
   </data>
   <data name="Logs_EndpointChip" xml:space="preserve">
     <value>endpoint: {0}</value>
-  </data>
-  <data name="Logs_Clear" xml:space="preserve">
-    <value>Clear</value>
-  </data>
-  <data name="Logs_SectionFilter" xml:space="preserve">
-    <value>// FILTER</value>
   </data>
   <data name="Logs_SlowOnly" xml:space="preserve">
     <value>Slow only</value>

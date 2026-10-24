@@ -718,15 +718,6 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Filter....
-        /// </summary>
-        public static string Audit_FilterPlaceholder {
-            get {
-                return ResourceManager.GetString("Audit_FilterPlaceholder", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Load older.
         /// </summary>
         public static string Audit_LoadOlder {
@@ -1528,15 +1519,6 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Clear.
-        /// </summary>
-        public static string Endpoints_ClearFilters {
-            get {
-                return ResourceManager.GetString("Endpoints_ClearFilters", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на column.
         /// </summary>
         public static string Endpoints_ColumnPlaceholder {
@@ -2022,24 +2004,6 @@ namespace Weir.Admin.Resources {
         public static string Endpoints_FilterScopeLabel {
             get {
                 return ResourceManager.GetString("Endpoints_FilterScopeLabel", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на // FILTER.
-        /// </summary>
-        public static string Endpoints_FilterSectionHeader {
-            get {
-                return ResourceManager.GetString("Endpoints_FilterSectionHeader", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на showing {0} of {1} - Export and OpenAPI honour this filter.
-        /// </summary>
-        public static string Endpoints_FilterSummary {
-            get {
-                return ResourceManager.GetString("Endpoints_FilterSummary", resourceCulture);
             }
         }
         
@@ -2628,15 +2592,6 @@ namespace Weir.Admin.Resources {
         public static string Endpoints_PurgeCacheTooltip {
             get {
                 return ResourceManager.GetString("Endpoints_PurgeCacheTooltip", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Filter....
-        /// </summary>
-        public static string Endpoints_QuickFilterPlaceholder {
-            get {
-                return ResourceManager.GetString("Endpoints_QuickFilterPlaceholder", resourceCulture);
             }
         }
         
@@ -3413,15 +3368,6 @@ namespace Weir.Admin.Resources {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Clear.
-        /// </summary>
-        public static string Logs_Clear {
-            get {
-                return ResourceManager.GetString("Logs_Clear", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Connection.
         /// </summary>
         public static string Logs_Connection {
@@ -3598,15 +3544,6 @@ namespace Weir.Admin.Resources {
         public static string Logs_Rows {
             get {
                 return ResourceManager.GetString("Logs_Rows", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на // FILTER.
-        /// </summary>
-        public static string Logs_SectionFilter {
-            get {
-                return ResourceManager.GetString("Logs_SectionFilter", resourceCulture);
             }
         }
         
