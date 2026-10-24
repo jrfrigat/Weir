@@ -55,6 +55,40 @@ public class PostgresControlPlaneStoreIntegrationTests
         Assert.Equal(keyInfo.Id, record!.Id);
         Assert.Contains("widgets:read", record.Scopes);
 
+        // Per-key mTLS and CORS policies. Checked against a real server database rather than only
+        // against SQLite, because each provider spells the migration and the nullable column in its
+        // own dialect, and a policy that writes but does not read back is a key that looks restricted
+        // in the admin UI and is wide open on the request path.
+        var policyKey = await store.CreateApiKeyAsync(
+            new ApiKeyCreate
+            {
+                Name = "with-policies",
+                Mtls = new ApiKeyMtlsPolicy { RequireCertificate = true, Thumbprints = ["AABBCC"] },
+                Cors = new ApiKeyCorsPolicy { AllowedOrigins = ["https://app.example.com"], MaxAgeSeconds = 60 },
+            },
+            "hash-policies",
+            "wk_test_pol");
+        var policyRecord = await store.FindApiKeyByHashAsync("hash-policies");
+        Assert.NotNull(policyRecord);
+        Assert.True(policyRecord!.Mtls?.RequireCertificate);
+        Assert.Equal(["AABBCC"], policyRecord.Mtls!.Thumbprints);
+        Assert.Equal(["https://app.example.com"], policyRecord.Cors?.AllowedOrigins);
+        Assert.Equal(60, policyRecord.Cors!.MaxAgeSeconds);
+
+        // Null is the fact a key written before these columns existed records, so it has to read back
+        // as null and not as an empty policy.
+        Assert.Null(record.Mtls);
+        Assert.Null(record.Cors);
+
+        // Replacing the policies, and clearing them again.
+        await store.UpdateApiKeyPoliciesAsync(policyKey.Id, null, new ApiKeyCorsPolicy());
+        var cleared = await store.FindApiKeyByHashAsync("hash-policies");
+        Assert.NotNull(cleared);
+        Assert.Null(cleared!.Mtls);
+        // Present but empty is a different fact from absent: it closes cross-origin access for this key.
+        Assert.NotNull(cleared.Cors);
+        Assert.True(cleared.Cors!.IsEmpty);
+
         // Admins with roles.
         await store.CreateAdminAsync("viewer", "pwd-hash", AdminRoles.Viewer);
         var admin = await store.FindAdminByUsernameAsync("viewer");
