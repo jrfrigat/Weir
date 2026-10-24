@@ -60,20 +60,34 @@ All notable changes to this project are documented here. The format is based on
   used `Weir:Cors`: a preflight is now answered by Weir, and with no `AllowedHeaders` configured it
   echoes the headers the preflight asked for rather than allowing any header.
 
-- Update Flare from 0.42.0 to 0.51.0 and use its explicit theme registration. The admin inherits
-  chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
-  menus and tabs, while keeping the Command Center theme and its Visual Studio base. Align the
-  Microsoft.Extensions, ASP.NET Core and WebAssembly packages on the required 10.0.13 servicing patch.
+- Update Flare from 0.48.0 to 0.51.0: the grid filter menu closes on an outside click without
+  applying the filter, tab arrow keys keep working when the JavaScript module fails to load,
+  description lists fit into a narrow parent, and alerts draw on the Visual Studio status
+  containers like snackbars.
+
+## [2.3.1] - 2026-10-20
+
+### Changed
+
 - Flare 0.48.0 improves drawer and dialog focus, narrow-screen layout and tooltips, and retries a
   JavaScript module import after a loading failure.
-- Flare 0.49-0.51 closes the grid filter menu on an outside click without applying the filter,
-  keeps tab arrow keys working when the JavaScript module fails to load, fits description lists
-  into a narrow parent, and draws alerts on the Visual Studio status containers like snackbars.
 
 ### Fixed
 
 - With Flare 0.48.0, selecting an option inside an editor drawer or dialog works with the mouse.
   Escape closes an open select first; a second press closes the drawer and returns focus to its trigger.
+
+## [2.3.0] - 2026-10-20
+
+### Changed
+
+- Update Flare from 0.42.0 to 0.47.0 and use its explicit theme registration. The admin inherits
+  chart interaction improvements, popup placement fixes and keyboard/focus fixes for dialogs,
+  menus and tabs, while keeping the Command Center theme and its Visual Studio base. Align the
+  Microsoft.Extensions, ASP.NET Core and WebAssembly packages on the required 10.0.13 servicing patch.
+
+### Fixed
+
 - With Flare 0.47.0, switching the UI language updates grid column headers immediately, and
   numeric fields step once per arrow key press.
 - Keep the destination page's screen-fit preference when a navigation notification arrives after
@@ -1513,6 +1527,12 @@ Initial release.
 
 [Unreleased]: https://github.com/jrfrigat/weir/compare/v3.0.0...HEAD
 [3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0
+[2.3.1]: https://github.com/jrfrigat/weir/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/jrfrigat/weir/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/jrfrigat/weir/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/jrfrigat/weir/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/jrfrigat/weir/compare/v1.9.0...v2.0.0
+[1.9.0]: https://github.com/jrfrigat/weir/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/jrfrigat/weir/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/jrfrigat/weir/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/jrfrigat/weir/compare/v1.6.1...v1.6.2
