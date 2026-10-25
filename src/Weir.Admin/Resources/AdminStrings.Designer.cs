@@ -5327,5 +5327,41 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Common_MoreInfo", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Change this role?.
+        /// </summary>
+        public static string Admins_RoleConfirmTitle {
+            get {
+                return ResourceManager.GetString("Admins_RoleConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} will get full access: endpoints, keys, scopes and admin accounts..
+        /// </summary>
+        public static string Admins_MakeAdminConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_MakeAdminConfirmBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} will be able to read the console but change nothing in it..
+        /// </summary>
+        public static string Admins_MakeViewerConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_MakeViewerConfirmBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} is the account you are signed in with. The console stays open, but every administrative action in it stops working, and only another admin can give the role back..
+        /// </summary>
+        public static string Admins_MakeViewerSelfConfirmBody {
+            get {
+                return ResourceManager.GetString("Admins_MakeViewerSelfConfirmBody", resourceCulture);
+            }
+        }
     }
 }

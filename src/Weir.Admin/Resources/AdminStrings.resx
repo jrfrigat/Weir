@@ -1835,4 +1835,16 @@
   <data name="Common_MoreInfo" xml:space="preserve">
     <value>More information</value>
   </data>
+  <data name="Admins_RoleConfirmTitle" xml:space="preserve">
+    <value>Change this role?</value>
+  </data>
+  <data name="Admins_MakeAdminConfirmBody" xml:space="preserve">
+    <value>{0} will get full access: endpoints, keys, scopes and admin accounts.</value>
+  </data>
+  <data name="Admins_MakeViewerConfirmBody" xml:space="preserve">
+    <value>{0} will be able to read the console but change nothing in it.</value>
+  </data>
+  <data name="Admins_MakeViewerSelfConfirmBody" xml:space="preserve">
+    <value>{0} is the account you are signed in with. The console stays open, but every administrative action in it stops working, and only another admin can give the role back.</value>
+  </data>
 </root>

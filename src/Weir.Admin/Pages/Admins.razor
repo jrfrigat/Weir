@@ -185,11 +185,38 @@
         await LoadAsync();
     }
 
-    /// <summary>Flips an admin between Admin and Viewer.</summary>
+    /// <summary>
+    /// Flips an admin between Admin and Viewer, after asking. Confirmed for the same reason as
+    /// enabling and disabling, one button along: the row is dense and the change is not one the
+    /// clicker can undo alone. Taking the Admin role off your own account is called out separately -
+    /// the console stays open, which is what makes it easy to miss that it has stopped working.
+    /// </summary>
     /// <param name="admin">The admin whose role is changing.</param>
-    private Task ToggleRoleAsync(AdminUserInfo admin) =>
-        RunAsync(admin.Id, () => Api.SetAdminRoleAsync(
-            admin.Id, admin.Role == AdminRoles.Admin ? AdminRoles.Viewer : AdminRoles.Admin));
+    /// <returns>A task that completes once the change has run, or the user has declined it.</returns>
+    private async Task ToggleRoleAsync(AdminUserInfo admin)
+    {
+        var demoting = admin.Role == AdminRoles.Admin;
+        var self = string.Equals(admin.Username, _currentUser, StringComparison.Ordinal);
+        var body = demoting
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                self ? AdminStrings.Admins_MakeViewerSelfConfirmBody : AdminStrings.Admins_MakeViewerConfirmBody,
+                admin.Username)
+            : string.Format(CultureInfo.CurrentCulture, AdminStrings.Admins_MakeAdminConfirmBody, admin.Username);
+
+        var confirmed = await Dialog.ConfirmAsync(
+            AdminStrings.Admins_RoleConfirmTitle,
+            body,
+            demoting ? AdminStrings.Admins_MakeViewer : AdminStrings.Admins_MakeAdmin,
+            AdminStrings.Common_Cancel);
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunAsync(admin.Id, () => Api.SetAdminRoleAsync(
+            admin.Id, demoting ? AdminRoles.Viewer : AdminRoles.Admin));
+    }
 
     /// <summary>
     /// Enables or disables an admin account, after asking. Both directions are confirmed, not just

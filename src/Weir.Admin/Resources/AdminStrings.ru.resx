@@ -1835,4 +1835,16 @@
   <data name="Common_MoreInfo" xml:space="preserve">
     <value>Подробнее</value>
   </data>
+  <data name="Admins_RoleConfirmTitle" xml:space="preserve">
+    <value>Сменить роль?</value>
+  </data>
+  <data name="Admins_MakeAdminConfirmBody" xml:space="preserve">
+    <value>{0} получит полный доступ: эндпоинты, ключи, скоупы и учётные записи администраторов.</value>
+  </data>
+  <data name="Admins_MakeViewerConfirmBody" xml:space="preserve">
+    <value>{0} сможет только читать консоль, но ничего в ней не менять.</value>
+  </data>
+  <data name="Admins_MakeViewerSelfConfirmBody" xml:space="preserve">
+    <value>{0} - это учётная запись, под которой вы вошли. Консоль останется открытой, но административные действия в ней перестанут работать, и вернуть роль сможет только другой администратор.</value>
+  </data>
 </root>
