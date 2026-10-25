@@ -1847,4 +1847,13 @@
   <data name="Admins_MakeViewerSelfConfirmBody" xml:space="preserve">
     <value>{0} - это учётная запись, под которой вы вошли. Консоль останется открытой, но административные действия в ней перестанут работать, и вернуть роль сможет только другой администратор.</value>
   </data>
+  <data name="Culture_SelfName" xml:space="preserve">
+    <value>Русский</value>
+  </data>
+  <data name="Language_ReloadNeeded" xml:space="preserve">
+    <value>Этот язык применится после перезагрузки страницы.</value>
+  </data>
+  <data name="Language_ReloadAction" xml:space="preserve">
+    <value>Перезагрузить</value>
+  </data>
 </root>

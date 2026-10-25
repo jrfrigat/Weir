@@ -1847,4 +1847,13 @@
   <data name="Admins_MakeViewerSelfConfirmBody" xml:space="preserve">
     <value>{0} is the account you are signed in with. The console stays open, but every administrative action in it stops working, and only another admin can give the role back.</value>
   </data>
+  <data name="Culture_SelfName" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Language_ReloadNeeded" xml:space="preserve">
+    <value>This language applies after the page reloads.</value>
+  </data>
+  <data name="Language_ReloadAction" xml:space="preserve">
+    <value>Reload</value>
+  </data>
 </root>

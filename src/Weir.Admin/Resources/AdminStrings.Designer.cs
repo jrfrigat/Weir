@@ -5363,5 +5363,32 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Admins_MakeViewerSelfConfirmBody", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на English.
+        /// </summary>
+        public static string Culture_SelfName {
+            get {
+                return ResourceManager.GetString("Culture_SelfName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This language applies after the page reloads..
+        /// </summary>
+        public static string Language_ReloadNeeded {
+            get {
+                return ResourceManager.GetString("Language_ReloadNeeded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Reload.
+        /// </summary>
+        public static string Language_ReloadAction {
+            get {
+                return ResourceManager.GetString("Language_ReloadAction", resourceCulture);
+            }
+        }
     }
 }

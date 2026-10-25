@@ -2,6 +2,9 @@
 // deliberately not a control-plane setting: it belongs to the browser, not the gateway, and must
 // resolve before the first paint even when the app is offline.
 using System.Globalization;
+using Flare.Abstractions;
+using Flare.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using Weir.Admin.Resources;
 
@@ -21,12 +24,37 @@ public sealed class LanguageService
     /// <summary>Fallback language when nothing is stored and the browser asks for an unsupported one.</summary>
     private const string DefaultCulture = "en";
 
+    /// <summary>
+    /// The resource whose value is the language name in that language. Used to tell a loaded
+    /// satellite from the neutral fallback: no other key is guaranteed to differ between the two.
+    /// </summary>
+    private const string ProbeKey = "Culture_SelfName";
+
+    /// <summary>How many times to look again for a language that has not arrived yet.</summary>
+    private const int ResourceLoadAttempts = 20;
+
+    /// <summary>How long to wait between those looks.</summary>
+    private static readonly TimeSpan ResourceLoadPollDelay = TimeSpan.FromMilliseconds(50);
+
     /// <summary>JS bridge used to read and write the stored preference.</summary>
     private readonly IJSRuntime _js;
 
+    /// <summary>Used to restart the app when a language cannot be applied in place.</summary>
+    private readonly NavigationManager _navigation;
+
+    /// <summary>Used to say so when a language needs a restart to take effect.</summary>
+    private readonly ISnackbarService _snackbar;
+
     /// <summary>Initializes the service with the JS runtime used to reach localStorage.</summary>
     /// <param name="js">The Blazor JS interop runtime.</param>
-    public LanguageService(IJSRuntime js) => _js = js;
+    /// <param name="navigation">Navigation manager, used to restart the app as a last resort.</param>
+    /// <param name="snackbar">Snackbar service, used to report a language that needs a restart.</param>
+    public LanguageService(IJSRuntime js, NavigationManager navigation, ISnackbarService snackbar)
+    {
+        _js = js;
+        _navigation = navigation;
+        _snackbar = snackbar;
+    }
 
     /// <summary>
     /// The languages the admin console ships, as (culture code, native display name). The names are
@@ -72,7 +100,83 @@ public sealed class LanguageService
 
         Apply(cultureCode);
         await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, cultureCode);
-        LanguageChanged?.Invoke();
+
+        if (await ResourcesReadyAsync(cultureCode))
+        {
+            LanguageChanged?.Invoke();
+            return;
+        }
+
+        // The strings for this language did not arrive, and a re-render would only repaint the old
+        // ones. The choice is already stored, so a reload starts the app in the right language.
+        //
+        // Said before it is attempted, and said persistently, because the reload is not guaranteed
+        // to happen: it goes through the browser, so a page holding unsaved work stops it - measured
+        // on Settings with a changed field. When the reload does go through, the notice leaves with
+        // the page and nobody reads it; when it is stopped, it is the only thing telling the reader
+        // why the console is still in the old language, and it carries the way to finish the job.
+        _snackbar.Show(
+            AdminStrings.Language_ReloadNeeded,
+            SnackbarSeverity.Info,
+            0,
+            AdminStrings.Language_ReloadAction,
+            ReloadAsync,
+            true);
+
+        _navigation.NavigateTo(_navigation.Uri, forceLoad: true);
+    }
+
+    /// <summary>Restarts the app, which is what applies a language whose strings are not loaded.</summary>
+    /// <returns>A completed task; the page is on its way out.</returns>
+    private Task ReloadAsync()
+    {
+        _navigation.NavigateTo(_navigation.Uri, forceLoad: true);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Waits for the strings of a culture to become usable, and says whether they did.
+    /// </summary>
+    /// <remarks>
+    /// The non-neutral language lives in a satellite assembly that is not downloaded at startup. The
+    /// first lookup after the switch asks for it, which makes the runtime FETCH it - asynchronously,
+    /// while the lookup itself, being synchronous, has already fallen back to the neutral language
+    /// and been cached that way. That is why switching to Russian used to do nothing until the page
+    /// was reloaded: the file arrived (measured: 200 on
+    /// <c>/_framework/ru/Weir.Admin.resources.*.wasm</c>) but nothing ever looked again.
+    ///
+    /// So: ask again, dropping the cached answer each time, until the probe string comes back
+    /// translated. The probe is a resource that says the language's own name, so a difference from
+    /// the neutral value means the satellite is live - no file names and no runtime internals.
+    /// </remarks>
+    /// <param name="cultureCode">The culture being switched to.</param>
+    /// <returns>True when the strings are usable; false when they never arrived.</returns>
+    private static async Task<bool> ResourcesReadyAsync(string cultureCode)
+    {
+        // The neutral language is compiled into the main assembly and is always there.
+        if (string.Equals(cultureCode, DefaultCulture, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var neutral = AdminStrings.ResourceManager.GetString(ProbeKey, CultureInfo.InvariantCulture);
+        for (var attempt = 0; attempt < ResourceLoadAttempts; attempt++)
+        {
+            AdminStrings.ResourceManager.ReleaseAllResources();
+            var translated = AdminStrings.ResourceManager.GetString(ProbeKey, AdminStrings.Culture);
+
+            // Three outcomes, and only one of them means ready. A null is the lookup failing outright
+            // while the file is still in flight - mistaking it for "different from the neutral value"
+            // is what made the first version of this report success and leave the console in English.
+            if (!string.IsNullOrEmpty(translated) && !string.Equals(translated, neutral, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            await Task.Delay(ResourceLoadPollDelay);
+        }
+
+        return false;
     }
 
     /// <summary>
