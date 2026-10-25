@@ -37,8 +37,20 @@ no migration. What changed is what the console tells you while you use it.
   button is pinned to the bottom of the window, so it is reachable from anywhere on a page eleven
   cards long. The marker is computed by comparing values, so changing a field and changing it back
   clears it rather than leaving the page guarded for nothing.
-- Enabling or disabling an admin account asks first, naming the account. Disabling the account you
-  are signed in with says plainly that it ends the session you are reading the dialog in.
+- Enabling or disabling an admin account, and changing its role, ask first, naming the account.
+  Acting on the account you are signed in with says plainly what it costs: disabling it ends the
+  session you are reading the dialog in, and taking the Admin role off it leaves the console open
+  but every administrative action in it refused, with only another admin able to give the role back.
+
+### Fixed
+
+- Switching the console to a language it has not used yet now actually switches it. The strings of a
+  language other than the one the app started in live in a file that is fetched on demand, and the
+  lookup that triggers the fetch has already returned the English fallback by the time it arrives -
+  so choosing Russian used to leave an English console until the page was reloaded by hand. The
+  console now waits for the strings and applies them in place, and reloads itself only when they do
+  not come; a page holding unsaved work can stop that reload, so the reason is stated on screen with
+  a Reload button rather than nothing happening. Switching back and forth after that is immediate.
 
 ### Changed
 
