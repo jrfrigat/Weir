@@ -279,6 +279,11 @@ public sealed class DataPlaneDispatcher
             return new TransportCallResult(StatusCodes.Status500InternalServerError, "Configuration error",
                 "The endpoint is misconfigured.", output.HasStarted);
         }
+        catch (WeirBufferCapacityException)
+        {
+            return new TransportCallResult(StatusCodes.Status503ServiceUnavailable, "Response capacity unavailable",
+                "The response buffer budget is exhausted. Please retry later.", output.HasStarted);
+        }
         catch (WeirConnectionUnavailableException ex)
         {
             Log.DataPlaneError(_log, ex, call.Route);

@@ -18,6 +18,57 @@ namespace Weir.Tests;
 // because it is the part most likely to be "fixed" later by someone who reads the mode as absolute.
 public class ResponseDeliveryTests
 {
+    /// <summary>Body limits refuse Full and cache-fill output before writing headers or bytes.</summary>
+    /// <param name="cached">Whether this is a shared cache fill.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BufferedBodyLimit_WritesNothing_AndReleases(bool cached)
+    {
+        WeirEngine? engine = null;
+        await using var output = new WriteCountingStream();
+        await Assert.ThrowsAsync<WeirBufferCapacityException>(() => ExecuteAsync(output,
+            Delivery(ResponseDeliveryMode.Full), cached: cached,
+            settings: new WeirSystemSettings { BufferedResponseMaxBytes = 100 }, configure: value => engine = value));
+        Assert.Equal(0, output.Writes);
+        Assert.Equal(0, engine!.ActiveBufferBytes);
+    }
+
+    /// <summary>Direct streaming does not acquire a complete response buffer.</summary>
+    [Fact]
+    public async Task Streaming_DoesNotUseBodyBudget()
+    {
+        await using var output = new WriteCountingStream();
+        await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Stream),
+            settings: new WeirSystemSettings { ActiveResponseBufferMaxBytes = 1, BufferedResponseMaxBytes = 1 });
+        Assert.True(output.Total > 100);
+    }
+
+    /// <summary>Cancellation cannot release memory while a transport still holds an awaited body write.</summary>
+    /// <param name="cached">Whether the body is shared with a completed cache fill.</param>
+    /// <returns>The completed lifetime check.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cancellation_RetainsBudgetUntilWriteUnwinds(bool cached)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var output = new WriteCountingStream { WriteGate = gate.Task };
+        WeirEngine? engine = null;
+        var call = ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full), cached: cached,
+            configure: value => engine = value, cancellationToken: cancellation.Token);
+        try
+        {
+            await output.WriteEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            Assert.True(engine!.ActiveBufferBytes > 0);
+        }
+        finally { gate.TrySetResult(); }
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+        Assert.Equal(0, engine!.ActiveBufferBytes);
+    }
+
     /// <summary>Multi-block Full bodies and bounded result capture never allocate a contiguous large pool buffer.</summary>
     /// <param name="capture">Whether result logging captures a prefix of the buffered body.</param>
     [Theory]
@@ -234,6 +285,7 @@ public class ResponseDeliveryTests
     /// <param name="failOnComplete">Whether the database execution fails after its rows.</param>
     /// <param name="observer">An optional result observer.</param>
     /// <param name="configure">An optional observer of pool allocation events before execution.</param>
+    /// <param name="cancellationToken">The client's lifetime.</param>
     private static async Task ExecuteAsync(
         Stream output,
         DeliveryPolicy delivery,
@@ -243,7 +295,8 @@ public class ResponseDeliveryTests
         bool cached = false,
         bool failOnComplete = false,
         IWeirCallObserver? observer = null,
-        Action<WeirEngine>? configure = null)
+        Action<WeirEngine>? configure = null,
+        CancellationToken cancellationToken = default)
     {
         var runtime = new FixedSettings(settings ?? new WeirSystemSettings());
         using var cache = new MemoryResponseCache(runtime);
@@ -268,12 +321,17 @@ public class ResponseDeliveryTests
                 },
                 ApiKeyPrefix = "abc",
             },
-            output);
+            output, cancellationToken);
     }
 
     /// <summary>Counts writes and keeps the bytes, so a buffered body can be checked whole.</summary>
     private sealed class WriteCountingStream : Stream
     {
+        /// <summary>An optional transport gate that deliberately outlives request cancellation.</summary>
+        internal Task? WriteGate { get; init; }
+
+        /// <summary>Signals when the transport has borrowed the body memory.</summary>
+        internal TaskCompletionSource WriteEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         /// <summary>Everything written so far.</summary>
         private readonly MemoryStream _received = new();
 
@@ -311,10 +369,11 @@ public class ResponseDeliveryTests
         public override void Write(ReadOnlySpan<byte> buffer) => Note(buffer);
 
         /// <inheritdoc />
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
+            WriteEntered.TrySetResult();
+            if (WriteGate is { } gate) await gate;
             Note(buffer.Span);
-            return ValueTask.CompletedTask;
         }
 
         /// <inheritdoc />

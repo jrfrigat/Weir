@@ -87,6 +87,12 @@ public sealed class WeirDataPlaneOptions
     /// <summary>Maximum local entry count; zero disables the bound. Seeds the runtime setting.</summary>
     public int ResponseCacheMaxEntries { get; set; } = 10_000;
 
+    /// <summary>Maximum active response buffer storage; seeds the runtime setting. Zero disables the bound.</summary>
+    public long ActiveResponseBufferMaxBytes { get; set; } = 268_435_456;
+
+    /// <summary>Maximum buffered body size; seeds the runtime setting. Zero disables the bound.</summary>
+    public long BufferedResponseMaxBytes { get; set; } = 134_217_728;
+
     /// <summary>
     /// Maximum source bytes emitted from a binary (BLOB) column in a data-plane response.
     /// Zero means unlimited. Runtime-tunable; seeds

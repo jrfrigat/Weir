@@ -87,7 +87,7 @@ public class DataPlaneAuditTests
     {
         var auditor = new CapturingAuditor();
         // The dispatcher is never reached on a refusal, which is the whole point of this test.
-        var service = new WeirGatewayService(new RejectingAuthenticator(), dispatcher: null!, auditor);
+        var service = new WeirGatewayService(new RejectingAuthenticator(), dispatcher: null!, auditor, bufferBudget: null!, settings: null!);
 
         var refusal = service.RefuseAuthentication(ApiKeyAuthStatus.Unauthenticated, "orders");
 
@@ -103,7 +103,7 @@ public class DataPlaneAuditTests
     public void A_Grpc_Flood_Refusal_Is_Recorded_As_Too_Many_Requests()
     {
         var auditor = new CapturingAuditor();
-        var service = new WeirGatewayService(new RejectingAuthenticator(), dispatcher: null!, auditor);
+        var service = new WeirGatewayService(new RejectingAuthenticator(), dispatcher: null!, auditor, bufferBudget: null!, settings: null!);
 
         var refusal = service.RefuseAuthentication(ApiKeyAuthStatus.RateLimited, "orders");
 

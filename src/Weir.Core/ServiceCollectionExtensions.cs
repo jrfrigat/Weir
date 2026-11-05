@@ -34,9 +34,10 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IParameterBinder, ParameterBinder>();
 
         // The shared memory cache is registered for other consumers (e.g. the host's API-key
-        // authenticator); the response cache deliberately owns a private, size-bounded instance.
+        // authenticator); the response cache owns its separately bounded index and payload storage.
         services.AddMemoryCache();
         services.TryAddSingleton<IResponseCache, MemoryResponseCache>();
+        services.TryAddSingleton<ResponseBufferBudget>();
 
         services.TryAddSingleton<WeirEngine>();
         return services;

@@ -28,15 +28,26 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
     private readonly DataPlaneDispatcher _dispatcher;
     private readonly IDataPlaneAuditor _auditor;
 
+    /// <summary>Admission shared with Full responses and cache fills.</summary>
+    private readonly ResponseBufferBudget _bufferBudget;
+
+    /// <summary>The live unary response-size bound.</summary>
+    private readonly IRuntimeSettings _settings;
+
     /// <summary>Creates the service over the shared data-plane collaborators.</summary>
     /// <param name="authenticator">API-key authenticator, applied to the call's metadata.</param>
     /// <param name="dispatcher">The shared data-plane call path.</param>
     /// <param name="auditor">Auditor, so a call refused before the dispatcher still leaves a record.</param>
-    public WeirGatewayService(IApiKeyAuthenticator authenticator, DataPlaneDispatcher dispatcher, IDataPlaneAuditor auditor)
+    /// <param name="bufferBudget">Shared active-buffer admission.</param>
+    /// <param name="settings">Live response bounds.</param>
+    public WeirGatewayService(IApiKeyAuthenticator authenticator, DataPlaneDispatcher dispatcher, IDataPlaneAuditor auditor,
+        ResponseBufferBudget bufferBudget, IRuntimeSettings settings)
     {
         _authenticator = authenticator;
         _dispatcher = dispatcher;
         _auditor = auditor;
+        _bufferBudget = bufferBudget;
+        _settings = settings;
     }
 
     /// <summary>Calls an endpoint and returns the whole envelope in one message.</summary>
@@ -49,14 +60,31 @@ public sealed class WeirGatewayService : WeirGateway.WeirGatewayBase
         ArgumentNullException.ThrowIfNull(context);
 
         var call = await BuildCallAsync(request, context);
-        await using var output = new BufferedTransportStream();
+        await using var output = new BufferedTransportStream(_bufferBudget, _settings.Current.BufferedResponseMaxBytes);
         var result = await _dispatcher.InvokeAsync(call, output, context.CancellationToken);
         if (!result.IsSuccess)
         {
             throw Failure(result);
         }
 
-        return new InvokeReply { Envelope = ByteString.CopyFrom(output.Written.Span) };
+        ResponseBufferBudget.Lease? copy = null;
+        try
+        {
+            copy = _bufferBudget.Reserve(output.Written.Length);
+            // This exact GC-owned array is never returned to a pool or mutated after publication.
+            var bytes = output.Written.ToArray();
+            var reply = new InvokeReply { Envelope = UnsafeByteOperations.UnsafeWrap(bytes) };
+            // The service method returns before protobuf serialization. Hold admission through the
+            // HTTP response lifetime, including failed or canceled serialization.
+            context.GetHttpContext().Response.RegisterForDispose(copy);
+            return reply;
+        }
+        catch (WeirBufferCapacityException)
+        {
+            copy?.Dispose();
+            throw new RpcException(new Status(StatusCode.Unavailable, "The response buffer budget is exhausted. Please retry later."));
+        }
+        catch { copy?.Dispose(); throw; }
     }
 
     /// <summary>Calls an endpoint and streams the envelope out as it is produced.</summary>

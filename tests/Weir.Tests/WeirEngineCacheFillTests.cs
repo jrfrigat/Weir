@@ -13,6 +13,30 @@ namespace Weir.Tests;
 // on the cache store.
 public class WeirEngineCacheFillTests
 {
+    /// <summary>A single shared body remains reserved through the pending store, then releases its bytes.</summary>
+    /// <returns>The completed shared-lifetime check.</returns>
+    [Fact]
+    public async Task SharedBody_ReservationOutlivesClientsUntilStoreFinishes()
+    {
+        var executionGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var storeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(executionGate);
+        var cache = new BlockingStoreCache(storeGate);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [connector], cache, [], new FixedSettings());
+        using var first = new MemoryStream();
+        using var second = new MemoryStream();
+        var call1 = engine.ExecuteAsync(NewInvocation(), first);
+        var call2 = engine.ExecuteAsync(NewInvocation(), second);
+        executionGate.SetResult();
+        await Task.WhenAll(call1, call2);
+        await cache.StoreEntered.Task;
+        Assert.Equal(1, connector.Executions);
+        Assert.Equal(first.Length, engine.ActiveBufferBytes);
+        storeGate.SetResult();
+        for (var attempt = 0; attempt < 100 && engine.ActiveBufferBytes != 0; attempt++) await Task.Delay(10);
+        Assert.Equal(0, engine.ActiveBufferBytes);
+    }
+
     /// <summary>A connector whose execution blocks on a gate, so several callers can be held mid-flight at once.</summary>
     private sealed class GatedConnector : IDbConnector
     {
@@ -482,33 +506,6 @@ public class WeirEngineCacheFillTests
         // a freshly hashed copy of the same bytes.
         Assert.Equal(ResponseETag.Compute(second.ToArray()), metadata.ETag);
         Assert.NotEqual(0, first.Length);
-    }
-
-    /// <summary>
-    /// The size hint is keyed by endpoint id and written on every buffered response, so a catalog whose
-    /// composition churns - an endpoint edited, deleted and re-imported, each import minting a fresh id -
-    /// must not leave one dead entry behind per id for the life of the process. The map is held to an
-    /// explicit limit instead: past it the older half is dropped, which is what this drives past.
-    /// </summary>
-    [Fact]
-    public async Task Size_Hints_Stay_Bounded_As_Endpoints_Churn()
-    {
-        var connector = new SizedConnector();
-        using var engine = new WeirEngine(
-            new ParameterBinder(), new SingleRegistry(), [connector], new NeverHitsCache(), [], new FixedSettings());
-
-        // Twice the cap plus one, every call under an id the catalog has not served before. The endpoint is
-        // cache-eligible, so each call goes through the buffered fill path and records a hint of its own.
-        var churn = (WeirEngine.MaxBufferHints * 2) + 1;
-        for (var i = 0; i < churn; i++)
-        {
-            using var output = new MemoryStream();
-            await engine.ExecuteAsync(NewInvocation(endpointId: Guid.NewGuid()), output);
-            Assert.NotEqual(0, output.Length);
-        }
-
-        // One entry per id served here would be 2049; the map is bounded instead.
-        Assert.InRange(engine.BufferHintCount, 1, WeirEngine.MaxBufferHints);
     }
 
     [Fact]

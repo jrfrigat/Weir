@@ -174,6 +174,8 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 | ResponseCacheMaxBytes | `134217728` | Stored payload budget, excluding keys, index overhead and active response buffers. CLOCK eviction gives recently read entries a second chance. Reductions trim existing entries. Zero disables this bound. |
 | ResponseCacheMaxEntryBytes | `16777216` | Maximum payload per entry (16 MiB). Larger responses are delivered once but not stored; the database call is not repeated. Zero disables this bound. |
 | ResponseCacheMaxEntries | `10000` | Maximum local entry count, bounding metadata even for empty or tiny responses. Zero disables this bound. |
+| ActiveResponseBufferMaxBytes | `268435456` | Shared budget for active Full/cache-fill pooled blocks and owned payload copies (256 MiB). Reserved before allocation, released after all awaited consumers and cache stores finish. Zero disables this bound. |
+| BufferedResponseMaxBytes | `134217728` | Maximum logical size of one buffered response (128 MiB). Exceeding it returns 503 before sending a body. Direct streaming is unaffected. Zero disables this bound. |
 
 Keys longer than 1024 characters and ETags longer than 128 characters are not admitted. The payload
 budget is not a total process memory limit. Active buffers and retained pool capacity need separate
@@ -181,12 +183,26 @@ budgets. Disabling all cache bounds permits unbounded growth. Existing stored se
 new 16 MiB entry and 10000 entry-count defaults without a database migration; deployments that need
 larger entries can raise the limit explicitly. Changing bounds preserves entries that still fit.
 
+The active-buffer defaults bound additional memory rather than total RSS: stored cache, free pool
+capacity, drivers and the runtime also consume memory. A cache fill temporarily needs both pooled
+blocks and its exact-length owned copy, charged separately. Concurrent fills can therefore receive
+503 even when each body fits its own bound. Admission never waits in an unbounded queue, repeats a
+stored procedure, silently truncates a response or changes Full into Stream. A large existing Full
+endpoint may need an explicit higher limit or a deliberate change to streaming. Lowering the active
+budget stops new reservations; already borrowed memory remains charged until its consumers finish.
+The old initial-capacity hints are removed: segmented pooled blocks now grow under reservation.
+Unary gRPC also charges its contiguous transport buffer, growth copies and final protobuf payload
+against this same budget. The final payload remains charged until HTTP response cleanup, after
+protobuf serialization. Prefer `InvokeStream` for large results; a unary response inherently needs
+a whole-body allocation even when its endpoint normally streams.
+
 #### Runtime settings
 
 `MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `MaxImportRows`, `DefaultApiKeyRateLimitPerMinute`,
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
 `ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` and
-`ResponseCacheMaxBytes`, `ResponseCacheMaxEntryBytes` and `ResponseCacheMaxEntries` are editable at runtime from the admin **Settings** screen (or `GET` /
+`ResponseCacheMaxBytes`, `ResponseCacheMaxEntryBytes`, `ResponseCacheMaxEntries`,
+`ActiveResponseBufferMaxBytes` and `BufferedResponseMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /
 `PUT /admin/api/settings`, Admin role, audited).
 The edited values are stored in the control plane, so they survive restarts and reach every instance
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to

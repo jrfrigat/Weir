@@ -97,6 +97,15 @@
                     </LabelContent>
                 </FlareNumericField>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ResponseCacheHelp</FlareText>
+                <FlareNumericField TValue="long" Size="FieldSize.Sm" @bind-Value="_activeBufferMaxBytes" Min="SettingsBounds.ActiveResponseBufferMaxBytes.Min" Max="SettingsBounds.ActiveResponseBufferMaxBytes.Max" Style="max-width:16rem;">
+                    <LabelContent>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                            <span>@AdminStrings.Settings_ActiveBufferMaxBytesLabel</span>
+                            <InfoPopover Text="@AdminStrings.Settings_BufferBudgetHelp" />
+                        </FlareStack>
+                    </LabelContent>
+                </FlareNumericField>
+                <FlareNumericField TValue="long" Label="@AdminStrings.Settings_BufferedResponseMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_bufferedResponseMaxBytes" Min="SettingsBounds.BufferedResponseMaxBytes.Min" Max="SettingsBounds.BufferedResponseMaxBytes.Max" Style="max-width:16rem;" />
             </FlareStack>
         </FlareCard>
 
@@ -273,6 +282,10 @@
     private long _responseCacheMaxEntryBytes;
     /// <summary>The edited local entry-count cap.</summary>
     private int _responseCacheMaxEntries;
+    /// <summary>The edited shared active-buffer budget.</summary>
+    private long _activeBufferMaxBytes;
+    /// <summary>The edited per-response buffering bound.</summary>
+    private long _bufferedResponseMaxBytes;
     private ResponseDeliveryMode _responseDeliveryMode;
     private int _responseFlushBytes;
     private ResponseCompressionMode _responseCompressionMode;
@@ -315,6 +328,8 @@
             _responseCacheMaxBytes = view.Settings.ResponseCacheMaxBytes;
             _responseCacheMaxEntryBytes = view.Settings.ResponseCacheMaxEntryBytes;
             _responseCacheMaxEntries = view.Settings.ResponseCacheMaxEntries;
+            _activeBufferMaxBytes = view.Settings.ActiveResponseBufferMaxBytes;
+            _bufferedResponseMaxBytes = view.Settings.BufferedResponseMaxBytes;
             _responseDeliveryMode = view.Settings.ResponseDeliveryMode;
             _responseFlushBytes = view.Settings.ResponseFlushBytes;
             _responseCompressionMode = view.Settings.ResponseCompressionMode;
@@ -386,6 +401,8 @@
         ResponseCacheMaxBytes = _responseCacheMaxBytes,
         ResponseCacheMaxEntryBytes = _responseCacheMaxEntryBytes,
         ResponseCacheMaxEntries = _responseCacheMaxEntries,
+        ActiveResponseBufferMaxBytes = _activeBufferMaxBytes,
+        BufferedResponseMaxBytes = _bufferedResponseMaxBytes,
         ResponseDeliveryMode = _responseDeliveryMode,
         ResponseFlushBytes = _responseFlushBytes,
         ResponseCompressionMode = _responseCompressionMode,
@@ -480,6 +497,8 @@
         nameof(WeirSystemSettings.ResponseCacheMaxBytes) => AdminStrings.Settings_ResponseCacheMaxBytesLabel,
         nameof(WeirSystemSettings.ResponseCacheMaxEntryBytes) => AdminStrings.Settings_ResponseCacheMaxEntryBytesLabel,
         nameof(WeirSystemSettings.ResponseCacheMaxEntries) => AdminStrings.Settings_ResponseCacheMaxEntriesLabel,
+        nameof(WeirSystemSettings.ActiveResponseBufferMaxBytes) => AdminStrings.Settings_ActiveBufferMaxBytesLabel,
+        nameof(WeirSystemSettings.BufferedResponseMaxBytes) => AdminStrings.Settings_BufferedResponseMaxBytesLabel,
         nameof(WeirSystemSettings.ResponseFlushBytes) => AdminStrings.Settings_ResponseFlushBytesLabel,
         _ => setting,
     };

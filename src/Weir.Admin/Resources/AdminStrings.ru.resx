@@ -1868,4 +1868,7 @@
   <data name="Language_ReloadAction" xml:space="preserve">
     <value>Перезагрузить</value>
   </data>
+  <data name="Settings_ActiveBufferMaxBytesLabel" xml:space="preserve"><value>Бюджет активных буферов (байт)</value></data>
+  <data name="Settings_BufferedResponseMaxBytesLabel" xml:space="preserve"><value>Максимальный буферизованный ответ (байт)</value></data>
+  <data name="Settings_BufferBudgetHelp" xml:space="preserve"><value>Full и заполнение кэша резервируют блоки и копии до выделения памяти. По умолчанию: 256 МиБ активных буферов, 128 МиБ на ответ. При исчерпании - 503 до передачи ответа, без повторного вызова БД. Сохраненный кэш и свободные пулы считаются отдельно. Ноль отключает предел.</value></data>
 </root>

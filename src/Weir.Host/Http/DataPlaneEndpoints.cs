@@ -316,6 +316,12 @@ public static class DataPlaneEndpoints
             await ProblemResults.WriteAsync(context, StatusCodes.Status500InternalServerError, "Configuration error",
                 "The endpoint is misconfigured.");
         }
+        catch (WeirBufferCapacityException) when (!context.Response.HasStarted)
+        {
+            context.Response.Headers.RetryAfter = "5";
+            await ProblemResults.WriteAsync(context, StatusCodes.Status503ServiceUnavailable, "Response capacity unavailable",
+                "The response buffer budget is exhausted. Please retry later.");
+        }
         catch (WeirConnectionUnavailableException ex) when (!context.Response.HasStarted)
         {
             // The connection's circuit breaker is open or its bulkhead is full; ask the caller to retry.

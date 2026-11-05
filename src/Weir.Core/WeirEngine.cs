@@ -90,6 +90,12 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Runtime-tunable settings; the row cap is read from here on each call.</summary>
     private readonly IRuntimeSettings _settings;
 
+    /// <summary>Bounds active pooled storage and independently owned cache-fill copies.</summary>
+    private readonly ResponseBufferBudget _bufferBudget;
+
+    /// <summary>The active buffer reservation total, excluding stored cache payloads and free pools.</summary>
+    internal long ActiveBufferBytes => _bufferBudget.Used;
+
     /// <summary>
     /// Pools the response-body streams this engine fills. The buffered path's body and each cache fill's
     /// body come from here, and disposing the stream returns its buffers to the pool instead of dropping
@@ -99,15 +105,13 @@ public sealed class WeirEngine : IDisposable
     private readonly RecyclableMemoryStreamManager _streams = new(
         new RecyclableMemoryStreamManager.Options
         {
+            BlockSize = BudgetedResponseBuffer.BlockBytes,
             // The library's default for both is 0, which means "keep every returned buffer, unbounded".
             // Weir bounds its response cache the same way, so the pool gets a bound too: once these totals
             // are reached, buffers handed back are dropped rather than retained.
             MaximumSmallPoolFreeBytes = 16 * 1024 * 1024,
             MaximumLargePoolFreeBytes = 32 * 1024 * 1024,
         });
-
-    /// <summary>Tag on every stream taken from the pool, so pool diagnostics can name its source.</summary>
-    private const string StreamTag = "weir-response";
 
     /// <summary>Bounds each transport handover so a large response cannot grow the network buffer in one write.</summary>
     private const int HandoverChunkBytes = 256 * 1024;
@@ -141,14 +145,27 @@ public sealed class WeirEngine : IDisposable
     /// <param name="connectors">Registered database connectors.</param>
     /// <param name="cache">Response cache.</param>
     /// <param name="observers">Call observers.</param>
+    /// <param name="settings">Live runtime settings.</param>
+    public WeirEngine(IParameterBinder binder, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors,
+        IResponseCache cache, IEnumerable<IWeirCallObserver> observers, IRuntimeSettings settings)
+        : this(binder, registry, connectors, cache, observers, settings, null) { }
+
+    /// <summary>Creates the engine with admission shared by whole-body transports.</summary>
+    /// <param name="binder">Parameter binder.</param>
+    /// <param name="registry">Data-connection registry.</param>
+    /// <param name="connectors">Registered database connectors.</param>
+    /// <param name="cache">Response cache.</param>
+    /// <param name="observers">Call observers.</param>
     /// <param name="settings">Runtime settings (e.g. the row cap), applied without a restart.</param>
+    /// <param name="bufferBudget">Shared active-buffer admission, also used by whole-body transports.</param>
     public WeirEngine(
         IParameterBinder binder,
         IDataConnectionRegistry registry,
         IEnumerable<IDbConnector> connectors,
         IResponseCache cache,
         IEnumerable<IWeirCallObserver> observers,
-        IRuntimeSettings settings)
+        IRuntimeSettings settings,
+        ResponseBufferBudget? bufferBudget)
     {
         ArgumentNullException.ThrowIfNull(settings);
         _binder = binder;
@@ -158,6 +175,7 @@ public sealed class WeirEngine : IDisposable
         _observers = observers.ToArray();
         _connectors = connectors.ToDictionary(c => c.ProviderName, StringComparer.OrdinalIgnoreCase);
         _settings = settings;
+        _bufferBudget = bufferBudget ?? new ResponseBufferBudget(settings);
     }
 
     /// <summary>
@@ -372,7 +390,7 @@ public sealed class WeirEngine : IDisposable
                 // fill it found was given up on as it arrived. Either way nobody else is waiting on this
                 // one, so this caller's own token is the right lifetime - and it still stores what it
                 // produces, so the next caller can hit the cache.
-                var built = await BuildAsync(connector, request, endpoint, maxRows, cancellationToken);
+                using var built = await BuildAsync(connector, request, endpoint, maxRows, cancellationToken);
                 context.DbDurationMs = built.DbDurationMs;
 
                 if (captureResult)
@@ -392,7 +410,7 @@ public sealed class WeirEngine : IDisposable
                 // publishes before storing for the same reason.
                 if (built.ETag is { } builtETag)
                 {
-                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), purgeStamp);
+                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), purgeStamp, built);
                 }
 
                 context.RowsReturned = built.RowCount;
@@ -413,7 +431,7 @@ public sealed class WeirEngine : IDisposable
             // reader and connection are closed and the buffer stands on its own, so a slow client holding
             // a permit would be limiting database concurrency with a download. The direct path cannot do
             // this - its reader is live for the whole write - which is the trade that mode carries.
-            RecyclableMemoryStream? pending = null;
+            BudgetedResponseBuffer? pending = null;
             try
             {
                 using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
@@ -424,7 +442,7 @@ public sealed class WeirEngine : IDisposable
                         // the delivery mode asks for it; otherwise write straight to the output.
                         if (bufferResponse)
                         {
-                            var buffer = _streams.GetStream(StreamTag, BufferCapacityFor(endpoint.Id));
+                            var buffer = new BudgetedResponseBuffer(_streams, _bufferBudget, settings.BufferedResponseMaxBytes);
                             pending = buffer;
                             // DB phase: execute and drain all rows into the buffer. Streaming to the client
                             // is measured separately below, so the two phases do not overlap.
@@ -435,7 +453,6 @@ public sealed class WeirEngine : IDisposable
                             }
 
                             context.DbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
-                            RecordBufferSize(endpoint.Id, buffer.Length);
                             if (captureResult)
                             {
                                 context.CapturedResult = CaptureResult(buffer);
@@ -495,6 +512,7 @@ public sealed class WeirEngine : IDisposable
                 WeirValidationException => 400,
                 OperationCanceledException => 499,
                 WeirConnectionUnavailableException => 503,
+                WeirBufferCapacityException => 503,
                 _ => 500,
             };
             // Classify database failures (timeout / deadlock / constraint / connection) for telemetry.
@@ -508,125 +526,6 @@ public sealed class WeirEngine : IDisposable
             // Drops this call's stake in the fill. If it was the last one, the query behind it stops - there
             // is no longer anybody to answer. The fill itself is owned by RunFillAsync, not by this request.
             participation?.Dispose();
-        }
-    }
-
-    /// <summary>Upper bound on a seeded buffer, so one huge response cannot make every later call pre-allocate megabytes.</summary>
-    private const int MaxSeededBufferBytes = 4 * 1024 * 1024;
-
-    /// <summary>Smallest seed worth asking for; below this MemoryStream's own growth is cheap enough.</summary>
-    private const int MinSeededBufferBytes = 4 * 1024;
-
-    /// <summary>
-    /// How many endpoints' size hints are kept before the map is trimmed back to its more recent half.
-    /// The hint costs one entry per endpoint, so it is held to an explicit limit rather than left to grow
-    /// with every endpoint id the process ever serves.
-    /// </summary>
-    internal const int MaxBufferHints = 1024;
-
-    /// <summary>
-    /// The last buffered body size per endpoint, used to size the next one. Not a metric - only a hint.
-    /// <para>
-    /// The map needs a bound because of what it is keyed by. An entry is written on every buffered
-    /// response, and the key is the endpoint id, which changes whenever an endpoint is re-created or
-    /// re-imported: a catalog whose composition churns would otherwise leave one dead entry behind per id
-    /// for the life of the process. That is a leak on the composition change rather than on load, and this
-    /// map is the only state in the engine that grows that way. Past <see cref="MaxBufferHints"/> entries
-    /// the oldest half is dropped, which costs the endpoints still in the catalog one unseeded buffer each
-    /// and holds the map at the working set that is actually being called.
-    /// </para>
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, BufferHint> _bufferHints = new();
-
-    /// <summary>Next value of <see cref="BufferHint.Sequence"/>, so the map can tell an old recording from a new one.</summary>
-    private long _bufferHintSequence;
-
-    /// <summary>1 while a trim is running, so a writer that finds one already running does not queue behind it.</summary>
-    private int _trimmingBufferHints;
-
-    /// <summary>A response size recorded for one endpoint, and how recently.</summary>
-    /// <param name="Bytes">The buffered body length in bytes, already capped at <see cref="MaxSeededBufferBytes"/>.</param>
-    /// <param name="Sequence">A value from <see cref="_bufferHintSequence"/>; smaller means recorded earlier.</param>
-    private readonly record struct BufferHint(int Bytes, long Sequence);
-
-    /// <summary>How many endpoints' size hints are currently remembered. Exposed for tests and diagnostics.</summary>
-    internal int BufferHintCount => _bufferHints.Count;
-
-    /// <summary>
-    /// Suggests an initial capacity for an endpoint's response buffer, from the size its last response
-    /// came to. A default MemoryStream starts at nothing and doubles as rows arrive, so a large response
-    /// is assembled by copying itself through every intermediate size, and each intermediate over ~85 KB
-    /// lands on the large object heap. An endpoint's responses are usually about the same size, so the
-    /// previous one is a good guess and turns that chain into a single allocation. It is only a hint: the
-    /// stream still grows if the guess is low, and the buffer is right-sized by ToArray before it is cached.
-    /// </summary>
-    /// <param name="endpointId">The endpoint whose response is about to be buffered.</param>
-    /// <returns>The capacity to start the buffer at, or zero to let it grow from scratch.</returns>
-    private int BufferCapacityFor(Guid endpointId) =>
-        _bufferHints.TryGetValue(endpointId, out var hint) && hint.Bytes >= MinSeededBufferBytes
-            ? hint.Bytes
-            : 0;
-
-    /// <summary>Records the size an endpoint's response came to, as the hint for its next one.</summary>
-    /// <param name="endpointId">The endpoint id.</param>
-    /// <param name="length">The buffered body length in bytes.</param>
-    private void RecordBufferSize(Guid endpointId, long length)
-    {
-        if (endpointId == Guid.Empty)
-        {
-            return;
-        }
-
-        _bufferHints[endpointId] = new BufferHint(
-            (int)Math.Min(length, MaxSeededBufferBytes),
-            Interlocked.Increment(ref _bufferHintSequence));
-
-        if (_bufferHints.Count > MaxBufferHints)
-        {
-            TrimBufferHints();
-        }
-    }
-
-    /// <summary>
-    /// Drops the older half of the size hints once the map has outgrown <see cref="MaxBufferHints"/>. Losing
-    /// an entry costs the endpoint one unseeded buffer and nothing else - the map is only a hint - while
-    /// trimming by age abandons the ids that stopped being called, which are the ones a churned catalog left
-    /// behind. Best-effort like the project's other sweeps: a writer that finds a trim already running
-    /// returns at once rather than queueing behind it, since a map that is briefly oversized costs nothing.
-    /// </summary>
-    private void TrimBufferHints()
-    {
-        if (Interlocked.Exchange(ref _trimmingBufferHints, 1) == 1)
-        {
-            return;
-        }
-
-        try
-        {
-            var oldest = long.MaxValue;
-            var newest = long.MinValue;
-            foreach (var entry in _bufferHints)
-            {
-                var sequence = entry.Value.Sequence;
-                oldest = Math.Min(oldest, sequence);
-                newest = Math.Max(newest, sequence);
-            }
-
-            // Halfway between the oldest and the newest recording. The sequence advances by one per
-            // buffered response, so the middle of the range is the middle of the map: what survives is the
-            // fresher half, and the caller's own entry is the newest one so it is never this trim's victim.
-            var cutoff = oldest + ((newest - oldest) / 2);
-            foreach (var entry in _bufferHints)
-            {
-                if (entry.Value.Sequence <= cutoff)
-                {
-                    _bufferHints.TryRemove(entry);
-                }
-            }
-        }
-        finally
-        {
-            Volatile.Write(ref _trimmingBufferHints, 0);
         }
     }
 
@@ -717,7 +616,7 @@ public sealed class WeirEngine : IDisposable
         {
             try
             {
-                using var buffer = _streams.GetStream(StreamTag, BufferCapacityFor(endpoint.Id));
+                using var buffer = new BudgetedResponseBuffer(_streams, _bufferBudget, settings.BufferedResponseMaxBytes);
                 var dbStart = Stopwatch.GetTimestamp();
                 WeirResponseWriter.WriteResult result;
                 await using (var execution = await connector.ExecuteAsync(request, cancellationToken))
@@ -733,16 +632,20 @@ public sealed class WeirEngine : IDisposable
                 }
 
                 var dbDurationMs = Stopwatch.GetElapsedTime(dbStart).TotalMilliseconds;
-                RecordBufferSize(endpoint.Id, buffer.Length);
                 guard.RecordSuccess();
 
                 // Never cache a truncated (row-capped) response: it would serve partial data as if complete
                 // for the whole TTL, and a partial body must not carry an ETag that a complete one could be
                 // revalidated against. It is still handed to anyone waiting - they would have produced the
                 // same partial body.
-                var payload = buffer.ToArray();
-                var etag = result.Truncated ? null : ResponseETag.Compute(payload);
-                return new FilledResponse(payload, etag, result.Truncated, result.RowCount, dbDurationMs);
+                var copyLease = _bufferBudget.Reserve(buffer.Length);
+                try
+                {
+                    var payload = buffer.ToArray();
+                    var etag = result.Truncated ? null : ResponseETag.Compute(payload);
+                    return new FilledResponse(payload, etag, result.Truncated, result.RowCount, dbDurationMs, copyLease);
+                }
+                catch { copyLease.Dispose(); throw; }
             }
             catch (Exception ex) when (TripsBreaker(ex))
             {
@@ -763,11 +666,13 @@ public sealed class WeirEngine : IDisposable
     /// <param name="entry">The response bytes and their entity tag.</param>
     /// <param name="ttl">The endpoint's cache TTL.</param>
     /// <param name="purgeStamp">The cache's purge stamp as it read when this call began.</param>
-    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, long purgeStamp)
+    /// <param name="owner">Keeps the payload reservation alive until the store finishes.</param>
+    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, long purgeStamp, FilledResponse owner)
     {
         // Deliberately not awaited. An in-process cache completes this synchronously, so there is no
         // thread-pool hop to pay for; a cache doing I/O suspends at its first await and finishes behind
         // the response. Task.Run would only add a hop to the common case.
+        owner.Retain();
         _ = StoreAsync();
 
         async Task StoreAsync()
@@ -792,6 +697,7 @@ public sealed class WeirEngine : IDisposable
                 // must not become an unobserved task exception. The entry is simply absent, so the next
                 // caller re-fills it.
             }
+            finally { owner.Dispose(); }
         }
     }
 
@@ -854,6 +760,12 @@ public sealed class WeirEngine : IDisposable
         /// <summary>How many callers still want this fill's result.</summary>
         private int _waiting;
 
+        /// <summary>Consumers that may still be inside an asynchronous body write, including canceled requests.</summary>
+        private int _users;
+
+        /// <summary>The owned body, released after both the store and every consumer finish.</summary>
+        private FilledResponse? _response;
+
         /// <summary>Set once the fill has been given up on, so no later caller waits for an answer that is not coming.</summary>
         private bool _closed;
 
@@ -883,6 +795,7 @@ public sealed class WeirEngine : IDisposable
                 }
 
                 _waiting++;
+                _users++;
             }
 
             return new Participation(this, cancellationToken);
@@ -890,7 +803,14 @@ public sealed class WeirEngine : IDisposable
 
         /// <summary>Publishes the response to every waiter.</summary>
         /// <param name="response">The bytes the execution produced.</param>
-        public void Complete(FilledResponse response) => _completion.TrySetResult(response);
+        public void Complete(FilledResponse response)
+        {
+            lock (_gate)
+            {
+                _response = response;
+                _completion.TrySetResult(response);
+            }
+        }
 
         /// <summary>
         /// Hands the execution's failure to everyone waiting. Sharing it is right here: a fill is only ever
@@ -929,9 +849,19 @@ public sealed class WeirEngine : IDisposable
 
                 _disposed = true;
                 _abandoned.Dispose();
+                if (_users == 0) _response?.Dispose();
             }
 
             _owner.RecordFillDisposed();
+        }
+
+        /// <summary>Ends a consumer only after its last awaited write has unwound.</summary>
+        private void ReleaseUser()
+        {
+            lock (_gate)
+            {
+                if (--_users == 0 && _disposed) _response?.Dispose();
+            }
         }
 
         /// <summary>
@@ -970,8 +900,13 @@ public sealed class WeirEngine : IDisposable
         /// </summary>
         internal sealed class Participation : IDisposable
         {
+            /// <summary>The shared fill whose consumer lifetime this token owns.</summary>
             private readonly CacheFill _fill;
+            /// <summary>Stops waiting promptly when the request is canceled.</summary>
             private readonly CancellationTokenRegistration _registration;
+
+            /// <summary>Whether the asynchronous consumer lifetime has ended.</summary>
+            private int _released;
 
             /// <summary>Guards against leaving twice: the request token can fire before or after disposal.</summary>
             private int _left;
@@ -990,6 +925,7 @@ public sealed class WeirEngine : IDisposable
             {
                 _registration.Dispose();
                 Leave();
+                if (Interlocked.Exchange(ref _released, 1) == 0) _fill.ReleaseUser();
             }
 
             /// <summary>Leaves the fill exactly once, however many times this is reached.</summary>
@@ -1009,8 +945,23 @@ public sealed class WeirEngine : IDisposable
     /// <param name="Truncated">Whether the row cap was hit.</param>
     /// <param name="RowCount">Rows across all result sets, reported by each waiter as its own row count.</param>
     /// <param name="DbDurationMs">How long the execution took, reported by everyone it served.</param>
-    private readonly record struct FilledResponse(
-        ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount, double DbDurationMs);
+    /// <param name="BudgetLease">Reservation retained through all asynchronous payload consumers.</param>
+    private sealed record FilledResponse(
+        ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount, double DbDurationMs,
+        IDisposable BudgetLease) : IDisposable
+    {
+        /// <summary>Independent owners: the fill or direct caller, plus a pending background store.</summary>
+        private int _references = 1;
+
+        /// <summary>Retains the single shared allocation without charging its bytes again.</summary>
+        internal void Retain() => Interlocked.Increment(ref _references);
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            if (Interlocked.Decrement(ref _references) == 0) BudgetLease.Dispose();
+        }
+    }
 
     /// <summary>
     /// Writes (or, on a validator match, skips) a fully buffered cache-eligible body. Uses the
@@ -1136,7 +1087,8 @@ public sealed class WeirEngine : IDisposable
     /// <param name="ex">The thrown exception.</param>
     /// <returns>True when the failure indicates a connection problem.</returns>
     private static bool TripsBreaker(Exception ex) =>
-        ex is not WeirValidationException and not OperationCanceledException and not WeirConnectionUnavailableException;
+        ex is not WeirValidationException and not OperationCanceledException and not WeirConnectionUnavailableException
+            and not WeirBufferCapacityException;
 
     /// <summary>Removes the weak-validator prefix <c>W/</c> from an entity tag, if present.</summary>
     /// <param name="tag">The entity tag.</param>
@@ -1245,7 +1197,7 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Reads the buffered response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>
     /// <param name="buffer">The buffered response body.</param>
     /// <returns>The (possibly truncated) response text.</returns>
-    private static string CaptureResult(RecyclableMemoryStream buffer)
+    private static string CaptureResult(BudgetedResponseBuffer buffer)
     {
         var sequence = buffer.GetReadOnlySequence();
         if (sequence.IsSingleSegment) return CaptureResult(sequence.FirstSpan);

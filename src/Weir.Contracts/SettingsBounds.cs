@@ -85,6 +85,14 @@ public static class SettingsBounds
     public static Bound ResponseCacheMaxEntries { get; } =
         new(nameof(WeirSystemSettings.ResponseCacheMaxEntries), 0, 1_000_000, s => s.ResponseCacheMaxEntries);
 
+    /// <summary>Range for the total active response buffer reservation.</summary>
+    public static Bound ActiveResponseBufferMaxBytes { get; } =
+        new(nameof(WeirSystemSettings.ActiveResponseBufferMaxBytes), 0, 1_099_511_627_776, s => s.ActiveResponseBufferMaxBytes);
+
+    /// <summary>Range for one buffered response.</summary>
+    public static Bound BufferedResponseMaxBytes { get; } =
+        new(nameof(WeirSystemSettings.BufferedResponseMaxBytes), 0, 1_099_511_627_776, s => s.BufferedResponseMaxBytes);
+
     /// <summary>
     /// Range for <see cref="WeirSystemSettings.ResponseFlushBytes"/>: up to one mebibyte. The value that
     /// actually matters here is the 85 KB large-object threshold, which the admin form warns about; this
@@ -119,6 +127,8 @@ public static class SettingsBounds
         ResponseCacheMaxBytes,
         ResponseCacheMaxEntryBytes,
         ResponseCacheMaxEntries,
+        ActiveResponseBufferMaxBytes,
+        BufferedResponseMaxBytes,
         ResponseFlushBytes,
         MaxBinaryBytes,
     ];

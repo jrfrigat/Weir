@@ -1,21 +1,40 @@
 using System.Buffers;
 using Google.Protobuf;
 using Grpc.Core;
+using Weir.Core;
 using Weir.Host.Http;
 
 namespace Weir.Host.Grpc;
 
 /// <summary>
-/// Collects a whole response envelope in memory, for the unary call. Backed by an
-/// <see cref="ArrayBufferWriter{T}"/> rather than a <see cref="MemoryStream"/> because the reply message
-/// needs the bytes as one span, and this hands them over without a second copy.
+/// Collects a unary response under the same active allocation budget as the engine.
+/// Contiguous growth reserves both old and new storage until the copy finishes.
 /// </summary>
 public sealed class BufferedTransportStream : TransportWriteStream
 {
-    private readonly ArrayBufferWriter<byte> _buffer = new(16 * 1024);
+    /// <summary>The shared admission service; null only for legacy standalone callers.</summary>
+    private readonly ResponseBufferBudget? _budget;
+
+    /// <summary>The configured per-body bound.</summary>
+    private readonly long _maximum;
+
+    /// <summary>The current contiguous storage required by unary protobuf.</summary>
+    private byte[] _buffer = [];
+
+    /// <summary>The reservation for the current allocation.</summary>
+    private IDisposable? _lease;
+
+    /// <summary>Creates a unary buffer; the in-box service always supplies shared admission.</summary>
+    /// <param name="budget">The shared active allocation budget.</param>
+    /// <param name="maximum">Maximum logical body size; zero disables the bound.</param>
+    public BufferedTransportStream(ResponseBufferBudget? budget = null, long maximum = 0)
+    {
+        _budget = budget;
+        _maximum = maximum;
+    }
 
     /// <summary>Everything written so far.</summary>
-    public ReadOnlyMemory<byte> Written => _buffer.WrittenMemory;
+    public ReadOnlyMemory<byte> Written => _buffer.AsMemory(0, checked((int)BytesWritten));
 
     /// <inheritdoc />
     public override ValueTask CompleteAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
@@ -23,7 +42,24 @@ public sealed class BufferedTransportStream : TransportWriteStream
     /// <inheritdoc />
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        _buffer.Write(buffer.Span);
+        cancellationToken.ThrowIfCancellationRequested();
+        var needed = checked(BytesWritten + buffer.Length);
+        if ((_maximum > 0 && needed > _maximum) || needed > Array.MaxLength) throw new WeirBufferCapacityException();
+        if (needed > _buffer.Length)
+        {
+            var capacity = (int)Math.Min(Array.MaxLength, Math.Max(needed, Math.Max(16384L, _buffer.LongLength * 2)));
+            var lease = _budget?.Reserve(capacity);
+            try
+            {
+                var replacement = GC.AllocateUninitializedArray<byte>(capacity);
+                Written.Span.CopyTo(replacement);
+                _buffer = replacement;
+                _lease?.Dispose();
+                _lease = lease;
+            }
+            catch { lease?.Dispose(); throw; }
+        }
+        buffer.Span.CopyTo(_buffer.AsSpan((int)BytesWritten));
         BytesWritten += buffer.Length;
         return ValueTask.CompletedTask;
     }
@@ -40,6 +76,17 @@ public sealed class BufferedTransportStream : TransportWriteStream
 
     /// <inheritdoc />
     public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _buffer = [];
+            Interlocked.Exchange(ref _lease, null)?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
 }
 
 /// <summary>

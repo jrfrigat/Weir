@@ -114,6 +114,12 @@ public sealed record WeirSystemSettings
     /// <summary>Maximum locally cached entry count, bounding key and index metadata; zero disables this bound.</summary>
     public int ResponseCacheMaxEntries { get; init; } = 10_000;
 
+    /// <summary>Maximum active Full/cache-fill storage, including owned payload copies; zero disables the bound.</summary>
+    public long ActiveResponseBufferMaxBytes { get; init; } = 268_435_456;
+
+    /// <summary>Maximum logical size of one buffered response; zero disables the bound. Streaming responses are unaffected.</summary>
+    public long BufferedResponseMaxBytes { get; init; } = 134_217_728;
+
     /// <summary>
     /// How response bodies reach callers by default. An endpoint can override it (see
     /// <c>DeliveryPolicy.Mode</c>), and one that caches or captures its result buffers regardless -

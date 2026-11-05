@@ -200,8 +200,13 @@ builder.Services.AddGrpc();
 builder.Services.AddOptions<WeirDataPlaneOptions>()
     .Bind(builder.Configuration.GetSection("Weir:DataPlane"))
     .Validate(
-        o => o.MaxRows >= 0 && o.RequestTimeoutSeconds >= 0 && o.MaxTvpRows >= 0 && o.MaxImportRows >= 0 && o.MaxRequestBodyBytes >= 0,
-        "Weir:DataPlane limits must not be negative.")
+        o => o.MaxRows >= 0 && o.RequestTimeoutSeconds >= 0 && o.MaxTvpRows >= 0 && o.MaxImportRows >= 0 && o.MaxRequestBodyBytes >= 0 &&
+            o.ResponseCacheMaxBytes >= 0 && o.ResponseCacheMaxBytes <= SettingsBounds.ResponseCacheMaxBytes.Max &&
+            o.ResponseCacheMaxEntryBytes >= 0 && o.ResponseCacheMaxEntryBytes <= SettingsBounds.ResponseCacheMaxEntryBytes.Max &&
+            o.ResponseCacheMaxEntries >= 0 && o.ResponseCacheMaxEntries <= SettingsBounds.ResponseCacheMaxEntries.Max &&
+            o.ActiveResponseBufferMaxBytes >= 0 && o.ActiveResponseBufferMaxBytes <= SettingsBounds.ActiveResponseBufferMaxBytes.Max &&
+            o.BufferedResponseMaxBytes >= 0 && o.BufferedResponseMaxBytes <= SettingsBounds.BufferedResponseMaxBytes.Max,
+        "Weir:DataPlane limits must be non-negative and cache/buffer bounds must be within their supported ranges.")
     .ValidateOnStart();
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Weir:Security"));
 builder.Services.AddOptions<AdminSecurityOptions>()
