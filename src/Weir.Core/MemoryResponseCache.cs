@@ -11,7 +11,7 @@ namespace Weir.Core;
 /// Mutations and accounting are synchronous,
 /// so evicted payloads are not retained in background eviction callback queues.
 /// </summary>
-public sealed class MemoryResponseCache : IVersionedResponseCache, IDisposable
+public sealed class MemoryResponseCache : IVersionedResponseCache, IResponseCacheDiagnostics, IDisposable
 {
     /// <summary>Bounds retained key metadata independently of the payload budget.</summary>
     private const int MaxKeyChars = 1024;
@@ -214,6 +214,20 @@ public sealed class MemoryResponseCache : IVersionedResponseCache, IDisposable
     {
         EnsureSettings();
         lock (_gate) return (_payloadBytes, _clock.Count, _skippedEntries);
+    }
+
+    /// <inheritdoc />
+    public ResponseCacheStatus GetStatus()
+    {
+        var snapshot = GetStorageSnapshot();
+        var settings = _settings.Current;
+        return new ResponseCacheStatus
+        {
+            Provider = "Memory", Available = !Volatile.Read(ref _disposed),
+            LocalPayloadBytes = snapshot.PayloadBytes, LocalEntryCount = snapshot.EntryCount,
+            LocalPayloadBudgetBytes = settings.ResponseCacheMaxBytes, LocalMaxEntries = settings.ResponseCacheMaxEntries,
+            MaxEntryBytes = settings.ResponseCacheMaxEntryBytes, SkippedStores = snapshot.SkippedEntries
+        };
     }
 
     /// <summary>Applies changed bounds without taking a lock on an unchanged hit path.</summary>

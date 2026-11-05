@@ -2,6 +2,14 @@ using Weir.Contracts;
 
 namespace Weir.Abstractions;
 
+/// <summary>Optional secret-free diagnostics for a response-cache provider.</summary>
+public interface IResponseCacheDiagnostics
+{
+    /// <summary>Returns backend state and locally retained payload measurements.</summary>
+    /// <returns>A snapshot that never includes connection strings or request values.</returns>
+    ResponseCacheStatus GetStatus();
+}
+
 /// <summary>Exposes live cache limits to providers without depending on the engine or host.</summary>
 public interface IResponseCacheSettings
 {

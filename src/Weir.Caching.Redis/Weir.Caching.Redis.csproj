@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>FrigaT.Weir.Caching.Redis</PackageId>
+    <Description>Redis response caching for Weir with binary payload leases and atomic invalidation fencing.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Weir.Abstractions\Weir.Abstractions.csproj" />
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weir.Tests" />
+  </ItemGroup>
+</Project>

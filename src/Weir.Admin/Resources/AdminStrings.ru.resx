@@ -1871,4 +1871,14 @@
   <data name="Settings_ActiveBufferMaxBytesLabel" xml:space="preserve"><value>Бюджет активных буферов (байт)</value></data>
   <data name="Settings_BufferedResponseMaxBytesLabel" xml:space="preserve"><value>Максимальный буферизованный ответ (байт)</value></data>
   <data name="Settings_BufferBudgetHelp" xml:space="preserve"><value>Full и заполнение кэша резервируют блоки и копии до выделения памяти. По умолчанию: 256 МиБ активных буферов, 128 МиБ на ответ. При исчерпании - 503 до передачи ответа, без повторного вызова БД. Сохраненный кэш и свободные пулы считаются отдельно. Ноль отключает предел.</value></data>
+  <data name="Settings_CacheProviderLabel" xml:space="preserve"><value>Провайдер кэша ответов</value></data>
+  <data name="Settings_CacheNamespaceLabel" xml:space="preserve"><value>Пространство имен установки</value></data>
+  <data name="Settings_CacheAvailabilityLabel" xml:space="preserve"><value>Доступность провайдера</value></data>
+  <data name="Settings_CacheAvailable" xml:space="preserve"><value>Доступен</value></data>
+  <data name="Settings_CacheUnavailable" xml:space="preserve"><value>Недоступен</value></data>
+  <data name="Settings_CacheUnknown" xml:space="preserve"><value>Неизвестно</value></data>
+  <data name="Settings_CacheProviderHelp" xml:space="preserve"><value>Провайдер и namespace Redis выбираются при запуске. Секреты подключения остаются в конфигурации сервера. Локальный бюджет и число записей относятся к Memory; предел записи и активных буферов действует для обоих провайдеров. Память сервера Redis настраивается отдельно.</value></data>
+  <data name="Settings_CacheDatabaseLabel" xml:space="preserve"><value>База Redis (-1: из подключения)</value></data>
+  <data name="Settings_CacheTimeoutLabel" xml:space="preserve"><value>Таймаут операции Redis (мс)</value></data>
+  <data name="Settings_CacheMaximumTtlLabel" xml:space="preserve"><value>Максимальный TTL Redis (с)</value></data>
 </root>

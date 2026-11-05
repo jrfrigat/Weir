@@ -5435,5 +5435,75 @@ namespace Weir.Admin.Resources {
             }
         }
 
+        /// <summary>Gets the localized Settings_CacheProviderLabel string.</summary>
+        public static string Settings_CacheProviderLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheProviderLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheNamespaceLabel string.</summary>
+        public static string Settings_CacheNamespaceLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheNamespaceLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheAvailabilityLabel string.</summary>
+        public static string Settings_CacheAvailabilityLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheAvailabilityLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheAvailable string.</summary>
+        public static string Settings_CacheAvailable {
+            get {
+                return ResourceManager.GetString("Settings_CacheAvailable", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheUnavailable string.</summary>
+        public static string Settings_CacheUnavailable {
+            get {
+                return ResourceManager.GetString("Settings_CacheUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheUnknown string.</summary>
+        public static string Settings_CacheUnknown {
+            get {
+                return ResourceManager.GetString("Settings_CacheUnknown", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheProviderHelp string.</summary>
+        public static string Settings_CacheProviderHelp {
+            get {
+                return ResourceManager.GetString("Settings_CacheProviderHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheDatabaseLabel string.</summary>
+        public static string Settings_CacheDatabaseLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheDatabaseLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheTimeoutLabel string.</summary>
+        public static string Settings_CacheTimeoutLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheTimeoutLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheMaximumTtlLabel string.</summary>
+        public static string Settings_CacheMaximumTtlLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheMaximumTtlLabel", resourceCulture);
+            }
+        }
+
     }
 }

@@ -1871,4 +1871,14 @@
   <data name="Settings_ActiveBufferMaxBytesLabel" xml:space="preserve"><value>Active buffer budget (bytes)</value></data>
   <data name="Settings_BufferedResponseMaxBytesLabel" xml:space="preserve"><value>Maximum buffered response (bytes)</value></data>
   <data name="Settings_BufferBudgetHelp" xml:space="preserve"><value>Full and cache fills reserve pooled blocks and payload copies before allocation. Defaults: 256 MiB active, 128 MiB per response. Exhaustion returns 503 before output, without repeating the database call. Stored cache and free pools are separate. Zero disables a bound.</value></data>
+  <data name="Settings_CacheProviderLabel" xml:space="preserve"><value>Response cache backend</value></data>
+  <data name="Settings_CacheNamespaceLabel" xml:space="preserve"><value>Installation namespace</value></data>
+  <data name="Settings_CacheAvailabilityLabel" xml:space="preserve"><value>Backend availability</value></data>
+  <data name="Settings_CacheAvailable" xml:space="preserve"><value>Available</value></data>
+  <data name="Settings_CacheUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="Settings_CacheUnknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="Settings_CacheProviderHelp" xml:space="preserve"><value>Backend and Redis namespace are selected at startup. Connection secrets stay in server configuration. Local payload and entry-count limits apply to Memory; the entry-size and active-buffer limits apply to both backends. Redis server memory is configured separately.</value></data>
+  <data name="Settings_CacheDatabaseLabel" xml:space="preserve"><value>Redis database (-1: connection default)</value></data>
+  <data name="Settings_CacheTimeoutLabel" xml:space="preserve"><value>Redis operation timeout (ms)</value></data>
+  <data name="Settings_CacheMaximumTtlLabel" xml:space="preserve"><value>Redis maximum TTL (s)</value></data>
 </root>

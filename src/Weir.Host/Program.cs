@@ -21,6 +21,7 @@ using Serilog;
 using Serilog.Context;
 using StackExchange.Redis;
 using Weir.Abstractions;
+using Weir.Caching.Redis;
 using Weir.Connectors.PostgreSql;
 using Weir.Connectors.SqlServer;
 using Weir.Contracts;
@@ -130,6 +131,19 @@ else
 
 builder.Services.AddWeirCore(options =>
     builder.Configuration.GetSection("Weir:DataConnections").Bind(options.Connections));
+
+// Response caching has independent connection settings from the distributed rate limiter.
+var responseCacheProvider = builder.Configuration["Weir:ResponseCache:Provider"] ?? "Memory";
+if (string.Equals(responseCacheProvider, "Redis", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddOptions<RedisResponseCacheOptions>()
+        .Bind(builder.Configuration.GetSection(RedisResponseCacheOptions.SectionName));
+    builder.Services.AddWeirRedisResponseCache();
+}
+else if (!string.Equals(responseCacheProvider, "Memory", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("Weir:ResponseCache:Provider must be Memory or Redis.");
+}
 
 builder.Services.AddWeirSqlServer();
 builder.Services.AddWeirPostgreSql();

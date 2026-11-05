@@ -199,6 +199,64 @@ against this same budget. The final payload remains charged until HTTP response 
 protobuf serialization. Prefer `InvokeStream` for large results; a unary response inherently needs
 a whole-body allocation even when its endpoint normally streams.
 
+#### Memory or Redis response cache
+
+Memory is the default and needs no Redis server. Select Redis explicitly for shared cached responses:
+
+```json
+{
+  "Weir": {
+    "ResponseCache": {
+      "Provider": "Redis",
+      "Redis": {
+        "ConnectionString": "127.0.0.1:6379",
+        "Namespace": "weir-production",
+        "Database": -1,
+        "OperationTimeoutMilliseconds": 1000,
+        "MaximumTtlSeconds": 86400
+      }
+    }
+  }
+}
+```
+
+Use secret configuration or `Weir__ResponseCache__Redis__ConnectionString` for authenticated production
+connections. `Provider` accepts `Memory` or `Redis`; Redis requires an explicit installation namespace
+(1-128 ASCII letters, digits, hyphens, underscores, colons or dots). Do not share a namespace between
+deployments with different data or authorization policies. The backend, namespace, database, timeout,
+TTL ceiling and availability are shown read-only in Settings; changing them needs a restart.
+Connection strings are never returned by that API. Memory ignores unused Redis configuration.
+
+The provider uses its own reusable connection, independent of the Redis rate limiter. No disconnected
+command backlog is retained. Driver timeout is 100-30000 ms; maximum snapshot TTL is 1-604800 seconds.
+The shorter of the endpoint TTL and the provider ceiling applies. An entry already valid in the same
+generation is kept until expiry; competing fills do not refresh its TTL. Local payload/count limits
+apply to Memory. `ResponseCacheMaxEntryBytes` and active-buffer admission also apply to Redis.
+Zero disables the application entry-size bound; Redis's 512 MiB string limit still applies.
+
+Redis stores binary UTF-8 bodies and ETags, without JSON deserialization on a hit. An immutable snapshot
+id and bounded size metadata let Weir reserve local memory before fetching a driver lease. The lease
+remains alive through asynchronous transmission and 304/error/cancellation cleanup. Remote cache
+storage does not remove these temporary local buffers. Local stored payload/count are zero for Redis;
+the Redis server's own RAM is not included in the process or local-cache measurements.
+
+Atomic Lua scripts check global/route generations when publishing complete payloads. Normal route
+purges change a route epoch; broader/custom prefixes conservatively invalidate the namespace. Old
+snapshots become unreachable and expire by TTL. Configure Redis `maxmemory` and an appropriate cache
+eviction policy such as `allkeys-lru` to bound remote RAM, including snapshots awaiting TTL cleanup.
+Epoch eviction safely starts a new random generation. All keys in an installation use one hash tag,
+so atomic multi-key scripts also work in Redis Cluster; that installation occupies one cluster slot.
+
+A failed read becomes a miss and a failed store is skipped, with safe counters and rate-limited
+warnings. A failed invalidation is reported as unconfirmed; this instance refuses old cached data
+until a recovery namespace purge succeeds. Coalescing is per gateway process. Redis shares cached
+bytes across instances and does not provide distributed single-flight. The portable Compose file
+does not add a mandatory Redis service.
+
+Custom hosts can reference `FrigaT.Weir.Caching.Redis`, bind `RedisResponseCacheOptions`, and call
+`AddWeirRedisResponseCache()` after `AddWeirCore()`. The provider itself depends only on
+Contracts/Abstractions and the driver; it consumes `IResponseCacheSettings` and `IResponseBufferBudget`.
+
 #### Runtime settings
 
 `MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `MaxImportRows`, `DefaultApiKeyRateLimitPerMinute`,

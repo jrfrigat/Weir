@@ -192,6 +192,9 @@ public sealed record WeirSystemSettingsView
     /// CORS policy of its own falls back to, which is otherwise invisible from the key's own screen.
     /// </summary>
     public WeirCorsInfo? Cors { get; init; }
+
+    /// <summary>Secret-free response-cache backend configuration and current availability.</summary>
+    public ResponseCacheStatus? ResponseCache { get; init; }
 }
 
 /// <summary>Read-only view of the server-wide client-certificate configuration.</summary>

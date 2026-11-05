@@ -78,7 +78,24 @@
 
         <FlareCard Variant="CardVariant.Outlined">
             <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
+                <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                    <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
+                    <InfoPopover Text="@AdminStrings.Settings_CacheProviderHelp" />
+                </FlareStack>
+                @if (_responseCache is { } backend)
+                {
+                    <FlareDescriptionList>
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_CacheProviderLabel">@backend.Provider</FlareDescriptionItem>
+                        @if (backend.Namespace is { } cacheNamespace)
+                        {
+                            <FlareDescriptionItem Label="@AdminStrings.Settings_CacheNamespaceLabel">@cacheNamespace</FlareDescriptionItem>
+                            <FlareDescriptionItem Label="@AdminStrings.Settings_CacheDatabaseLabel">@backend.Database</FlareDescriptionItem>
+                            <FlareDescriptionItem Label="@AdminStrings.Settings_CacheTimeoutLabel">@backend.OperationTimeoutMilliseconds</FlareDescriptionItem>
+                            <FlareDescriptionItem Label="@AdminStrings.Settings_CacheMaximumTtlLabel">@backend.MaximumTtlSeconds</FlareDescriptionItem>
+                        }
+                        <FlareDescriptionItem Label="@AdminStrings.Settings_CacheAvailabilityLabel">@(backend.Available switch { true => AdminStrings.Settings_CacheAvailable, false => AdminStrings.Settings_CacheUnavailable, _ => AdminStrings.Settings_CacheUnknown })</FlareDescriptionItem>
+                    </FlareDescriptionList>
+                }
                 <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Min="SettingsBounds.ResponseCacheMaxBytes.Min" Max="SettingsBounds.ResponseCacheMaxBytes.Max" Style="max-width:16rem;" />
                 <FlareNumericField TValue="long" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxEntryBytes" Min="SettingsBounds.ResponseCacheMaxEntryBytes.Min" Max="SettingsBounds.ResponseCacheMaxEntryBytes.Max" Style="max-width:16rem;">
                     <LabelContent>
@@ -293,6 +310,8 @@
     private WeirLoggingInfo? _logging;
     private WeirMtlsInfo? _mtls;
     private WeirCorsInfo? _cors;
+    /// <summary>Secret-free backend configuration and availability from the settings API.</summary>
+    private ResponseCacheStatus? _responseCache;
     private bool _exporting;
     /// <summary>Loads the current settings into the editable fields.</summary>
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -337,6 +356,7 @@
             _logging = view.Logging;
             _mtls = view.Mtls;
             _cors = view.Cors;
+            _responseCache = view.ResponseCache;
             _loaded = BuildEdited();
         }
         catch (HttpRequestException)
