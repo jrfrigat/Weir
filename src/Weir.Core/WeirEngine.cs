@@ -108,6 +108,9 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Tag on every stream taken from the pool, so pool diagnostics can name its source.</summary>
     private const string StreamTag = "weir-response";
 
+    /// <summary>Bounds each transport handover so a large response cannot grow the network buffer in one write.</summary>
+    private const int HandoverChunkBytes = 256 * 1024;
+
     /// <summary>Per-connection bulkhead and circuit breaker, applied around each database execution.</summary>
     private readonly DataConnectionGuards _guards = new();
 
@@ -462,14 +465,9 @@ public sealed class WeirEngine : IDisposable
 
                 if (pending is not null)
                 {
-                    // Hand the whole body over in one write, as a plain MemoryStream's copy did: a
-                    // buffered response goes out as a unit, never in pieces. GetBuffer() returns the
-                    // body's pooled buffer directly when it fitted a single block, and materialises one
-                    // contiguous pooled buffer otherwise - which is the buffer a MemoryStream held anyway.
-                    // Copying the stream instead would chunk the write, because a block-backed stream
-                    // reads out one block at a time.
+                    // The body is complete before headers; bounded writes preserve that error contract.
                     var streamStart = Stopwatch.GetTimestamp();
-                    await output.WriteAsync(pending.GetBuffer().AsMemory(0, (int)pending.Length), cancellationToken);
+                    await WritePayloadAsync(output, pending.GetBuffer().AsMemory(0, (int)pending.Length), cancellationToken);
                     context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                 }
             }
@@ -1052,7 +1050,7 @@ public sealed class WeirEngine : IDisposable
 
         if (!metadata.NotModified)
         {
-            await output.WriteAsync(payload, cancellationToken);
+            await WritePayloadAsync(output, payload, cancellationToken);
         }
 
         return metadata;
@@ -1073,8 +1071,24 @@ public sealed class WeirEngine : IDisposable
         bool truncated,
         CancellationToken cancellationToken)
     {
-        await output.WriteAsync(payload, cancellationToken);
+        await WritePayloadAsync(output, payload, cancellationToken);
         return new WeirResponseMetadata { Truncated = truncated };
+    }
+
+    /// <summary>Hands over an owned response in bounded, awaited portions while preserving byte order.</summary>
+    /// <param name="output">The transport destination.</param>
+    /// <param name="payload">The complete response, retained by the caller throughout this operation.</param>
+    /// <param name="cancellationToken">Cancellation of the receiving request.</param>
+    /// <returns>The completed handover.</returns>
+    private static async ValueTask WritePayloadAsync(Stream output, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        while (!payload.IsEmpty)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = Math.Min(payload.Length, HandoverChunkBytes);
+            await output.WriteAsync(payload[..count], cancellationToken);
+            payload = payload[count..];
+        }
     }
 
     /// <summary>

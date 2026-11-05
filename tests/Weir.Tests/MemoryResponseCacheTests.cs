@@ -18,7 +18,14 @@ public class MemoryResponseCacheTests
         const string key = "weir:replacement:one";
         await cache.SetAsync(key, EntryOfSize(3), expired ? TimeSpan.FromTicks(1) : TimeSpan.FromMinutes(5));
         if (expired)
-            Assert.True(SpinWait.SpinUntil(() => !cache.GetAsync(key).Result.HasValue, TimeSpan.FromSeconds(10)));
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while ((await cache.GetAsync(key)).HasValue)
+            {
+                timeout.Token.ThrowIfCancellationRequested();
+                await Task.Yield();
+            }
+        }
         await cache.SetAsync(key, EntryOfSize(5), TimeSpan.FromMinutes(5));
 
         var generation = typeof(MemoryResponseCache).GetField("_generation",

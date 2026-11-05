@@ -17,6 +17,19 @@ namespace Weir.Tests;
 // because it is the part most likely to be "fixed" later by someone who reads the mode as absolute.
 public class ResponseDeliveryTests
 {
+    /// <summary>A failure while preparing Full or a cache fill never emits a partial document.</summary>
+    /// <param name="cached">Whether the failing request is a cache fill.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailureBeforeFullCommit_WritesNothing(bool cached)
+    {
+        await using var output = new WriteCountingStream();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ExecuteAsync(output,
+            Delivery(ResponseDeliveryMode.Full), cached: cached, failOnComplete: true));
+        Assert.Equal(0, output.Writes);
+    }
+
     [Fact]
     public async Task Stream_Writes_The_Body_Out_In_Chunks()
     {
@@ -26,28 +39,35 @@ public class ResponseDeliveryTests
         Assert.True(output.Writes > 1, $"expected chunked writes, got {output.Writes} of {output.Total} bytes");
     }
 
-    [Fact]
-    public async Task Full_Hands_The_Body_Over_In_One_Piece()
+    /// <summary>Full, fresh cache fills and truncated fills all bound transport writes.</summary>
+    /// <param name="cached">Whether this request fills the response cache.</param>
+    /// <param name="maxRows">An optional row cap that exercises the uncached truncated handover.</param>
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(true, 2800)]
+    public async Task Full_Hands_The_Completed_Body_Over_In_Bounded_Portions(bool cached, int maxRows)
     {
         await using var output = new WriteCountingStream();
-        await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full));
+        await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full),
+            settings: new WeirSystemSettings { MaxRows = maxRows }, cached: cached);
 
-        // Buffered first, then copied: the client sees the whole response or a clean error, never half.
-        Assert.Equal(1, output.Writes);
+        Assert.True(output.Writes > 1);
+        Assert.InRange(output.MaximumWrite, 1, 256 * 1024);
+        using var json = JsonDocument.Parse(output.Bytes);
+        Assert.Equal(maxRows > 0, json.RootElement.GetProperty("truncated").GetBoolean());
     }
 
+    /// <summary>A buffered response remains intact across network and pooled block boundaries.</summary>
     [Fact]
-    public async Task A_Body_Past_One_Block_Is_Handed_Over_Whole_And_In_One_Write()
+    public async Task A_Body_Past_One_Block_Survives_Bounded_Handover()
     {
-        // The buffered body is assembled in a pooled stream whose blocks are 128 KB, and this endpoint's
-        // 3000-row response is past that, so the body spans several blocks. The handover reads the stream
-        // through GetBuffer(), which materialises the blocks into one contiguous buffer; this checks the
-        // whole document survived that (nothing lost at a block boundary) and still went out in one write.
+        // Buffering completes before handover; chunk boundaries must not change the document.
         await using var output = new WriteCountingStream();
         await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full));
 
         Assert.True(output.Total > 128 * 1024, $"the body should span more than one block, was {output.Total} bytes");
-        Assert.Equal(1, output.Writes);
+        Assert.InRange(output.MaximumWrite, 1, 256 * 1024);
 
         using var document = JsonDocument.Parse(output.Bytes);
         var rows = document.RootElement.GetProperty("data")[0];
@@ -62,7 +82,7 @@ public class ResponseDeliveryTests
         // a row-returning one is what streaming is for.
         await using var single = new WriteCountingStream();
         await ExecuteAsync(single, Delivery(ResponseDeliveryMode.Auto), ResultMode.SingleRow);
-        Assert.Equal(1, single.Writes);
+        Assert.InRange(single.MaximumWrite, 1, 256 * 1024);
 
         await using var many = new WriteCountingStream();
         await ExecuteAsync(many, Delivery(ResponseDeliveryMode.Auto), ResultMode.MultiRow);
@@ -77,7 +97,7 @@ public class ResponseDeliveryTests
         await using var output = new WriteCountingStream();
         await ExecuteAsync(output, new DeliveryPolicy(), settings: new WeirSystemSettings { ResponseDeliveryMode = ResponseDeliveryMode.Full });
 
-        Assert.Equal(1, output.Writes);
+        Assert.InRange(output.MaximumWrite, 1, 256 * 1024);
     }
 
     [Fact]
@@ -98,7 +118,7 @@ public class ResponseDeliveryTests
         await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Stream),
             logging: new EndpointLogging { Enabled = true, LogResult = true });
 
-        Assert.Equal(1, output.Writes);
+        Assert.InRange(output.MaximumWrite, 1, 256 * 1024);
     }
 
     [Fact]
@@ -151,23 +171,27 @@ public class ResponseDeliveryTests
     /// <returns>The policy.</returns>
     private static DeliveryPolicy Delivery(ResponseDeliveryMode mode) => new() { Mode = mode };
 
-    /// <summary>Runs one uncached call through a real engine against a fake connector.</summary>
+    /// <summary>Runs one call through a real engine against a fake connector.</summary>
     /// <param name="output">Where the response is written.</param>
     /// <param name="delivery">The endpoint's delivery policy.</param>
     /// <param name="resultMode">The endpoint's declared result shape.</param>
     /// <param name="logging">The endpoint's logging policy.</param>
     /// <param name="settings">System settings to run under.</param>
+    /// <param name="cached">Whether this request fills the response cache.</param>
+    /// <param name="failOnComplete">Whether the database execution fails after its rows.</param>
     private static async Task ExecuteAsync(
         Stream output,
         DeliveryPolicy delivery,
         ResultMode resultMode = ResultMode.MultiRow,
         EndpointLogging? logging = null,
-        WeirSystemSettings? settings = null)
+        WeirSystemSettings? settings = null,
+        bool cached = false,
+        bool failOnComplete = false)
     {
         var runtime = new FixedSettings(settings ?? new WeirSystemSettings());
         using var cache = new MemoryResponseCache(runtime);
         using var engine = new WeirEngine(
-            new ParameterBinder(), new SingleRegistry(), [new SizedConnector { Rows = 3000 }], cache, [], runtime);
+            new ParameterBinder(), new SingleRegistry(), [new SizedConnector { Rows = 3000, FailOnComplete = failOnComplete }], cache, [], runtime);
 
         await engine.ExecuteAsync(
             new WeirInvocation
@@ -181,6 +205,7 @@ public class ResponseDeliveryTests
                     ResultMode = resultMode,
                     Delivery = delivery,
                     Logging = logging ?? new EndpointLogging { Enabled = false },
+                    Cache = new CachePolicy { Enabled = cached, TtlSeconds = 60 },
                 },
                 ApiKeyPrefix = "abc",
             },
@@ -195,6 +220,9 @@ public class ResponseDeliveryTests
 
         /// <summary>How many separate writes reached the stream.</summary>
         public int Writes { get; private set; }
+
+        /// <summary>The largest handover submitted to the destination.</summary>
+        public int MaximumWrite { get; private set; }
 
         /// <summary>Total bytes written.</summary>
         public long Total { get; private set; }
@@ -261,6 +289,7 @@ public class ResponseDeliveryTests
             }
 
             Writes++;
+            MaximumWrite = Math.Max(MaximumWrite, bytes.Length);
             Total += bytes.Length;
             _received.Write(bytes);
         }
@@ -272,10 +301,15 @@ public class ResponseDeliveryTests
         private readonly DataTable _table;
         private readonly DbDataReader _reader;
 
+        /// <summary>Whether completion must simulate a database failure.</summary>
+        private readonly bool _failOnComplete;
+
         /// <summary>Builds a result with the given row count.</summary>
         /// <param name="rows">How many rows to return.</param>
-        public FakeExecution(int rows)
+        /// <param name="failOnComplete">Whether completion throws after the rows were consumed.</param>
+        public FakeExecution(int rows, bool failOnComplete)
         {
+            _failOnComplete = failOnComplete;
             _table = new DataTable();
             _table.Columns.Add("id", typeof(int));
             _table.Columns.Add("text", typeof(string));
@@ -305,6 +339,7 @@ public class ResponseDeliveryTests
         /// <inheritdoc />
         public ValueTask CompleteAsync(CancellationToken cancellationToken = default)
         {
+            if (_failOnComplete) throw new InvalidOperationException("Execution failed after its rows.");
             _reader.Close();
             return ValueTask.CompletedTask;
         }
@@ -324,12 +359,15 @@ public class ResponseDeliveryTests
         /// <summary>Rows each execution returns.</summary>
         public int Rows { get; set; } = 1;
 
+        /// <summary>Whether the execution must fail when completing.</summary>
+        public bool FailOnComplete { get; set; }
+
         /// <inheritdoc />
         public string ProviderName => "test";
 
         /// <inheritdoc />
         public Task<IDbExecution> ExecuteAsync(DbExecutionRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IDbExecution>(new FakeExecution(Rows));
+            Task.FromResult<IDbExecution>(new FakeExecution(Rows, FailOnComplete));
 
         /// <inheritdoc />
         public Task ProbeAsync(string connectionName, CancellationToken cancellationToken = default) => Task.CompletedTask;

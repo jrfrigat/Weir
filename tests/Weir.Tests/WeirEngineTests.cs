@@ -11,6 +11,60 @@ namespace Weir.Tests;
 // pre-write 304 short-circuit when the caller's If-None-Match matches.
 public class WeirEngineTests
 {
+    /// <summary>Large cached bodies are copied exactly through bounded writes, and 304 writes nothing.</summary>
+    [Fact]
+    public async Task LargeCacheHit_IsBounded_AndConditionalHitWritesNothing()
+    {
+        var payload = Encoding.UTF8.GetBytes("{\"data\":[[\"" + new string('x', 1024 * 1024) + "\"]]}");
+        using var engine = NewEngine(payload);
+        using var output = new LimitedWriteStream();
+        var result = await engine.ExecuteAsync(NewInvocation(), output);
+        Assert.Equal(payload, output.ToArray());
+        Assert.True(output.Writes > 1);
+        Assert.InRange(output.MaximumWrite, 1, 256 * 1024);
+
+        using var conditional = new LimitedWriteStream();
+        var metadata = await engine.ExecuteAsync(NewInvocation(), conditional,
+            new WeirResponseControl { IfNoneMatch = result.ETag });
+        Assert.True(metadata.NotModified);
+        Assert.Equal(0, conditional.Writes);
+    }
+
+    /// <summary>Cancellation after one network portion prevents the remaining body from being copied.</summary>
+    [Fact]
+    public async Task LargeCacheHit_StopsAfterCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var engine = NewEngine(new byte[1024 * 1024]);
+        using var output = new LimitedWriteStream(cancellation);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            engine.ExecuteAsync(NewInvocation(), output, default, cancellation.Token));
+        Assert.Equal(1, output.Writes);
+        Assert.Equal(256 * 1024, output.Length);
+    }
+
+    /// <summary>Observes transport handovers and optionally cancels after the first completed write.</summary>
+    /// <param name="cancelAfterFirst">The cancellation source to signal, when requested.</param>
+    private sealed class LimitedWriteStream(CancellationTokenSource? cancelAfterFirst = null) : MemoryStream
+    {
+        /// <summary>Number of submitted writes.</summary>
+        internal int Writes { get; private set; }
+
+        /// <summary>Largest submitted portion.</summary>
+        internal int MaximumWrite { get; private set; }
+
+        /// <inheritdoc />
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Writes++;
+            MaximumWrite = Math.Max(MaximumWrite, buffer.Length);
+            Write(buffer.Span);
+            if (Writes == 1) cancelAfterFirst?.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     /// <summary>A response cache that always returns a fixed payload with a pre-computed ETag, simulating a warm cache.</summary>
     private sealed class HitCache(byte[] payload) : IResponseCache
     {
