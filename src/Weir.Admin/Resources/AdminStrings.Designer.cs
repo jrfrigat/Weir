@@ -5540,5 +5540,89 @@ namespace Weir.Admin.Resources {
             }
         }
 
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Title {
+            get {
+                return ResourceManager.GetString("Memory_Title", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Process {
+            get {
+                return ResourceManager.GetString("Memory_Process", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Cache {
+            get {
+                return ResourceManager.GetString("Memory_Cache", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_LoadFailed {
+            get {
+                return ResourceManager.GetString("Memory_LoadFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Entries {
+            get {
+                return ResourceManager.GetString("Memory_Entries", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_CacheBudget {
+            get {
+                return ResourceManager.GetString("Memory_CacheBudget", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_ActiveBuffers {
+            get {
+                return ResourceManager.GetString("Memory_ActiveBuffers", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Observed {
+            get {
+                return ResourceManager.GetString("Memory_Observed", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Unlimited {
+            get {
+                return ResourceManager.GetString("Memory_Unlimited", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Explanation {
+            get {
+                return ResourceManager.GetString("Memory_Explanation", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_RedisExplanation {
+            get {
+                return ResourceManager.GetString("Memory_RedisExplanation", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized memory monitoring text.</summary>
+        public static string Memory_Summary {
+            get {
+                return ResourceManager.GetString("Memory_Summary", resourceCulture);
+            }
+        }
+
     }
 }

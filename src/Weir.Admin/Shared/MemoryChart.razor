@@ -1,0 +1,91 @@
+@inherits LocalizedPage
+@using System.Globalization
+
+<FlareCard Variant="CardVariant.Outlined">
+    <FlareStack Gap="FlareSpacing.Small">
+        @if (LoadFailed)
+        {
+            <FlareAlert Severity="AlertSeverity.Error">@AdminStrings.Memory_LoadFailed</FlareAlert>
+        }
+        <FlareChart @key="Snapshot?.InstanceId" Type="ChartType.Line" Data="@GetChartData()"
+                    Title="@AdminStrings.Memory_Title" Description="@Summary()" DataTable
+                    YMin="0" StickyDomain AnimateUpdates Height="220" YAxisTitle="MiB" YAxisFormat="0.#" />
+        @if (Snapshot?.SampledAt is null)
+        {
+            <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_ChartNoData</FlareText>
+        }
+        else
+        {
+            <FlareStack Row Wrap="true" Gap="FlareSpacing.Large">
+                <FlareText Mono="true">@AdminStrings.Memory_Process: @MiB(Snapshot.Points.LastOrDefault().ProcessWorkingSetBytes)</FlareText>
+                <FlareText Mono="true">@AdminStrings.Memory_Cache: @MiB(Snapshot.Cache.LocalPayloadBytes)</FlareText>
+            </FlareStack>
+            <FlareDescriptionList>
+                <FlareDescriptionItem Label="@AdminStrings.Settings_CacheProviderLabel">@Snapshot.Cache.Provider</FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Memory_Entries">@(Snapshot.Cache.LocalEntryCount?.ToString("N0", CultureInfo.CurrentCulture) ?? AdminStrings.Settings_CacheUnknown) / @CountLimit(Snapshot.Cache.LocalMaxEntries)</FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Memory_CacheBudget">@Limit(Snapshot.Cache.LocalPayloadBudgetBytes)</FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Memory_ActiveBuffers">@MiB(Snapshot.ActiveResponseBufferBytes) / @Limit(Snapshot.ActiveResponseBufferBudgetBytes)</FlareDescriptionItem>
+                <FlareDescriptionItem Label="@AdminStrings.Memory_Observed">@Snapshot.SampledAt.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</FlareDescriptionItem>
+            </FlareDescriptionList>
+        }
+        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Memory_Explanation</FlareText>
+        @if (Snapshot?.Cache.Provider == "Redis")
+        {
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Memory_RedisExplanation</FlareText>
+        }
+    </FlareStack>
+</FlareCard>
+
+@code {
+    /// <summary>The server's bounded history, shared by hub and polling delivery.</summary>
+    [Parameter] public MemorySnapshot? Snapshot { get; set; }
+    /// <summary>Whether polling failed; an existing history remains visible.</summary>
+    [Parameter] public bool LoadFailed { get; set; }
+    /// <summary>Last translated snapshot, retained to avoid rebuilding data on unrelated renders.</summary>
+    private MemorySnapshot? _translated;
+    /// <summary>Language of the cached series names.</summary>
+    private string? _culture;
+    /// <summary>The chart's two independent, unstacked MiB series.</summary>
+    private ChartData? _data;
+
+    /// <summary>Projects the bounded history and refreshes labels when the language changes.</summary>
+    /// <returns>Two shared-axis series with NaN gaps for unknown observations.</returns>
+    private ChartData GetChartData()
+    {
+        var culture = CultureInfo.CurrentUICulture.Name;
+        if (_data is not null && ReferenceEquals(_translated, Snapshot) && _culture == culture) return _data;
+        _translated = Snapshot;
+        _culture = culture;
+        var points = Snapshot?.Points ?? [];
+        _data = new ChartData([
+            new ChartSeries(AdminStrings.Memory_Process, points.Select(p => Value(p.ProcessWorkingSetBytes)).ToArray(), "var(--flare-color-primary)"),
+            new ChartSeries(AdminStrings.Memory_Cache, points.Select(p => Value(p.LocalCachePayloadBytes)).ToArray(), "var(--flare-color-success)")
+        ], points.Select(p => p.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)).ToArray());
+        return _data;
+    }
+
+    /// <summary>Converts bytes to MiB without replacing an unknown gauge with zero.</summary>
+    /// <param name="bytes">Observed bytes or null.</param>
+    /// <returns>MiB or a chart gap.</returns>
+    private static double Value(long? bytes) => bytes is { } known ? known / 1048576d : double.NaN;
+
+    /// <summary>Formats a byte gauge for both visible and accessible current values.</summary>
+    /// <param name="bytes">Observed bytes or null.</param>
+    /// <returns>A localized number with units, or unknown.</returns>
+    private static string MiB(long? bytes) => bytes is null ? AdminStrings.Settings_CacheUnknown : Value(bytes).ToString("N1", CultureInfo.CurrentCulture) + " MiB";
+
+    /// <summary>Formats a byte budget with an explicit unlimited state.</summary>
+    /// <param name="bytes">Configured bound; null is unknown, zero is unlimited.</param>
+    /// <returns>The readable bound.</returns>
+    private static string Limit(long? bytes) => bytes == 0 ? AdminStrings.Memory_Unlimited : MiB(bytes);
+
+    /// <summary>Formats an entry-count budget with explicit unknown and unlimited states.</summary>
+    /// <param name="count">Configured count bound.</param>
+    /// <returns>The readable bound.</returns>
+    private static string CountLimit(int? count) => count == 0 ? AdminStrings.Memory_Unlimited : count?.ToString("N0", CultureInfo.CurrentCulture) ?? AdminStrings.Settings_CacheUnknown;
+
+    /// <summary>Names both current gauges and their scope for assistive technology.</summary>
+    /// <returns>A localized description independent of the chart's visual lines.</returns>
+    private string Summary() => string.Format(CultureInfo.CurrentCulture, AdminStrings.Memory_Summary,
+        MiB(Snapshot?.Points.LastOrDefault().ProcessWorkingSetBytes), MiB(Snapshot?.Cache.LocalPayloadBytes));
+}

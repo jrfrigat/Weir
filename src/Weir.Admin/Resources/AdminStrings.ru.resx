@@ -1371,7 +1371,7 @@
     <value>Макс. байт BLOB</value>
   </data>
   <data name="Settings_MaxBinaryBytesHelp" xml:space="preserve">
-    <value>Сколько байт одного бинарного (BLOB) значения читается в память до усечения. Бинарное значение читается целиком для Base64; ноль означает без ограничений.</value>
+    <value>Максимум выдаваемых байт одного бинарного (BLOB) значения; ноль означает без ограничений. Встроенные коннекторы читают и кодируют порциями, затем дочитывают усеченный остаток ограниченными буферами.</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>настройки</value>
@@ -1886,4 +1886,40 @@
   <data name="Settings_CacheWriteBytesLabel" xml:space="preserve"><value>Бюджет ожидающих данных (байт)</value></data>
   <data name="Settings_CacheWriteTimeoutLabel" xml:space="preserve"><value>Дедлайн записи (мс)</value></data>
   <data name="Settings_CacheWritesHelp" xml:space="preserve"><value>По умолчанию: 64 незавершенные записи, 32 МиБ данных, дедлайн 1000 мс. При заполнении сохранение пропускается, ответ передается клиенту. Таймаут снимает регистрацию fill, но байты и слот учитываются до фактического завершения провайдера. Пределы всегда положительны; для больших записей поднимите и бюджет ожидающих данных.</value></data>
+  <data name="Memory_Title" xml:space="preserve">
+    <value>Память - MiB, последние 5 минут</value>
+  </data>
+  <data name="Memory_Process" xml:space="preserve">
+    <value>Процесс Weir (RSS)</value>
+  </data>
+  <data name="Memory_Cache" xml:space="preserve">
+    <value>Данные локального кэша</value>
+  </data>
+  <data name="Memory_LoadFailed" xml:space="preserve">
+    <value>Не удалось обновить память. Предыдущие измерения сохранены.</value>
+  </data>
+  <data name="Memory_Entries" xml:space="preserve">
+    <value>Локальные записи / лимит</value>
+  </data>
+  <data name="Memory_CacheBudget" xml:space="preserve">
+    <value>Бюджет данных локального кэша</value>
+  </data>
+  <data name="Memory_ActiveBuffers" xml:space="preserve">
+    <value>Активные буферы / бюджет</value>
+  </data>
+  <data name="Memory_Observed" xml:space="preserve">
+    <value>Последнее измерение</value>
+  </data>
+  <data name="Memory_Unlimited" xml:space="preserve">
+    <value>Без ограничений</value>
+  </data>
+  <data name="Memory_Explanation" xml:space="preserve">
+    <value>Этот экземпляр, измерение раз в секунду. Данные кэша уже входят в память процесса; показатель не включает метаданные кэша и свободные буферы пулов. Пропуски измерений показаны разрывами.</value>
+  </data>
+  <data name="Memory_RedisExplanation" xml:space="preserve">
+    <value>Redis хранит ответы вне Weir. Без локального слоя сохраненные данные в процессе равны 0. Память сервера Redis здесь не измеряется.</value>
+  </data>
+  <data name="Memory_Summary" xml:space="preserve">
+    <value>Текущая память процесса: {0}; данные локального кэша: {1}. Независимые линии на общей оси MiB для этого экземпляра.</value>
+  </data>
 </root>

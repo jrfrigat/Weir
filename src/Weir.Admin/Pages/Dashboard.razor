@@ -123,6 +123,8 @@
         </FlareStack>
     </FlareStack>
 
+    <MemoryChart Snapshot="_memory" LoadFailed="_memoryLoadFailed" />
+
     @* Endpoints live feed *@
     <FlareStack Gap="FlareSpacing.XSmall">
         <FlareStack Row Align="FlareAlignItems.Baseline" Justify="FlareJustifyContent.SpaceBetween">
@@ -164,6 +166,10 @@
     private List<EndpointMetrics>? _endpoints;
     private ChartData? _thrData;
     private ChartData? _latData;
+    /// <summary>Server-owned memory history, preserved across delivery and language changes.</summary>
+    private MemorySnapshot? _memory;
+    /// <summary>Whether polling failed to refresh memory; keeps previous observations visible.</summary>
+    private bool _memoryLoadFailed;
     private List<ConnectionHealth>? _connections;
     private FlareDataGrid<EndpointMetrics>? _grid;
 
@@ -225,6 +231,8 @@
                 _endpoints = snapshot.Endpoints.ToList();
                 _thrData = ToChart(snapshot.Throughput, "req/s", "var(--flare-color-primary)");
                 _latData = ToChart(snapshot.Latency, "ms", "var(--flare-color-success)");
+                _memory = snapshot.Memory;
+                _memoryLoadFailed = false;
                 return InvokeAsync(StateHasChanged);
             });
 
@@ -312,6 +320,12 @@
     {
         try
         {
+            _memory = await Api.GetMemoryAsync();
+            _memoryLoadFailed = _memory is null;
+        }
+        catch (HttpRequestException) { _memoryLoadFailed = true; }
+        try
+        {
             _overview = await Api.GetOverviewAsync();
             _endpoints = await Api.GetEndpointMetricsAsync();
             _thrData = ToChart(await Api.GetTimeSeriesAsync("requests", null, ChartWindowSeconds, ChartBucketSeconds), "req/s", "var(--flare-color-primary)");
@@ -325,6 +339,7 @@
         {
             // Transient fetch failure (or the session expired); keep the last values.
         }
+        if (!_disposed) StateHasChanged();
     }
 
     /// <summary>Builds single-series chart data (rendered as a sparkline) from a metric time series.</summary>

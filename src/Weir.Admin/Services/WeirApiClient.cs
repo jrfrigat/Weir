@@ -109,6 +109,11 @@ public sealed class WeirApiClient
     public Task<MetricsOverview?> GetOverviewAsync() =>
         _http.GetFromJsonAsync<MetricsOverview>("admin/api/metrics/overview");
 
+    /// <summary>Gets the independently sampled per-instance process/cache memory history.</summary>
+    /// <returns>The last 300 seconds and current provider metadata.</returns>
+    public Task<MemorySnapshot?> GetMemoryAsync() =>
+        _http.GetFromJsonAsync<MemorySnapshot>("admin/api/metrics/memory");
+
     /// <summary>Gets per-endpoint metrics.</summary>
     /// <returns>The endpoint metrics list.</returns>
     public Task<List<EndpointMetrics>?> GetEndpointMetricsAsync() =>

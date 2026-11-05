@@ -29,6 +29,14 @@ hub - the dashboard falls back to polling and keeps working without it.
 With no data-plane traffic yet, the metrics are zero and the charts are flat - that is expected; the
 connection cards still show whether each database is reachable.
 
+The memory chart shows this instance's resident process memory (RSS) and locally stored response-cache
+payload on one MiB axis. These are independent lines: cache payload is already part of process memory.
+Payload excludes cache metadata, active response buffers and free buffer pools. Entry count, configured
+cache budget and active buffer reservations are shown separately. With Redis and no local cache layer,
+locally stored payload is zero; Redis server RAM is outside this chart. Unknown observations are gaps.
+Sampling runs every second, even without requests or open dashboards, and retains up to five minutes
+per instance. SignalR and polling display the same server history. Restarting starts a new history.
+
 ## Endpoints
 
 The central page: a single filterable data grid that unifies the database's objects with the

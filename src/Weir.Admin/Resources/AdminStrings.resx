@@ -1371,7 +1371,7 @@
     <value>Max binary bytes</value>
   </data>
   <data name="Settings_MaxBinaryBytesHelp" xml:space="preserve">
-    <value>How many bytes of one binary (BLOB) value are materialized before it is truncated. A binary value is read whole into memory to be Base64-encoded; zero means unlimited.</value>
+    <value>Maximum emitted bytes of one binary (BLOB) value; zero means unlimited. In-box connectors read and encode chunks, then drain any truncated remainder with bounded buffers.</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>settings</value>
@@ -1886,4 +1886,40 @@
   <data name="Settings_CacheWriteBytesLabel" xml:space="preserve"><value>Pending payload budget (bytes)</value></data>
   <data name="Settings_CacheWriteTimeoutLabel" xml:space="preserve"><value>Store deadline (ms)</value></data>
   <data name="Settings_CacheWritesHelp" xml:space="preserve"><value>Defaults: 64 unfinished writes, 32 MiB of payload, 1000 ms deadline. Excess stores are skipped while responses continue. A timeout removes the fill registration, but bytes and the slot stay charged until the provider actually finishes. Limits are always positive; raise the pending byte limit too when caching larger entries.</value></data>
+  <data name="Memory_Title" xml:space="preserve">
+    <value>Memory - MiB, last 5 minutes</value>
+  </data>
+  <data name="Memory_Process" xml:space="preserve">
+    <value>Weir process (RSS)</value>
+  </data>
+  <data name="Memory_Cache" xml:space="preserve">
+    <value>Local cache payload</value>
+  </data>
+  <data name="Memory_LoadFailed" xml:space="preserve">
+    <value>Memory could not be refreshed. Previous observations are retained.</value>
+  </data>
+  <data name="Memory_Entries" xml:space="preserve">
+    <value>Local entries / limit</value>
+  </data>
+  <data name="Memory_CacheBudget" xml:space="preserve">
+    <value>Local cache payload budget</value>
+  </data>
+  <data name="Memory_ActiveBuffers" xml:space="preserve">
+    <value>Active buffers / budget</value>
+  </data>
+  <data name="Memory_Observed" xml:space="preserve">
+    <value>Last observation</value>
+  </data>
+  <data name="Memory_Unlimited" xml:space="preserve">
+    <value>Unlimited</value>
+  </data>
+  <data name="Memory_Explanation" xml:space="preserve">
+    <value>This instance, sampled every second. Cache payload is already part of process memory; it excludes cache metadata and free buffer pools. Missing observations are gaps.</value>
+  </data>
+  <data name="Memory_RedisExplanation" xml:space="preserve">
+    <value>Redis stores responses outside Weir. Without a local cache layer, local stored payload is 0. Redis server memory is not measured here.</value>
+  </data>
+  <data name="Memory_Summary" xml:space="preserve">
+    <value>Current process memory: {0}; local cache payload: {1}. Independent lines on the same MiB axis for this instance.</value>
+  </data>
 </root>
