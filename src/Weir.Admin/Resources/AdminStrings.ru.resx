@@ -1881,4 +1881,9 @@
   <data name="Settings_CacheDatabaseLabel" xml:space="preserve"><value>База Redis (-1: из подключения)</value></data>
   <data name="Settings_CacheTimeoutLabel" xml:space="preserve"><value>Таймаут операции Redis (мс)</value></data>
   <data name="Settings_CacheMaximumTtlLabel" xml:space="preserve"><value>Максимальный TTL Redis (с)</value></data>
+  <data name="Settings_CacheWritesLabel" xml:space="preserve"><value>Фоновые записи в кэш</value></data>
+  <data name="Settings_CacheWriteCountLabel" xml:space="preserve"><value>Максимум незавершенных записей</value></data>
+  <data name="Settings_CacheWriteBytesLabel" xml:space="preserve"><value>Бюджет ожидающих данных (байт)</value></data>
+  <data name="Settings_CacheWriteTimeoutLabel" xml:space="preserve"><value>Дедлайн записи (мс)</value></data>
+  <data name="Settings_CacheWritesHelp" xml:space="preserve"><value>По умолчанию: 64 незавершенные записи, 32 МиБ данных, дедлайн 1000 мс. При заполнении сохранение пропускается, ответ передается клиенту. Таймаут снимает регистрацию fill, но байты и слот учитываются до фактического завершения провайдера. Пределы всегда положительны; для больших записей поднимите и бюджет ожидающих данных.</value></data>
 </root>

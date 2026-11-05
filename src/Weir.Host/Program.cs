@@ -139,6 +139,7 @@ if (string.Equals(responseCacheProvider, "Redis", StringComparison.OrdinalIgnore
     builder.Services.AddOptions<RedisResponseCacheOptions>()
         .Bind(builder.Configuration.GetSection(RedisResponseCacheOptions.SectionName));
     builder.Services.AddWeirRedisResponseCache();
+    builder.Services.AddHostedService<RedisResponseCacheHealthService>();
 }
 else if (!string.Equals(responseCacheProvider, "Memory", StringComparison.OrdinalIgnoreCase))
 {
@@ -219,7 +220,10 @@ builder.Services.AddOptions<WeirDataPlaneOptions>()
             o.ResponseCacheMaxEntryBytes >= 0 && o.ResponseCacheMaxEntryBytes <= SettingsBounds.ResponseCacheMaxEntryBytes.Max &&
             o.ResponseCacheMaxEntries >= 0 && o.ResponseCacheMaxEntries <= SettingsBounds.ResponseCacheMaxEntries.Max &&
             o.ActiveResponseBufferMaxBytes >= 0 && o.ActiveResponseBufferMaxBytes <= SettingsBounds.ActiveResponseBufferMaxBytes.Max &&
-            o.BufferedResponseMaxBytes >= 0 && o.BufferedResponseMaxBytes <= SettingsBounds.BufferedResponseMaxBytes.Max,
+            o.BufferedResponseMaxBytes >= 0 && o.BufferedResponseMaxBytes <= SettingsBounds.BufferedResponseMaxBytes.Max &&
+            o.ResponseCacheWriteMaxPendingCount >= SettingsBounds.ResponseCacheWriteMaxPendingCount.Min && o.ResponseCacheWriteMaxPendingCount <= SettingsBounds.ResponseCacheWriteMaxPendingCount.Max &&
+            o.ResponseCacheWriteMaxPendingBytes >= SettingsBounds.ResponseCacheWriteMaxPendingBytes.Min && o.ResponseCacheWriteMaxPendingBytes <= SettingsBounds.ResponseCacheWriteMaxPendingBytes.Max &&
+            o.ResponseCacheWriteTimeoutMilliseconds >= SettingsBounds.ResponseCacheWriteTimeoutMilliseconds.Min && o.ResponseCacheWriteTimeoutMilliseconds <= SettingsBounds.ResponseCacheWriteTimeoutMilliseconds.Max,
         "Weir:DataPlane limits must be non-negative and cache/buffer bounds must be within their supported ranges.")
     .ValidateOnStart();
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Weir:Security"));

@@ -13,6 +13,40 @@ namespace Weir.Tests;
 // on the cache store.
 public class WeirEngineCacheFillTests
 {
+    /// <summary>A store deadline removes single-flight registration without releasing late borrowed memory.</summary>
+    /// <returns>The completed engine lifecycle check.</returns>
+    [Fact]
+    public async Task StoreDeadline_ReleasesFillButKeepsActualPayloadBounded()
+    {
+        var executionGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        executionGate.SetResult();
+        var storeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(executionGate);
+        var cache = new BlockingStoreCache(storeGate);
+        var settings = new FixedSettings(new WeirSystemSettings
+        {
+            ResponseCacheWriteTimeoutMilliseconds = 100, ResponseCacheWriteMaxPendingCount = 1
+        });
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [connector], cache, [], settings);
+        using var first = new MemoryStream();
+        using var second = new MemoryStream();
+        try
+        {
+            await engine.ExecuteAsync(NewInvocation(), first);
+            await WaitUntil(() => engine.DisposedFillCount == 1);
+            Assert.Equal(1, engine.GetCacheStatus().StoreTimeouts);
+            Assert.Equal(1, engine.GetCacheStatus().PendingWrites);
+            Assert.Equal(first.Length, engine.ActiveBufferBytes);
+            await engine.ExecuteAsync(NewInvocation(), second);
+            Assert.Equal(2, connector.Executions);
+            Assert.True(engine.GetCacheStatus().SkippedStores > 0);
+            Assert.Equal(first.Length, engine.ActiveBufferBytes);
+        }
+        finally { storeGate.TrySetResult(); }
+        await WaitUntil(() => engine.ActiveBufferBytes == 0);
+        Assert.Equal(0, engine.GetCacheStatus().PendingWrites);
+    }
+
     /// <summary>A request arriving after purge cannot join an older in-flight generation.</summary>
     /// <returns>The completed single-flight isolation check.</returns>
     [Fact]
@@ -282,9 +316,10 @@ public class WeirEngineCacheFillTests
     }
 
     /// <summary>Runtime settings fixed to defaults.</summary>
-    private sealed class FixedSettings : IRuntimeSettings
+    /// <param name="settings">Optional explicit limits for lifecycle tests.</param>
+    private sealed class FixedSettings(WeirSystemSettings? settings = null) : IRuntimeSettings
     {
-        public WeirSystemSettings Current { get; } = new();
+        public WeirSystemSettings Current { get; } = settings ?? new();
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

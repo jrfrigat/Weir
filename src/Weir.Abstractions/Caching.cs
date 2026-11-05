@@ -27,6 +27,12 @@ public interface IResponseBufferBudget
     /// <param name="bytes">The allocation capacity, including transient copies.</param>
     /// <returns>An idempotent token held through the last awaited consumer.</returns>
     IDisposable Reserve(long bytes);
+
+    /// <summary>Attempts normal admission without treating budget exhaustion as a backend failure.</summary>
+    /// <param name="bytes">Required allocation capacity.</param>
+    /// <param name="reservation">The ownership token when admitted, otherwise null.</param>
+    /// <returns>Whether the allocation was admitted.</returns>
+    bool TryReserve(long bytes, out IDisposable? reservation) { reservation = Reserve(bytes); return true; }
 }
 
 /// <summary>
@@ -126,9 +132,9 @@ public interface IResponseCache
     /// <param name="key">The cache key.</param>
     /// <param name="entry">The complete response bytes and their entity tag.</param>
     /// <param name="ttl">How long the entry stays valid.</param>
-    /// <param name="cancellationToken">Cancellation token. The engine passes <see cref="CancellationToken.None"/>:
-    /// the store outlives the request that produced it, so one client disconnecting must not discard a
-    /// payload every other caller is about to reuse.</param>
+    /// <param name="cancellationToken">Independent store-deadline and shutdown token. A client disconnecting
+    /// does not cancel useful shared storage. Borrowed bytes remain owned until the operation actually
+    /// completes, including when a provider cannot promptly observe this token.</param>
     ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default);
 
     /// <summary>Removes a cached entry.</summary>

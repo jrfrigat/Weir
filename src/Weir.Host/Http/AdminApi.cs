@@ -92,7 +92,7 @@ public static class AdminApi
             IOptions<WeirLoggingOptions> logging,
             IOptions<MtlsOptions> mtls,
             IOptions<WeirCorsOptions> cors,
-            IResponseCache responseCache) =>
+            WeirEngine engine) =>
         {
             var log = logging.Value;
             var tls = mtls.Value;
@@ -100,7 +100,7 @@ public static class AdminApi
             return Results.Ok(new WeirSystemSettingsView
             {
                 Settings = settings.Current,
-                ResponseCache = (responseCache as IResponseCacheDiagnostics)?.GetStatus() ?? new ResponseCacheStatus(),
+                ResponseCache = engine.GetCacheStatus(),
                 MaxRequestBodyBytes = options.Value.MaxRequestBodyBytes,
                 Logging = new WeirLoggingInfo
                 {

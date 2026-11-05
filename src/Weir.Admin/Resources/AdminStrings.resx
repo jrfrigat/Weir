@@ -1881,4 +1881,9 @@
   <data name="Settings_CacheDatabaseLabel" xml:space="preserve"><value>Redis database (-1: connection default)</value></data>
   <data name="Settings_CacheTimeoutLabel" xml:space="preserve"><value>Redis operation timeout (ms)</value></data>
   <data name="Settings_CacheMaximumTtlLabel" xml:space="preserve"><value>Redis maximum TTL (s)</value></data>
+  <data name="Settings_CacheWritesLabel" xml:space="preserve"><value>Background cache writes</value></data>
+  <data name="Settings_CacheWriteCountLabel" xml:space="preserve"><value>Maximum pending writes</value></data>
+  <data name="Settings_CacheWriteBytesLabel" xml:space="preserve"><value>Pending payload budget (bytes)</value></data>
+  <data name="Settings_CacheWriteTimeoutLabel" xml:space="preserve"><value>Store deadline (ms)</value></data>
+  <data name="Settings_CacheWritesHelp" xml:space="preserve"><value>Defaults: 64 unfinished writes, 32 MiB of payload, 1000 ms deadline. Excess stores are skipped while responses continue. A timeout removes the fill registration, but bytes and the slot stay charged until the provider actually finishes. Limits are always positive; raise the pending byte limit too when caching larger entries.</value></data>
 </root>

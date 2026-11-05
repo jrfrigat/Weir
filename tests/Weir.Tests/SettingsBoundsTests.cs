@@ -30,12 +30,25 @@ public class SettingsBoundsTests
         Assert.Equal(nameof(WeirSystemSettings.RequestTimeoutSeconds), violation?.Setting);
     }
 
+    /// <summary>Existing zero opt-outs remain valid while store admission and deadlines stay bounded.</summary>
     [Fact]
-    public void Zero_Is_Accepted_Everywhere()
+    public void Zero_OptOuts_Exclude_AlwaysBounded_Background_Stores()
     {
-        // Zero means "unlimited" or "disabled" on every one of these settings - a supported configuration,
-        // not an accident, so no bound may exclude it.
-        Assert.All(SettingsBounds.All, b => Assert.Equal(0, b.Min));
+        var alwaysBounded = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(WeirSystemSettings.ResponseCacheWriteMaxPendingCount),
+            nameof(WeirSystemSettings.ResponseCacheWriteMaxPendingBytes),
+            nameof(WeirSystemSettings.ResponseCacheWriteTimeoutMilliseconds)
+        };
+        foreach (var bound in SettingsBounds.All)
+        {
+            if (!alwaysBounded.Contains(bound.Setting)) { Assert.Equal(0, bound.Min); continue; }
+            Assert.True(bound.Min > 0);
+            var settings = new WeirSystemSettings();
+            var property = typeof(WeirSystemSettings).GetProperty(bound.Setting)!;
+            property.SetValue(settings, property.PropertyType == typeof(int) ? (object)0 : 0L);
+            Assert.Equal(bound.Setting, SettingsBounds.FirstViolation(settings)?.Setting);
+        }
     }
 
     [Fact]

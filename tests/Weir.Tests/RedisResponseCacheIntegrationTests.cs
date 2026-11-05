@@ -217,6 +217,99 @@ public sealed class RedisResponseCacheIntegrationTests(RedisResponseCacheIntegra
         Assert.Equal("Memory", document.RootElement.GetProperty("responseCache").GetProperty("provider").GetString());
     }
 
+    /// <summary>A paused Redis cannot grow pending stores, and idle recovery fences uncertain invalidations.</summary>
+    /// <returns>The completed fault and recovery check.</returns>
+    [Fact]
+    public async Task PausedRedis_BoundsStores_RetiresIo_AndRecoversBeforeOldHits()
+    {
+        if (!Enabled) return;
+        var settings = new Settings { Current = new WeirSystemSettings
+        {
+            ResponseCacheWriteMaxPendingCount = 1, ResponseCacheWriteMaxPendingBytes = 2 * 1024 * 1024
+        } };
+        var budget = new ResponseBufferBudget(settings);
+        var cache = NewCache("paused-" + Guid.NewGuid().ToString("N"), settings, budget);
+        var initial = await cache.LookupAsync(Key, Scope);
+        await cache.SetIfCurrentAsync(Key, Entry("old"), TimeSpan.FromMinutes(1), initial.Fence!.Value);
+        await fixture.PauseAsync();
+        try
+        {
+            var body = Entry(new string('x', 1024 * 1024));
+            var first = cache.SetIfCurrentAsync(Key + "-pending", body, TimeSpan.FromMinutes(1), initial.Fence.Value).AsTask();
+            await cache.SetIfCurrentAsync(Key + "-refused", body, TimeSpan.FromMinutes(1), initial.Fence.Value);
+            Assert.Equal(1, cache.GetStatus().PendingWrites);
+            Assert.Equal(body.Bytes.Length, cache.GetStatus().PendingWriteBytes);
+            Assert.InRange(budget.Used, body.Bytes.Length, body.Bytes.Length + 144);
+            await first.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(cache.GetStatus().StoreFailures > 0);
+            Assert.True(cache.GetStatus().SkippedStores > 0);
+            Assert.Equal(0, cache.GetStatus().PendingWrites);
+            Assert.Equal(0, budget.Used);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => cache.RemoveByPrefixAsync(Scope).AsTask()).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(cache.GetStatus().InvalidationFailures > 0);
+        }
+        finally { await fixture.UnpauseAsync(); }
+        for (var attempt = 0; attempt < 50 && cache.GetStatus().Available != true; attempt++)
+        {
+            await cache.ProbeAsync();
+            if (cache.GetStatus().Available != true) await Task.Delay(100);
+        }
+        Assert.True(cache.GetStatus().Available);
+        Assert.Null((await cache.LookupAsync(Key, Scope)).Entry);
+        Assert.Equal(0, budget.Used);
+        var recovered = await cache.LookupAsync(Key, Scope);
+        await cache.SetIfCurrentAsync(Key, Entry("recovered"), TimeSpan.FromMinutes(1), recovered.Fence!.Value);
+        using var hit = (await cache.LookupAsync(Key, Scope)).Entry;
+        Assert.NotNull(hit);
+        Assert.Equal("recovered", Encoding.UTF8.GetString(hit.Response.Bytes.Span));
+    }
+
+    /// <summary>Cancellation during stalled metadata I/O stays bounded and releases its actual lookup.</summary>
+    /// <returns>The completed cancellation cleanup check.</returns>
+    [Fact]
+    public async Task PausedLookup_CancellationDoesNotLeakAdmission()
+    {
+        if (!Enabled) return;
+        var settings = new Settings();
+        var budget = new ResponseBufferBudget(settings);
+        var cache = NewCache("cancel-io-" + Guid.NewGuid().ToString("N"), settings, budget);
+        await cache.LookupAsync(Key, Scope);
+        await fixture.PauseAsync();
+        try
+        {
+            using var cancellation = new CancellationTokenSource();
+            var lookup = cache.LookupAsync(Key, Scope, cancellation.Token).AsTask();
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lookup).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(0, budget.Used);
+        }
+        finally { await fixture.UnpauseAsync(); }
+    }
+
+    /// <summary>Concurrent initialization waiters cannot republish a retired connection attempt.</summary>
+    /// <returns>The completed retirement race check.</returns>
+    [Fact]
+    public async Task ConcurrentInitialization_AlwaysJoinsCurrentReplacement()
+    {
+        if (!Enabled) return;
+        var options = Options.Create(new RedisResponseCacheOptions
+        {
+            ConnectionString = fixture.Connection.Configuration, Namespace = "connection-race"
+        });
+        await using var owner = new RedisResponseCacheConnection(options);
+        for (var iteration = 0; iteration < 20; iteration++)
+        {
+            var waiters = Enumerable.Range(0, 32).Select(_ => owner.GetAsync()).ToArray();
+            var old = await waiters[0];
+            await owner.RetireAsync(old);
+            await Task.WhenAll(waiters);
+            var replacement = await owner.GetAsync();
+            Assert.NotSame(old, replacement);
+            Assert.True(replacement.IsConnected);
+            Assert.Same(replacement, await owner.GetAsync());
+        }
+    }
+
     /// <summary>Signs in only to the isolated factory and reads its settings view.</summary>
     /// <param name="client">The disposable host client.</param>
     /// <returns>The secret-free settings JSON.</returns>
@@ -247,11 +340,16 @@ public sealed class RedisResponseCacheIntegrationTests(RedisResponseCacheIntegra
     /// <param name="settings">Live application policy.</param>
     /// <param name="budget">Shared active admission.</param>
     /// <returns>The provider, which does not own the fixture connection.</returns>
-    private RedisResponseCache NewCache(string identity, Settings settings, ResponseBufferBudget budget) =>
-        new(fixture.Connection, Options.Create(new RedisResponseCacheOptions
+    private RedisResponseCache NewCache(string identity, Settings settings, ResponseBufferBudget budget)
+    {
+        var options = Options.Create(new RedisResponseCacheOptions
         {
             ConnectionString = fixture.Connection.Configuration, Namespace = identity
-        }), settings, budget, NullLogger<RedisResponseCache>.Instance);
+        });
+        var connection = new RedisResponseCacheConnection(options);
+        fixture.Own(connection);
+        return new RedisResponseCache(connection, options, settings, budget, NullLogger<RedisResponseCache>.Instance);
+    }
 
     /// <summary>Builds an immutable body with the actual engine's strong validator.</summary>
     /// <param name="text">The test body.</param>
@@ -346,6 +444,17 @@ public sealed class RedisResponseCacheIntegrationTests(RedisResponseCacheIntegra
     {
         /// <summary>The disposable container, absent when integration checks are disabled.</summary>
         private IContainer? _container;
+        /// <summary>Dedicated provider connections disposed after their tests.</summary>
+        private readonly List<RedisResponseCacheConnection> _owned = [];
+        /// <summary>Tracks one provider's independently owned connection.</summary>
+        /// <param name="connection">The test connection owner.</param>
+        internal void Own(RedisResponseCacheConnection connection) => _owned.Add(connection);
+        /// <summary>Pauses only this disposable Redis server.</summary>
+        /// <returns>The Docker pause completion.</returns>
+        internal Task PauseAsync() => _container!.PauseAsync();
+        /// <summary>Restores only this disposable Redis server.</summary>
+        /// <returns>The Docker resume completion.</returns>
+        internal Task UnpauseAsync() => _container!.UnpauseAsync();
         /// <summary>The connection shared only by this fixture's providers.</summary>
         public ConnectionMultiplexer Connection { get; private set; } = null!;
         /// <inheritdoc />
@@ -365,6 +474,7 @@ public sealed class RedisResponseCacheIntegrationTests(RedisResponseCacheIntegra
         /// <inheritdoc />
         public async Task DisposeAsync()
         {
+            foreach (var connection in _owned) await connection.DisposeAsync();
             if (Connection is not null) await Connection.DisposeAsync();
             if (_container is not null) await _container.DisposeAsync();
         }

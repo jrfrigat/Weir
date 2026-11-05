@@ -29,6 +29,8 @@ public sealed record ResponseCacheStatus
     public long LookupFailures { get; init; }
     /// <summary>Failed backend stores since startup.</summary>
     public long StoreFailures { get; init; }
+    /// <summary>Store deadlines exceeded, including operations still holding bounded ownership.</summary>
+    public long StoreTimeouts { get; init; }
     /// <summary>Invalidations whose completion could not be confirmed.</summary>
     public long InvalidationFailures { get; init; }
     /// <summary>Rejected or skipped stores since startup.</summary>

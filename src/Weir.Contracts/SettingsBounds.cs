@@ -93,6 +93,18 @@ public static class SettingsBounds
     public static Bound BufferedResponseMaxBytes { get; } =
         new(nameof(WeirSystemSettings.BufferedResponseMaxBytes), 0, 1_099_511_627_776, s => s.BufferedResponseMaxBytes);
 
+    /// <summary>Range for unfinished cache-store count; this metadata bound is always enabled.</summary>
+    public static Bound ResponseCacheWriteMaxPendingCount { get; } =
+        new(nameof(WeirSystemSettings.ResponseCacheWriteMaxPendingCount), 1, 4096, s => s.ResponseCacheWriteMaxPendingCount);
+
+    /// <summary>Range for pending cache-store payload bytes; admission is always bounded.</summary>
+    public static Bound ResponseCacheWriteMaxPendingBytes { get; } =
+        new(nameof(WeirSystemSettings.ResponseCacheWriteMaxPendingBytes), 1, 1_099_511_627_776, s => s.ResponseCacheWriteMaxPendingBytes);
+
+    /// <summary>Range for the independent background store deadline.</summary>
+    public static Bound ResponseCacheWriteTimeoutMilliseconds { get; } =
+        new(nameof(WeirSystemSettings.ResponseCacheWriteTimeoutMilliseconds), 100, 30_000, s => s.ResponseCacheWriteTimeoutMilliseconds);
+
     /// <summary>
     /// Range for <see cref="WeirSystemSettings.ResponseFlushBytes"/>: up to one mebibyte. The value that
     /// actually matters here is the 85 KB large-object threshold, which the admin form warns about; this
@@ -129,6 +141,9 @@ public static class SettingsBounds
         ResponseCacheMaxEntries,
         ActiveResponseBufferMaxBytes,
         BufferedResponseMaxBytes,
+        ResponseCacheWriteMaxPendingCount,
+        ResponseCacheWriteMaxPendingBytes,
+        ResponseCacheWriteTimeoutMilliseconds,
         ResponseFlushBytes,
         MaxBinaryBytes,
     ];

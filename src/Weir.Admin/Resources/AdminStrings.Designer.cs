@@ -5505,5 +5505,40 @@ namespace Weir.Admin.Resources {
             }
         }
 
+        /// <summary>Gets the localized Settings_CacheWritesLabel string.</summary>
+        public static string Settings_CacheWritesLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheWritesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheWriteCountLabel string.</summary>
+        public static string Settings_CacheWriteCountLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheWriteCountLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheWriteBytesLabel string.</summary>
+        public static string Settings_CacheWriteBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheWriteBytesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheWriteTimeoutLabel string.</summary>
+        public static string Settings_CacheWriteTimeoutLabel {
+            get {
+                return ResourceManager.GetString("Settings_CacheWriteTimeoutLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_CacheWritesHelp string.</summary>
+        public static string Settings_CacheWritesHelp {
+            get {
+                return ResourceManager.GetString("Settings_CacheWritesHelp", resourceCulture);
+            }
+        }
+
     }
 }

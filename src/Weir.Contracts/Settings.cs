@@ -120,6 +120,15 @@ public sealed record WeirSystemSettings
     /// <summary>Maximum logical size of one buffered response; zero disables the bound. Streaming responses are unaffected.</summary>
     public long BufferedResponseMaxBytes { get; init; } = 134_217_728;
 
+    /// <summary>Maximum unfinished background cache stores; excess stores are skipped without delaying responses.</summary>
+    public int ResponseCacheWriteMaxPendingCount { get; init; } = 64;
+
+    /// <summary>Maximum payload bytes retained by unfinished cache stores, separate from active-buffer admission.</summary>
+    public long ResponseCacheWriteMaxPendingBytes { get; init; } = 33_554_432;
+
+    /// <summary>Independent store deadline; ownership remains charged until the provider actually finishes.</summary>
+    public int ResponseCacheWriteTimeoutMilliseconds { get; init; } = 1000;
+
     /// <summary>
     /// How response bodies reach callers by default. An endpoint can override it (see
     /// <c>DeliveryPolicy.Mode</c>), and one that caches or captures its result buffers regardless -

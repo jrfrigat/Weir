@@ -41,7 +41,8 @@ public class RuntimeSettingsTests : IDisposable
         var settings = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions
         {
             MaxRows = 5, MaxTvpRows = 7, ResponseCacheMaxEntryBytes = 4096, ResponseCacheMaxEntries = 123,
-            ActiveResponseBufferMaxBytes = 1048576, BufferedResponseMaxBytes = 524288
+            ActiveResponseBufferMaxBytes = 1048576, BufferedResponseMaxBytes = 524288,
+            ResponseCacheWriteMaxPendingCount = 11, ResponseCacheWriteMaxPendingBytes = 1024, ResponseCacheWriteTimeoutMilliseconds = 333
         }));
         await settings.InitializeAsync();
 
@@ -51,6 +52,9 @@ public class RuntimeSettingsTests : IDisposable
         Assert.Equal(123, settings.Current.ResponseCacheMaxEntries);
         Assert.Equal(1048576, settings.Current.ActiveResponseBufferMaxBytes);
         Assert.Equal(524288, settings.Current.BufferedResponseMaxBytes);
+        Assert.Equal(11, settings.Current.ResponseCacheWriteMaxPendingCount);
+        Assert.Equal(1024, settings.Current.ResponseCacheWriteMaxPendingBytes);
+        Assert.Equal(333, settings.Current.ResponseCacheWriteTimeoutMilliseconds);
     }
 
     [Fact]
@@ -64,7 +68,8 @@ public class RuntimeSettingsTests : IDisposable
         await first.UpdateAsync(new WeirSystemSettings
         {
             MaxRows = 9, RequestTimeoutSeconds = 12, ResponseCacheMaxEntryBytes = 8192, ResponseCacheMaxEntries = 456,
-            ActiveResponseBufferMaxBytes = 2097152, BufferedResponseMaxBytes = 1048576
+            ActiveResponseBufferMaxBytes = 2097152, BufferedResponseMaxBytes = 1048576,
+            ResponseCacheWriteMaxPendingCount = 22, ResponseCacheWriteMaxPendingBytes = 2048, ResponseCacheWriteTimeoutMilliseconds = 444
         });
         Assert.Equal(9, first.Current.MaxRows);
 
@@ -77,6 +82,9 @@ public class RuntimeSettingsTests : IDisposable
         Assert.Equal(456, second.Current.ResponseCacheMaxEntries);
         Assert.Equal(2097152, second.Current.ActiveResponseBufferMaxBytes);
         Assert.Equal(1048576, second.Current.BufferedResponseMaxBytes);
+        Assert.Equal(22, second.Current.ResponseCacheWriteMaxPendingCount);
+        Assert.Equal(2048, second.Current.ResponseCacheWriteMaxPendingBytes);
+        Assert.Equal(444, second.Current.ResponseCacheWriteTimeoutMilliseconds);
     }
 
     /// <summary>Old persisted settings gain safe cache bounds without a database migration.</summary>
@@ -93,6 +101,9 @@ public class RuntimeSettingsTests : IDisposable
         Assert.Equal(10_000, settings.Current.ResponseCacheMaxEntries);
         Assert.Equal(268_435_456, settings.Current.ActiveResponseBufferMaxBytes);
         Assert.Equal(134_217_728, settings.Current.BufferedResponseMaxBytes);
+        Assert.Equal(64, settings.Current.ResponseCacheWriteMaxPendingCount);
+        Assert.Equal(33_554_432, settings.Current.ResponseCacheWriteMaxPendingBytes);
+        Assert.Equal(1000, settings.Current.ResponseCacheWriteTimeoutMilliseconds);
     }
 
     [Fact]

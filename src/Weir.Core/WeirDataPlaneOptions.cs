@@ -93,6 +93,15 @@ public sealed class WeirDataPlaneOptions
     /// <summary>Maximum buffered body size; seeds the runtime setting. Zero disables the bound.</summary>
     public long BufferedResponseMaxBytes { get; set; } = 134_217_728;
 
+    /// <summary>Maximum unfinished cache stores; seeds the live count bound.</summary>
+    public int ResponseCacheWriteMaxPendingCount { get; set; } = 64;
+
+    /// <summary>Maximum unfinished cache-store payload bytes; seeds the live byte bound.</summary>
+    public long ResponseCacheWriteMaxPendingBytes { get; set; } = 33_554_432;
+
+    /// <summary>Independent store deadline; seeds the live timeout in milliseconds.</summary>
+    public int ResponseCacheWriteTimeoutMilliseconds { get; set; } = 1000;
+
     /// <summary>
     /// Maximum source bytes emitted from a binary (BLOB) column in a data-plane response.
     /// Zero means unlimited. Runtime-tunable; seeds

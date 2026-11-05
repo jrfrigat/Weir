@@ -176,6 +176,9 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 | ResponseCacheMaxEntries | `10000` | Maximum local entry count, bounding metadata even for empty or tiny responses. Zero disables this bound. |
 | ActiveResponseBufferMaxBytes | `268435456` | Shared budget for active Full/cache-fill pooled blocks and owned payload copies (256 MiB). Reserved before allocation, released after all awaited consumers and cache stores finish. Zero disables this bound. |
 | BufferedResponseMaxBytes | `134217728` | Maximum logical size of one buffered response (128 MiB). Exceeding it returns 503 before sending a body. Direct streaming is unaffected. Zero disables this bound. |
+| ResponseCacheWriteMaxPendingCount | `64` | Maximum actual unfinished background stores, including stores past their orchestration deadline. Range 1-4096. Excess stores are skipped without delaying delivery. |
+| ResponseCacheWriteMaxPendingBytes | `33554432` | Maximum source payload bytes retained by those stores (32 MiB). Always positive. Raise this too when admitting larger cache entries. |
+| ResponseCacheWriteTimeoutMilliseconds | `1000` | Independent store deadline, 100-30000 ms. The fill registration ends at this deadline; actual bytes and admission remain held until the provider really finishes. |
 
 Keys longer than 1024 characters and ETags longer than 128 characters are not admitted. The payload
 budget is not a total process memory limit. Active buffers and retained pool capacity need separate
@@ -253,6 +256,21 @@ until a recovery namespace purge succeeds. Coalescing is per gateway process. Re
 bytes across instances and does not provide distributed single-flight. The portable Compose file
 does not add a mandatory Redis service.
 
+Background stores have count and byte admission before provider invocation, with no unbounded queue.
+Client cancellation does not cancel a useful shared fill/store. A store deadline releases the local
+single-flight registration, while its payload and slot remain charged until actual completion. A custom
+provider that ignores cancellation can retain only the admitted tail; it must finish its operation to
+release that ownership. Host shutdown cancels stores and allows a bounded drain. Timeout/failure/skip
+counters and pending count/bytes are exposed in the secret-free cache status.
+
+The Redis provider also bounds direct writes and actual metadata lookups (128 concurrent lookup jobs),
+backs off data calls for one second after backend failure, and probes health/recovery every five
+seconds even without clients. A Redis I/O timeout retires the dedicated connection before releasing
+uncertain command ownership; at most one replacement connection is initialized. Merely timing out a
+`WaitAsync` does not remove buffered commands, so retaining/releasing memory solely from that wait
+would be unsafe. The rate limiter uses its own connection. Use the existing per-data-connection
+concurrency bulkhead and request timeout to limit database work during a cache outage.
+
 Custom hosts can reference `FrigaT.Weir.Caching.Redis`, bind `RedisResponseCacheOptions`, and call
 `AddWeirRedisResponseCache()` after `AddWeirCore()`. The provider itself depends only on
 Contracts/Abstractions and the driver; it consumes `IResponseCacheSettings` and `IResponseBufferBudget`.
@@ -263,7 +281,8 @@ Contracts/Abstractions and the driver; it consumes `IResponseCacheSettings` and 
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
 `ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` and
 `ResponseCacheMaxBytes`, `ResponseCacheMaxEntryBytes`, `ResponseCacheMaxEntries`,
-`ActiveResponseBufferMaxBytes` and `BufferedResponseMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /
+`ActiveResponseBufferMaxBytes`, `BufferedResponseMaxBytes`, `ResponseCacheWriteMaxPendingCount`,
+`ResponseCacheWriteMaxPendingBytes` and `ResponseCacheWriteTimeoutMilliseconds` are editable at runtime from the admin **Settings** screen (or `GET` /
 `PUT /admin/api/settings`, Admin role, audited).
 The edited values are stored in the control plane, so they survive restarts and reach every instance
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.IO;
+using Microsoft.Extensions.Logging;
 using Weir.Abstractions;
 using Weir.Contracts;
 
@@ -60,7 +61,7 @@ public readonly record struct WeirResponseControl
 /// The data-plane engine: binds parameters, serves or fills the response cache, executes the target
 /// object through the matching connector, streams the JSON envelope, and notifies call observers.
 /// </summary>
-public sealed class WeirEngine : IDisposable
+public sealed class WeirEngine : IDisposable, IAsyncDisposable
 {
     /// <summary>Shared JSON writer options; validation is skipped since the writer emits well-formed output.</summary>
     private static readonly JsonWriterOptions WriterOptions = new() { SkipValidation = true };
@@ -91,6 +92,12 @@ public sealed class WeirEngine : IDisposable
 
     /// <summary>Bounds active pooled storage and independently owned cache-fill copies.</summary>
     private readonly ResponseBufferBudget _bufferBudget;
+
+    /// <summary>Bounds unfinished cache stores and retains their payloads through actual completion.</summary>
+    private readonly ResponseCacheStoreCoordinator _stores;
+
+    /// <summary>Whether the singleton has stopped accepting new calls.</summary>
+    private int _disposeRequested;
 
     /// <summary>The active buffer reservation total, excluding stored cache payloads and free pools.</summary>
     internal long ActiveBufferBytes => _bufferBudget.Used;
@@ -165,6 +172,20 @@ public sealed class WeirEngine : IDisposable
         IEnumerable<IWeirCallObserver> observers,
         IRuntimeSettings settings,
         ResponseBufferBudget? bufferBudget)
+        : this(binder, registry, connectors, cache, observers, settings, bufferBudget, null) { }
+
+    /// <summary>Creates the engine with shared admission and safe cache-store diagnostics.</summary>
+    /// <param name="binder">Parameter binder.</param>
+    /// <param name="registry">Data-connection registry.</param>
+    /// <param name="connectors">Registered database connectors.</param>
+    /// <param name="cache">Response-cache provider.</param>
+    /// <param name="observers">Call observers.</param>
+    /// <param name="settings">Live runtime settings.</param>
+    /// <param name="bufferBudget">Shared active-buffer admission.</param>
+    /// <param name="logger">Optional safe engine diagnostics.</param>
+    public WeirEngine(IParameterBinder binder, IDataConnectionRegistry registry, IEnumerable<IDbConnector> connectors,
+        IResponseCache cache, IEnumerable<IWeirCallObserver> observers, IRuntimeSettings settings,
+        ResponseBufferBudget? bufferBudget, ILogger<WeirEngine>? logger)
     {
         ArgumentNullException.ThrowIfNull(settings);
         _binder = binder;
@@ -175,6 +196,7 @@ public sealed class WeirEngine : IDisposable
         _connectors = connectors.ToDictionary(c => c.ProviderName, StringComparer.OrdinalIgnoreCase);
         _settings = settings;
         _bufferBudget = bufferBudget ?? ResponseBufferBudget.Shared(settings);
+        _stores = new ResponseCacheStoreCoordinator(cache, settings, logger);
     }
 
     /// <summary>
@@ -209,6 +231,7 @@ public sealed class WeirEngine : IDisposable
     {
         ArgumentNullException.ThrowIfNull(invocation);
         ArgumentNullException.ThrowIfNull(output);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
 
         var endpoint = invocation.Endpoint;
         var descriptor = _registry.Resolve(endpoint.ConnectionName);
@@ -549,7 +572,7 @@ public sealed class WeirEngine : IDisposable
     /// <param name="endpoint">The endpoint being called.</param>
     /// <param name="maxRows">The row cap.</param>
     /// <param name="cacheFence">The provider generation captured before the query began.</param>
-    /// <returns>A task that completes once the fill has been published and stored.</returns>
+    /// <returns>A task that completes once the fill is published and its store completes or reaches its deadline.</returns>
     private async Task RunFillAsync(
         string key,
         string fillKey,
@@ -576,10 +599,10 @@ public sealed class WeirEngine : IDisposable
             {
                 try
                 {
-                    // CancellationToken.None on purpose: the entry outlives the request that produced it,
-                    // so a client giving up must not throw away a payload others are already waiting on.
+                    // The coordinator's deadline/shutdown token is independent of every client. Its
+                    // retained owner survives orchestration timeout until the provider actually finishes.
                     await StoreResponseAsync(key, new CachedResponse(filled.Payload, etag),
-                        TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cacheFence);
+                        TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cacheFence, filled);
                 }
                 catch (Exception)
                 {
@@ -594,8 +617,8 @@ public sealed class WeirEngine : IDisposable
         }
         finally
         {
-            // Held until the store lands, so a caller arriving in that window still joins the fill instead
-            // of missing both it and the cache.
+            // Held until store completion or deadline. Actual late provider ownership remains bounded
+            // in the coordinator even after this registration is removed.
             Release(fillKey, fill);
         }
     }
@@ -689,9 +712,8 @@ public sealed class WeirEngine : IDisposable
         {
             try
             {
-                // CancellationToken.None on purpose: the entry outlives the request that produced it, so
-                // that client giving up must not throw away a payload others are already waiting on.
-                await StoreResponseAsync(key, entry, ttl, cacheFence);
+                // This background store has its own deadline and does not follow client cancellation.
+                await StoreResponseAsync(key, entry, ttl, cacheFence, owner);
             }
             catch (Exception)
             {
@@ -711,11 +733,10 @@ public sealed class WeirEngine : IDisposable
     /// <param name="entry">Complete bytes retained through this await.</param>
     /// <param name="ttl">Maximum cache lifetime.</param>
     /// <param name="fence">The captured invalidation generation.</param>
+    /// <param name="owner">Body ownership retained through actual provider completion.</param>
     /// <returns>The provider's completed or refused publication.</returns>
-    private ValueTask StoreResponseAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence? fence) =>
-        _versionedCache is { } cache
-            ? fence is { } current ? cache.SetIfCurrentAsync(key, entry, ttl, current, CancellationToken.None) : ValueTask.CompletedTask
-            : _cache.SetAsync(key, entry, ttl, CancellationToken.None);
+    private Task StoreResponseAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence? fence, FilledResponse owner) =>
+        _stores.StoreAsync(key, entry, ttl, fence, owner);
 
     /// <summary>
     /// Removes an in-flight registration, but only if it is still the one this call owns, so a fill that
@@ -956,7 +977,7 @@ public sealed class WeirEngine : IDisposable
     /// <param name="budgetLease">Reservation retained through asynchronous consumers.</param>
     private sealed class FilledResponse(
         ReadOnlyMemory<byte> payload, string? etag, bool truncated, int rowCount, double dbDurationMs,
-        IDisposable budgetLease) : IDisposable
+        IDisposable budgetLease) : IResponsePayloadOwner
     {
         /// <summary>The body, cleared when no asynchronous consumer still owns it.</summary>
         public ReadOnlyMemory<byte> Payload { get; private set; } = payload;
@@ -972,7 +993,7 @@ public sealed class WeirEngine : IDisposable
         private int _references = 1;
 
         /// <summary>Retains the single shared allocation without charging its bytes again.</summary>
-        internal void Retain() => Interlocked.Increment(ref _references);
+        public void Retain() => Interlocked.Increment(ref _references);
 
         /// <inheritdoc />
         public void Dispose()
@@ -1119,7 +1140,25 @@ public sealed class WeirEngine : IDisposable
         tag.StartsWith("W/", StringComparison.Ordinal) ? tag[2..] : tag;
 
     /// <summary>Disposes the per-connection guards (their bulkhead semaphores).</summary>
-    public void Dispose() => _guards.Dispose();
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposeRequested, 1) != 0) return;
+        _stores.Dispose();
+        _guards.Dispose();
+    }
+
+    /// <summary>Stops new work and allows bounded cooperative cache-store cleanup on host shutdown.</summary>
+    /// <returns>The bounded cleanup wait.</returns>
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await _stores.DisposeAsync();
+    }
+
+    /// <summary>Returns secret-free provider state including bounded pending store ownership.</summary>
+    /// <returns>The combined cache and store snapshot.</returns>
+    public ResponseCacheStatus GetCacheStatus() =>
+        _stores.GetStatus((_cache as IResponseCacheDiagnostics)?.GetStatus() ?? new ResponseCacheStatus());
 
     private static void Finish(WeirCallContext context) =>
         context.DurationMs = Stopwatch.GetElapsedTime(context.StartTimestamp).TotalMilliseconds;

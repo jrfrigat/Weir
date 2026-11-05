@@ -117,6 +117,13 @@ public sealed class ResponseBufferBudget(IRuntimeSettings settings) : IResponseB
     /// <inheritdoc />
     IDisposable IResponseBufferBudget.Reserve(long bytes) => Reserve(bytes);
 
+    /// <inheritdoc />
+    bool IResponseBufferBudget.TryReserve(long bytes, out IDisposable? reservation)
+    {
+        try { reservation = Reserve(bytes); return true; }
+        catch (WeirBufferCapacityException) { reservation = null; return false; }
+    }
+
     /// <summary>Checks and records an increase against the current global bound.</summary>
     /// <param name="bytes">Additional bytes.</param>
     private void Add(long bytes)

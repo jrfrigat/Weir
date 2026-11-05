@@ -56,10 +56,8 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         return 0
         """;
 
-    /// <summary>The dedicated reusable connection, owned by its composition root.</summary>
-    private readonly IConnectionMultiplexer _redis;
-    /// <summary>The logical Redis database.</summary>
-    private readonly IDatabase _database;
+    /// <summary>The dedicated connection owner that can retire uncertain I/O.</summary>
+    private readonly RedisResponseCacheConnection _connection;
     /// <summary>Restart-required safe and secret options; only safe fields are exposed.</summary>
     private readonly RedisResponseCacheOptions _options;
     /// <summary>Live entry-size policy without a dependency on Core.</summary>
@@ -99,23 +97,31 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
     /// <summary>Whether one lookup is already trying recovery.</summary>
     private bool _recovering;
 
+    /// <summary>Caps actual metadata lookup jobs, including their bounded cancellation cleanup.</summary>
+    private const int MaximumConcurrentLookups = 128;
+    /// <summary>Serializes read/write admission without queuing callers.</summary>
+    private readonly Lock _admissionGate = new();
+    /// <summary>Metadata lookups whose actual I/O has not completed.</summary>
+    private int _activeLookups;
+    /// <summary>Earliest UTC tick at which data calls retry a failed backend.</summary>
+    private long _retryAt;
+
     /// <summary>Creates a provider over a connection whose lifetime belongs to its caller.</summary>
-    /// <param name="redis">Dedicated reusable Redis connection.</param>
+    /// <param name="connection">Dedicated reusable connection owner.</param>
     /// <param name="options">Validated startup configuration.</param>
     /// <param name="settings">Live response-cache policy.</param>
     /// <param name="budget">Shared active allocation admission.</param>
     /// <param name="logger">Safe backend diagnostics.</param>
-    public RedisResponseCache(IConnectionMultiplexer redis, IOptions<RedisResponseCacheOptions> options,
+    public RedisResponseCache(RedisResponseCacheConnection connection, IOptions<RedisResponseCacheOptions> options,
         IResponseCacheSettings settings, IResponseBufferBudget budget, ILogger<RedisResponseCache> logger)
     {
-        ArgumentNullException.ThrowIfNull(redis);
+        ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(budget);
         ArgumentNullException.ThrowIfNull(logger);
         if (!options.Value.IsValid()) throw new ArgumentException("Invalid Redis response-cache options.", nameof(options));
-        _redis = redis;
-        _database = redis.GetDatabase(options.Value.Database);
+        _connection = connection;
         _options = options.Value;
         _settings = settings;
         _budget = budget;
@@ -130,14 +136,18 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
     {
         ValidateScope(key, scopePrefix);
         cancellationToken.ThrowIfCancellationRequested();
+        if (DateTimeOffset.UtcNow.UtcTicks < Interlocked.Read(ref _retryAt)) return default;
+        lock (_admissionGate) { if (_activeLookups >= MaximumConcurrentLookups) return default; _activeLookups++; }
         Lease<byte>? payload = null;
         IDisposable? admission = null;
         try
         {
-            if (!await EnsureRecoveredAsync(cancellationToken)) return default;
+            var connection = await _connection.GetAsync();
+            var database = connection.GetDatabase(_options.Database);
+            if (!await EnsureRecoveredAsync(database, connection, cancellationToken)) return default;
             var index = IndexKey(key);
-            var raw = await _database.ScriptEvaluateAsync(LookupScript, [_globalKey, RouteKey(scopePrefix), index],
-                [NewGeneration(), NewGeneration(), _epochMilliseconds]);
+            var raw = await AwaitRedisAsync(database.ScriptEvaluateAsync(LookupScript, [_globalKey, RouteKey(scopePrefix), index],
+                [NewGeneration(), NewGeneration(), _epochMilliseconds]), connection);
             cancellationToken.ThrowIfCancellationRequested();
             var metadata = (RedisResult[]?)raw;
             if (metadata is null || metadata.Length != 3) throw new InvalidDataException("Invalid cache metadata.");
@@ -149,29 +159,29 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
             if (string.IsNullOrEmpty(pointer)) { Succeeded(); return new(null, fence); }
             if (!TryParsePointer(pointer, out var snapshot, out var length) || !AdmitsPacked(length))
             {
-                await RepairAsync(index, pointer);
+                await RepairAsync(database, connection, index, pointer);
                 return new(null, fence);
             }
             var payloadKey = PayloadKey(snapshot);
             // The unique snapshot key is immutable. Verify corrupt pointer lengths before renting the
             // full value, then reserve before GET; its size cannot change through this provider.
-            var actual = await _database.StringLengthAsync(payloadKey);
+            var actual = await AwaitRedisAsync(database.StringLengthAsync(payloadKey), connection);
             if (actual != length)
             {
-                await RepairAsync(index, pointer);
+                await RepairAsync(database, connection, index, pointer);
                 return new(null, fence);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            admission = _budget.Reserve(length);
-            payload = await _database.StringGetLeaseAsync(payloadKey);
+            if (!_budget.TryReserve(length, out admission)) return default;
+            payload = await AwaitRedisAsync(database.StringGetLeaseAsync(payloadKey), connection);
             cancellationToken.ThrowIfCancellationRequested();
             if (payload is null) { Succeeded(); return new(null, fence); }
             if (payload.Length != length || !TryReadFrame(payload.Memory, out var response))
             {
-                await RepairAsync(index, pointer);
+                await RepairAsync(database, connection, index, pointer);
                 return new(null, fence);
             }
-            var lease = new CachedResponseLease(response, new ReadOwner(payload, admission));
+            var lease = new CachedResponseLease(response, new ReadOwner(payload, admission!));
             payload = null;
             admission = null;
             Succeeded();
@@ -184,7 +194,11 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
             cancellationToken.ThrowIfCancellationRequested();
             return default;
         }
-        finally { try { payload?.Dispose(); } finally { admission?.Dispose(); } }
+        finally
+        {
+            try { try { payload?.Dispose(); } finally { admission?.Dispose(); } }
+            finally { lock (_admissionGate) _activeLookups--; }
+        }
     }
 
     /// <inheritdoc />
@@ -199,20 +213,31 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         { Interlocked.Increment(ref _skippedStores); return; }
         if (Interlocked.Read(ref _invalidationFaults) != Interlocked.Read(ref _recoveredFault))
         { Interlocked.Increment(ref _skippedStores); return; }
-        var header = MakeHeader(entry);
-        var packedLength = checked(header.Length + entry.Bytes.Length);
-        // Account a possible driver/network copy beside the fill's owned source, before submitting it.
-        using var admission = _budget.Reserve(packedLength);
-        Interlocked.Increment(ref _pendingWrites);
-        Interlocked.Add(ref _pendingBytes, packedLength);
+        var settings = _settings.Current;
+        lock (_admissionGate)
+        {
+            if (DateTimeOffset.UtcNow.UtcTicks < Interlocked.Read(ref _retryAt) ||
+                _pendingWrites >= settings.ResponseCacheWriteMaxPendingCount ||
+                entry.Bytes.Length > settings.ResponseCacheWriteMaxPendingBytes - _pendingBytes)
+            { Interlocked.Increment(ref _skippedStores); return; }
+            _pendingWrites++;
+            _pendingBytes += entry.Bytes.Length;
+        }
         try
         {
+            var header = MakeHeader(entry);
+            var packedLength = checked(header.Length + entry.Bytes.Length);
+            // Reserve possible driver/network storage beside the source before command submission.
+            if (!_budget.TryReserve(packedLength, out var reserved)) { Interlocked.Increment(ref _skippedStores); return; }
+            using var admission = reserved;
+            var connection = await _connection.GetAsync();
+            var database = connection.GetDatabase(_options.Database);
             var snapshot = NewGeneration();
             var pointer = string.Concat(fence.Version, snapshot, ":", packedLength.ToString(CultureInfo.InvariantCulture));
             var ttlMs = Math.Max(1, Math.Min((long)Math.Ceiling(ttl.TotalMilliseconds), (long)_options.MaximumTtlSeconds * 1000));
-            var stored = (long)await _database.ScriptEvaluateAsync(StoreScript,
+            var stored = (long)await AwaitRedisAsync(database.ScriptEvaluateAsync(StoreScript,
                 [_globalKey, RouteKey(fence.ScopePrefix), IndexKey(key), PayloadKey(snapshot)],
-                [fence.Version[..32], fence.Version[32..], header, entry.Bytes, ttlMs, pointer, _epochMilliseconds]);
+                [fence.Version[..32], fence.Version[32..], header, entry.Bytes, ttlMs, pointer, _epochMilliseconds]), connection);
             if (stored == 0) Interlocked.Increment(ref _skippedStores);
             Succeeded();
         }
@@ -224,8 +249,7 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         }
         finally
         {
-            Interlocked.Decrement(ref _pendingWrites);
-            Interlocked.Add(ref _pendingBytes, -packedLength);
+            lock (_admissionGate) { _pendingWrites--; _pendingBytes -= entry.Bytes.Length; }
         }
     }
 
@@ -269,7 +293,7 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         Provider = "Redis", Namespace = _options.Namespace,
         Database = _options.Database, OperationTimeoutMilliseconds = _options.OperationTimeoutMilliseconds,
         MaximumTtlSeconds = _options.MaximumTtlSeconds,
-        Available = _redis.IsConnected && Volatile.Read(ref _available) != 0 &&
+        Available = _connection.IsConnected && Volatile.Read(ref _available) != 0 &&
             Interlocked.Read(ref _invalidationFaults) == Interlocked.Read(ref _recoveredFault),
         LocalPayloadBytes = 0, LocalEntryCount = 0, MaxEntryBytes = _settings.Current.ResponseCacheMaxEntryBytes,
         LookupFailures = Interlocked.Read(ref _lookupFailures), StoreFailures = Interlocked.Read(ref _storeFailures),
@@ -277,6 +301,45 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         CorruptEntries = Interlocked.Read(ref _corruptEntries), PendingWrites = Volatile.Read(ref _pendingWrites),
         PendingWriteBytes = Interlocked.Read(ref _pendingBytes)
     };
+
+    /// <summary>Checks idle availability and confirms pending invalidation recovery without data clients.</summary>
+    /// <param name="cancellationToken">Host shutdown.</param>
+    /// <returns>The bounded backend probe.</returns>
+    public async ValueTask ProbeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var connection = await _connection.GetAsync();
+            var database = connection.GetDatabase(_options.Database);
+            if (!await EnsureRecoveredAsync(database, connection, cancellationToken)) return;
+            await AwaitRedisAsync(database.PingAsync(), connection);
+            cancellationToken.ThrowIfCancellationRequested();
+            Succeeded();
+        }
+        catch (Exception ex) when (IsBackendFault(ex)) { Failed("health"); }
+    }
+
+    /// <summary>Bounds a Redis command and retires its owned socket before releasing uncertain I/O.</summary>
+    /// <typeparam name="T">The driver's result type.</typeparam>
+    /// <param name="actual">The actual driver operation, never abandoned unobserved.</param>
+    /// <param name="connection">The dedicated connection used by that operation.</param>
+    /// <returns>The result whose ownership is transferred to its caller.</returns>
+    private async Task<T> AwaitRedisAsync<T>(Task<T> actual, ConnectionMultiplexer connection)
+    {
+        try { return await actual.WaitAsync(TimeSpan.FromMilliseconds(_options.OperationTimeoutMilliseconds)); }
+        catch (Exception ex) when (ex is TimeoutException or RedisConnectionException)
+        {
+            await _connection.RetireAsync(connection);
+            try
+            {
+                var late = await actual;
+                if (late is IDisposable owner) owner.Dispose();
+            }
+            catch (Exception) { }
+            throw new TimeoutException("Redis response-cache I/O did not complete.");
+        }
+    }
 
     /// <summary>Changes an opaque epoch; a failed invalidation must not be reported as confirmed.</summary>
     /// <param name="epochKey">Route or installation epoch.</param>
@@ -287,7 +350,9 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            await _database.StringSetAsync(epochKey, NewGeneration(), TimeSpan.FromMilliseconds(_epochMilliseconds));
+            var connection = await _connection.GetAsync();
+            var database = connection.GetDatabase(_options.Database);
+            await AwaitRedisAsync(database.StringSetAsync(epochKey, NewGeneration(), TimeSpan.FromMilliseconds(_epochMilliseconds)), connection);
             Succeeded();
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -300,16 +365,18 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
     }
 
     /// <summary>Repairs failed invalidations with one conservative purge before using recovered data.</summary>
+    /// <param name="database">The operation's captured database handle.</param>
+    /// <param name="connection">Its owned connection.</param>
     /// <param name="cancellationToken">The lookup lifetime.</param>
     /// <returns>Whether the provider may safely serve a cached generation.</returns>
-    private async ValueTask<bool> EnsureRecoveredAsync(CancellationToken cancellationToken)
+    private async ValueTask<bool> EnsureRecoveredAsync(IDatabase database, ConnectionMultiplexer connection, CancellationToken cancellationToken)
     {
         var fault = Interlocked.Read(ref _invalidationFaults);
         if (fault == Interlocked.Read(ref _recoveredFault)) return true;
         lock (_recoveryGate) { if (_recovering) return false; _recovering = true; }
         try
         {
-            await _database.StringSetAsync(_globalKey, NewGeneration(), TimeSpan.FromMilliseconds(_epochMilliseconds));
+            await AwaitRedisAsync(database.StringSetAsync(_globalKey, NewGeneration(), TimeSpan.FromMilliseconds(_epochMilliseconds)), connection);
             Interlocked.Exchange(ref _recoveredFault, fault);
             Succeeded();
             cancellationToken.ThrowIfCancellationRequested();
@@ -319,13 +386,15 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
     }
 
     /// <summary>Deletes only the observed corrupt index; snapshots expire independently.</summary>
+    /// <param name="database">The operation's captured database handle.</param>
+    /// <param name="connection">Its owned connection.</param>
     /// <param name="index">The bounded logical index key.</param>
     /// <param name="observed">The exact bounded value this lookup read.</param>
     /// <returns>The completed repair attempt.</returns>
-    private async ValueTask RepairAsync(RedisKey index, string observed)
+    private async ValueTask RepairAsync(IDatabase database, ConnectionMultiplexer connection, RedisKey index, string observed)
     {
         Interlocked.Increment(ref _corruptEntries);
-        await _database.ScriptEvaluateAsync(RepairScript, [index], [observed]);
+        await AwaitRedisAsync(database.ScriptEvaluateAsync(RepairScript, [index], [observed]), connection);
         Succeeded();
     }
 
@@ -436,15 +505,16 @@ public sealed partial class RedisResponseCache : IVersionedResponseCache, IRespo
     /// <summary>Identifies backend failures without swallowing admission or request cancellation.</summary>
     /// <param name="exception">The observed exception.</param>
     /// <returns>Whether fail-open cache handling applies.</returns>
-    private static bool IsBackendFault(Exception exception) => exception is RedisException or InvalidDataException or ObjectDisposedException;
+    private static bool IsBackendFault(Exception exception) => exception is RedisException or TimeoutException or InvalidDataException or ObjectDisposedException or InvalidOperationException;
     /// <summary>Marks the backend's latest operation successful.</summary>
-    private void Succeeded() => Volatile.Write(ref _available, 1);
+    private void Succeeded() { Volatile.Write(ref _available, 1); Interlocked.Exchange(ref _retryAt, 0); }
     /// <summary>Records a safe, rate-limited warning without credentials, server messages or key data.</summary>
     /// <param name="operation">An internal fixed operation name.</param>
     private void Failed(string operation)
     {
         Volatile.Write(ref _available, 0);
         var now = DateTimeOffset.UtcNow.UtcTicks;
+        Interlocked.Exchange(ref _retryAt, now + TimeSpan.TicksPerSecond);
         var previous = Interlocked.Read(ref _nextWarning);
         if (now < previous || Interlocked.CompareExchange(ref _nextWarning, now + TimeSpan.TicksPerSecond * 30, previous) != previous) return;
         LogBackendFailure(_logger, operation);

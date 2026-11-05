@@ -73,6 +73,9 @@ public sealed partial class RuntimeSettings : IRuntimeSettings
             ResponseCacheMaxEntries = seed.ResponseCacheMaxEntries,
             ActiveResponseBufferMaxBytes = seed.ActiveResponseBufferMaxBytes,
             BufferedResponseMaxBytes = seed.BufferedResponseMaxBytes,
+            ResponseCacheWriteMaxPendingCount = seed.ResponseCacheWriteMaxPendingCount,
+            ResponseCacheWriteMaxPendingBytes = seed.ResponseCacheWriteMaxPendingBytes,
+            ResponseCacheWriteTimeoutMilliseconds = seed.ResponseCacheWriteTimeoutMilliseconds,
             MaxBinaryBytes = seed.MaxBinaryBytes,
         };
     }
