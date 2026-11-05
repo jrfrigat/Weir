@@ -100,23 +100,19 @@ public sealed record WeirSystemSettings
     public int RequestLogRetentionDays { get; init; } = 7;
 
     /// <summary>
-    /// Total size, in bytes, that cached response payloads may occupy in memory. Once the cache is
-    /// full, the least recently used entries are evicted to make room for a new one. Zero or less
-    /// means unlimited: entries then leave only when their TTL expires, so an endpoint with a
-    /// high-cardinality <c>VaryByParameters</c> can grow the cache until the process runs out of
-    /// memory. Treat unlimited as a deliberate opt-out, not a default.
-    /// <para>
-    /// Defaults to 128 MiB: large enough to hold a useful working set (roughly 13,000 responses of
-    /// 10 KB), a modest fraction of a typical container's memory, and comfortably larger than any
-    /// single response the default <see cref="MaxRows"/> cap can produce. A payload larger than this
-    /// limit is never cached, so one oversized response cannot flush the whole cache.
-    /// </para>
-    /// <para>
-    /// Changing this rebuilds the response cache, which discards the entries currently held; the next
-    /// calls to the affected endpoints repopulate it.
-    /// </para>
+    /// Maximum stored payload bytes, excluding keys, index metadata and active response buffers.
+    /// Defaults to 128 MiB. Recent hits receive a second chance during CLOCK eviction; reductions
+    /// trim existing entries. Oversized entries are refused before evicting useful entries.
+    /// Zero disables this bound; entry size and count have independent bounds. Disabling every
+    /// bound permits unbounded growth and must be a deliberate operator choice.
     /// </summary>
     public long ResponseCacheMaxBytes { get; init; } = 134_217_728;
+
+    /// <summary>Maximum cached payload size per entry; zero disables this bound. Oversize responses are delivered without storing.</summary>
+    public long ResponseCacheMaxEntryBytes { get; init; } = 16_777_216;
+
+    /// <summary>Maximum locally cached entry count, bounding key and index metadata; zero disables this bound.</summary>
+    public int ResponseCacheMaxEntries { get; init; } = 10_000;
 
     /// <summary>
     /// How response bodies reach callers by default. An endpoint can override it (see
@@ -153,10 +149,9 @@ public sealed record WeirSystemSettings
     public ResponseCompressionMode ResponseCompressionMode { get; init; } = ResponseCompressionMode.Auto;
 
     /// <summary>
-    /// How many bytes of a single binary (BLOB) column value may be materialized before the value is
-    /// truncated and the response is marked <c>truncated</c>. A binary value is read whole into memory to
-    /// be Base64-encoded, so without a cap a single large BLOB is the one place the row hot path still
-    /// allocates with the value's size. Zero means unlimited (the historical behaviour).
+    /// Maximum source bytes emitted from one binary (BLOB) column before marking the response
+    /// <c>truncated</c>. In-box connectors read and drain the value in bounded chunks; custom readers
+    /// may retain their materializing fallback. Zero permits the complete value.
     /// </summary>
     public int MaxBinaryBytes { get; init; }
 }

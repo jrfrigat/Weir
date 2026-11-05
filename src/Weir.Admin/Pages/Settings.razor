@@ -80,6 +80,22 @@
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.LabelMedium" Color="FlareColor.OnSurfaceVariant" Mono="true" Style="letter-spacing:.1em;">@AdminStrings.Settings_SectionResponseCache</FlareText>
                 <FlareNumericField TValue="long" Label="@AdminStrings.Settings_ResponseCacheMaxBytesLabel" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxBytes" Min="SettingsBounds.ResponseCacheMaxBytes.Min" Max="SettingsBounds.ResponseCacheMaxBytes.Max" Style="max-width:16rem;" />
+                <FlareNumericField TValue="long" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxEntryBytes" Min="SettingsBounds.ResponseCacheMaxEntryBytes.Min" Max="SettingsBounds.ResponseCacheMaxEntryBytes.Max" Style="max-width:16rem;">
+                    <LabelContent>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                            <span>@AdminStrings.Settings_ResponseCacheMaxEntryBytesLabel</span>
+                            <InfoPopover Text="@AdminStrings.Settings_ResponseCacheEntryHelp" />
+                        </FlareStack>
+                    </LabelContent>
+                </FlareNumericField>
+                <FlareNumericField TValue="int" Size="FieldSize.Sm" @bind-Value="_responseCacheMaxEntries" Min="SettingsBounds.ResponseCacheMaxEntries.Min" Max="SettingsBounds.ResponseCacheMaxEntries.Max" Style="max-width:16rem;">
+                    <LabelContent>
+                        <FlareStack Row Align="FlareAlignItems.Center" Gap="FlareSpacing.None">
+                            <span>@AdminStrings.Settings_ResponseCacheMaxEntriesLabel</span>
+                            <InfoPopover Text="@AdminStrings.Settings_ResponseCacheCountHelp" />
+                        </FlareStack>
+                    </LabelContent>
+                </FlareNumericField>
                 <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Settings_ResponseCacheHelp</FlareText>
             </FlareStack>
         </FlareCard>
@@ -253,6 +269,10 @@
     private int _slowThresholdPercent;
     private int _requestLogRetentionDays;
     private long _responseCacheMaxBytes;
+    /// <summary>The edited per-entry cached payload cap.</summary>
+    private long _responseCacheMaxEntryBytes;
+    /// <summary>The edited local entry-count cap.</summary>
+    private int _responseCacheMaxEntries;
     private ResponseDeliveryMode _responseDeliveryMode;
     private int _responseFlushBytes;
     private ResponseCompressionMode _responseCompressionMode;
@@ -293,6 +313,8 @@
             _slowThresholdPercent = view.Settings.SlowRequestThresholdPercent;
             _requestLogRetentionDays = view.Settings.RequestLogRetentionDays;
             _responseCacheMaxBytes = view.Settings.ResponseCacheMaxBytes;
+            _responseCacheMaxEntryBytes = view.Settings.ResponseCacheMaxEntryBytes;
+            _responseCacheMaxEntries = view.Settings.ResponseCacheMaxEntries;
             _responseDeliveryMode = view.Settings.ResponseDeliveryMode;
             _responseFlushBytes = view.Settings.ResponseFlushBytes;
             _responseCompressionMode = view.Settings.ResponseCompressionMode;
@@ -362,6 +384,8 @@
         SlowRequestThresholdPercent = _slowThresholdPercent,
         RequestLogRetentionDays = _requestLogRetentionDays,
         ResponseCacheMaxBytes = _responseCacheMaxBytes,
+        ResponseCacheMaxEntryBytes = _responseCacheMaxEntryBytes,
+        ResponseCacheMaxEntries = _responseCacheMaxEntries,
         ResponseDeliveryMode = _responseDeliveryMode,
         ResponseFlushBytes = _responseFlushBytes,
         ResponseCompressionMode = _responseCompressionMode,
@@ -454,6 +478,8 @@
         nameof(WeirSystemSettings.SlowRequestThresholdPercent) => AdminStrings.Settings_SlowThresholdLabel,
         nameof(WeirSystemSettings.RequestLogRetentionDays) => AdminStrings.Settings_RequestLogRetentionLabel,
         nameof(WeirSystemSettings.ResponseCacheMaxBytes) => AdminStrings.Settings_ResponseCacheMaxBytesLabel,
+        nameof(WeirSystemSettings.ResponseCacheMaxEntryBytes) => AdminStrings.Settings_ResponseCacheMaxEntryBytesLabel,
+        nameof(WeirSystemSettings.ResponseCacheMaxEntries) => AdminStrings.Settings_ResponseCacheMaxEntriesLabel,
         nameof(WeirSystemSettings.ResponseFlushBytes) => AdminStrings.Settings_ResponseFlushBytesLabel,
         _ => setting,
     };

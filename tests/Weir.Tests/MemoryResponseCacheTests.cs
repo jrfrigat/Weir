@@ -7,37 +7,129 @@ namespace Weir.Tests;
 
 public class MemoryResponseCacheTests
 {
-    /// <summary>Waits for the real old-entry callback before purging its replacement.</summary>
+    /// <summary>Replacement and expiry keep the current entry reachable by prefix invalidation.</summary>
     /// <param name="expired">Whether the replaced entry has already expired.</param>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Replacement_RemainsIndexed_AfterOldEvictionCallback(bool expired)
+    public async Task Replacement_RemainsIndexed_AfterReplacementOrExpiry(bool expired)
     {
-        using var cache = NewCache();
+        var clock = new TestClock();
+        using var cache = new MemoryResponseCache(new MutableSettings(0), clock);
         const string key = "weir:replacement:one";
-        await cache.SetAsync(key, EntryOfSize(3), expired ? TimeSpan.FromTicks(1) : TimeSpan.FromMinutes(5));
+        await cache.SetAsync(key, EntryOfSize(3), TimeSpan.FromMinutes(1));
         if (expired)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            while ((await cache.GetAsync(key)).HasValue)
-            {
-                timeout.Token.ThrowIfCancellationRequested();
-                await Task.Yield();
-            }
+            clock.Advance(TimeSpan.FromMinutes(2));
+            Assert.Null(await cache.GetAsync(key));
         }
         await cache.SetAsync(key, EntryOfSize(5), TimeSpan.FromMinutes(5));
-
-        var generation = typeof(MemoryResponseCache).GetField("_generation",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(cache)!;
-        var bytes = generation.GetType().GetProperty("EstimatedBytes",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        Assert.True(SpinWait.SpinUntil(() => (long)bytes.GetValue(generation)! == 5, TimeSpan.FromSeconds(10)),
-            "The old entry's eviction callback did not complete.");
 
         Assert.True((await cache.GetAsync(key)).HasValue);
         await cache.RemoveByPrefixAsync("weir:replacement:");
         Assert.Null(await cache.GetAsync(key));
+    }
+
+    /// <summary>Bounds key/index metadata even when payloads contain no bytes.</summary>
+    [Fact]
+    public async Task CountBound_HandlesEmptyEntriesAndSecondChance()
+    {
+        var settings = new MutableSettings(0);
+        await settings.UpdateAsync(new WeirSystemSettings { ResponseCacheMaxBytes = 0, ResponseCacheMaxEntries = 2 });
+        using var cache = new MemoryResponseCache(settings);
+        await cache.SetAsync("a", Entry(), TimeSpan.FromMinutes(5));
+        await cache.SetAsync("b", Entry(), TimeSpan.FromMinutes(5));
+        Assert.NotNull(await cache.GetAsync("a"));
+        await cache.SetAsync("c", Entry(), TimeSpan.FromMinutes(5));
+        Assert.NotNull(await cache.GetAsync("a"));
+        Assert.Null(await cache.GetAsync("b"));
+        Assert.NotNull(await cache.GetAsync("c"));
+        Assert.Equal((0L, 2, 0L), cache.GetStorageSnapshot());
+    }
+
+    /// <summary>Refused payloads and metadata cannot evict a useful admitted entry.</summary>
+    [Fact]
+    public async Task EntryAndMetadataBounds_RejectBeforeEvicting()
+    {
+        var settings = new MutableSettings(0);
+        await settings.UpdateAsync(new WeirSystemSettings { ResponseCacheMaxBytes = 0, ResponseCacheMaxEntryBytes = 4 });
+        using var cache = new MemoryResponseCache(settings);
+        await cache.SetAsync("good", EntryOfSize(4), TimeSpan.FromMinutes(5));
+        await cache.SetAsync("good", EntryOfSize(5), TimeSpan.FromMinutes(5));
+        await cache.SetAsync(new string('x', 1025), EntryOfSize(1), TimeSpan.FromMinutes(5));
+        await cache.SetAsync("bad-tag", new CachedResponse(new byte[1], new string('x', 129)), TimeSpan.FromMinutes(5));
+        Assert.Equal(4, (await cache.GetAsync("good"))!.Value.Bytes.Length);
+        Assert.Equal((4L, 1, 3L), cache.GetStorageSnapshot());
+    }
+
+    /// <summary>Live reductions apply to bytes, count and an entry that no longer fits the entry limit.</summary>
+    [Fact]
+    public async Task RuntimeReductions_TrimAllBounds()
+    {
+        var settings = new MutableSettings(0);
+        using var cache = new MemoryResponseCache(settings);
+        for (var i = 0; i < 10; i++) await cache.SetAsync($"k{i}", EntryOfSize(40), TimeSpan.FromMinutes(5));
+        await settings.UpdateAsync(new WeirSystemSettings { ResponseCacheMaxBytes = 100, ResponseCacheMaxEntries = 2 });
+        Assert.Equal((80L, 2, 0L), cache.GetStorageSnapshot());
+        await settings.UpdateAsync(new WeirSystemSettings { ResponseCacheMaxEntryBytes = 8 });
+        Assert.Equal((0L, 0, 0L), cache.GetStorageSnapshot());
+    }
+
+    /// <summary>A small slice cannot keep a large external backing array alive inside the cache.</summary>
+    [Fact]
+    public async Task Slice_IsCopiedIntoExactOwnedStorage()
+    {
+        using var cache = NewCache();
+        var backing = new byte[1024 * 1024];
+        backing[500] = 42;
+        await cache.SetAsync("slice", new CachedResponse(backing.AsMemory(500, 1), "tag"), TimeSpan.FromMinutes(5));
+        backing[500] = 0;
+        var hit = (await cache.GetAsync("slice"))!.Value;
+        Assert.Equal(42, hit.Bytes.Span[0]);
+        Assert.True(System.Runtime.InteropServices.MemoryMarshal.TryGetArray(hit.Bytes, out var storage));
+        Assert.Single(storage.Array!);
+    }
+
+    /// <summary>Expired payloads leave accounting synchronously without waiting for a background callback.</summary>
+    [Fact]
+    public async Task Expiry_RemovesStorageSynchronously()
+    {
+        var clock = new TestClock();
+        using var cache = new MemoryResponseCache(new MutableSettings(0), clock);
+        await cache.SetAsync("ttl", EntryOfSize(50), TimeSpan.FromSeconds(1));
+        clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Null(await cache.GetAsync("ttl"));
+        Assert.Equal((0L, 0, 0L), cache.GetStorageSnapshot());
+    }
+
+    /// <summary>Concurrent admission never exceeds either stored-payload or entry-count bounds.</summary>
+    [Fact]
+    public async Task ConcurrentAdmission_StaysWithinBothBounds()
+    {
+        var settings = new MutableSettings(128);
+        await settings.UpdateAsync(new WeirSystemSettings { ResponseCacheMaxBytes = 128, ResponseCacheMaxEntries = 4 });
+        using var cache = new MemoryResponseCache(settings);
+        await Parallel.ForEachAsync(Enumerable.Range(0, 10000), async (i, token) =>
+            await cache.SetAsync($"item:{i}", EntryOfSize(16), TimeSpan.FromMinutes(5), token));
+        var snapshot = cache.GetStorageSnapshot();
+        Assert.InRange(snapshot.EntryCount, 1, 4);
+        Assert.InRange(snapshot.PayloadBytes, 1, 128);
+        await cache.RemoveByPrefixAsync("item:");
+        Assert.Equal((0L, 0, 0L), cache.GetStorageSnapshot());
+    }
+
+    /// <summary>A deterministic TTL clock with no real sleeps or timer callbacks.</summary>
+    private sealed class TestClock : TimeProvider
+    {
+        /// <summary>The current UTC instant.</summary>
+        private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        /// <inheritdoc />
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        /// <summary>Moves the clock forward.</summary>
+        /// <param name="duration">The elapsed duration.</param>
+        internal void Advance(TimeSpan duration) => _now += duration;
     }
 
     /// <summary>Competing mutations must never leave a live entry outside the purge index.</summary>

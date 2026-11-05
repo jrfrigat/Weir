@@ -1,112 +1,124 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Caching.Memory;
+using System.Runtime.InteropServices;
 using Weir.Abstractions;
 using Weir.Contracts;
 
 namespace Weir.Core;
 
 /// <summary>
-/// In-memory <see cref="IResponseCache"/> storing rendered JSON bytes with pre-computed ETags, bounded
-/// by <see cref="WeirSystemSettings.ResponseCacheMaxBytes"/>.
-/// <para>
-/// The cache owns its <see cref="MemoryCache"/> rather than sharing the one in the container, because a
-/// size bound is a property of the whole <see cref="MemoryCache"/> instance: <c>SizeLimit</c> is fixed at
-/// construction, and once it is set every entry must declare a <c>Size</c> or <c>Set</c> throws. Other
-/// consumers of the shared cache (for example the API-key authenticator) store entries without a size,
-/// so bounding the shared instance would break them. A private instance also keeps one endpoint's
-/// payloads from evicting unrelated cached state.
-/// </para>
-/// <para>
-/// <see cref="MemoryCache"/> alone does not give the behaviour wanted here: when a new entry would
-/// exceed <c>SizeLimit</c> it refuses that entry and leaves the existing ones in place, so a full cache
-/// would stop admitting fresh responses. Entries are therefore evicted (least recently used first) to
-/// make room before a store, and the underlying <c>SizeLimit</c> remains as a hard backstop.
-/// </para>
+/// Stores immutable UTF-8 payloads with independent byte, entry-size and entry-count bounds.
+/// Lock-free hits mark a second-chance CLOCK entry; mutations and accounting are synchronous,
+/// so evicted payloads are not retained in background eviction callback queues.
 /// </summary>
 public sealed class MemoryResponseCache : IResponseCache, IDisposable
 {
-    /// <summary>
-    /// How many times a single store may compact the cache while making room. <see cref="MemoryCache.Compact"/>
-    /// treats its argument as a target rather than a guarantee and can free less than asked, so freeing is
-    /// re-checked against the measured size; the cap stops an unproductive compaction from looping.
-    /// </summary>
-    private const int MaxCompactionAttempts = 8;
+    /// <summary>Bounds retained key metadata independently of the payload budget.</summary>
+    private const int MaxKeyChars = 1024;
 
-    /// <summary>The runtime settings, read on each call so a changed bound takes effect without a restart.</summary>
+    /// <summary>Bounds retained validator metadata; generated SHA-256 ETags fit comfortably.</summary>
+    private const int MaxETagChars = 128;
+
+    /// <summary>The live runtime configuration.</summary>
     private readonly IRuntimeSettings _settings;
 
-    /// <summary>Guards replacing <see cref="_generation"/> so only one thread rebuilds the backing cache.</summary>
+    /// <summary>The TTL clock, replaceable by deterministic tests.</summary>
+    private readonly TimeProvider _timeProvider;
+
+    /// <summary>Serializes store, trim, expiry removal and invalidation.</summary>
     private readonly Lock _gate = new();
 
-    /// <summary>
-    /// The live backing cache and the bound it was built for. Swapped wholesale when the bound changes;
-    /// read without the lock on the hot path.
-    /// </summary>
-    private Generation _generation;
+    /// <summary>The hit-path index, containing only admitted entries.</summary>
+    private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 
-    /// <summary>Whether <see cref="Dispose"/> has run.</summary>
-    private bool _disposed;
+    /// <summary>Second-chance order, modified only under the mutation gate.</summary>
+    private readonly LinkedList<Entry> _clock = new();
 
-    /// <summary>
-    /// Raised every time a prefix is purged. The engine reads it before running a query it means to cache
-    /// and again before storing the result: without it a purge that landed while the query was in flight
-    /// was undone by the store that followed, and the invalidated entry came back with stale bytes for a
-    /// whole TTL.
-    /// </summary>
+    /// <summary>The settings snapshot whose reductions have been applied.</summary>
+    private WeirSystemSettings _appliedSettings;
+
+    /// <summary>Exact admitted payload bytes, protected by the mutation gate.</summary>
+    private long _payloadBytes;
+
+    /// <summary>Admission refusals, protected by the mutation gate.</summary>
+    private long _skippedEntries;
+
+    /// <summary>Prefix invalidation stamp retained for compatibility with the engine.</summary>
     private long _purgeStamp;
 
-    /// <summary>
-    /// How many prefixes have been purged so far. Only ever compared against an earlier reading, to answer
-    /// "did a purge happen under my feet"; the number itself carries no meaning.
-    /// </summary>
-    public long PurgeStamp => Interlocked.Read(ref _purgeStamp);
+    /// <summary>Whether this cache has released its stored entries.</summary>
+    private bool _disposed;
 
-    /// <summary>Creates the cache, sizing its backing store from the current runtime settings.</summary>
-    /// <param name="settings">The runtime settings supplying <see cref="WeirSystemSettings.ResponseCacheMaxBytes"/>.</param>
-    public MemoryResponseCache(IRuntimeSettings settings)
+    /// <summary>Creates the cache with the system TTL clock.</summary>
+    /// <param name="settings">Runtime cache policy.</param>
+    public MemoryResponseCache(IRuntimeSettings settings) : this(settings, TimeProvider.System) { }
+
+    /// <summary>Creates the cache with an explicit TTL clock.</summary>
+    /// <param name="settings">Runtime cache policy.</param>
+    /// <param name="timeProvider">The clock used for expiration.</param>
+    public MemoryResponseCache(IRuntimeSettings settings, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _settings = settings;
-        _generation = new Generation(NormalizeLimit(settings.Current.ResponseCacheMaxBytes));
+        _timeProvider = timeProvider;
+        _appliedSettings = settings.Current;
     }
 
+    /// <summary>The number of prefix invalidations, for detecting fills started before a purge.</summary>
+    public long PurgeStamp => Interlocked.Read(ref _purgeStamp);
+
     /// <inheritdoc />
-    public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(Current().Cache.TryGetValue(key, out CachedResponse? entry) && entry is { } e
-            ? (CachedResponse?)e
-            : null);
+    public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
+        EnsureSettings();
+        if (!_entries.TryGetValue(key, out var entry)) return ValueTask.FromResult<CachedResponse?>(null);
+        if (entry.ExpiresAt <= _timeProvider.GetUtcNow().UtcTicks)
+        {
+            lock (_gate) RemoveEntry(entry);
+            return ValueTask.FromResult<CachedResponse?>(null);
+        }
+        entry.Touch();
+        return ValueTask.FromResult<CachedResponse?>(entry.Response);
+    }
 
     /// <inheritdoc />
     public ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default)
     {
-        var generation = Current();
-        var size = entry.Bytes.Length;
-
-        // A payload that cannot fit under the bound is never cached: admitting it would evict every other
-        // entry and still be refused by the backing cache.
-        if (generation.Limit > 0 && size > generation.Limit)
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(ttl, TimeSpan.Zero);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
         {
-            return ValueTask.CompletedTask;
-        }
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var settings = _settings.Current;
+            ApplySettings(settings);
+            var size = entry.Bytes.Length;
+            if (key.Length > MaxKeyChars || entry.ETag is null || entry.ETag.Length > MaxETagChars ||
+                (settings.ResponseCacheMaxEntryBytes > 0 && size > settings.ResponseCacheMaxEntryBytes) ||
+                (settings.ResponseCacheMaxBytes > 0 && size > settings.ResponseCacheMaxBytes))
+            {
+                _skippedEntries++;
+                return ValueTask.CompletedTask;
+            }
 
-        lock (generation.MutationGate)
-        {
-            MakeRoom(generation, size);
-            var registration = new Registration(generation, size);
-            var options = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl, Size = size };
-            options.RegisterPostEvictionCallback(
-                static (evictedKey, value, reason, state) =>
-                {
-                    var evicted = (Registration)state!;
-                    evicted.Generation.Keys.TryRemove(new KeyValuePair<string, Registration>((string)evictedKey, evicted));
-                    evicted.Generation.AddBytes(-evicted.Size);
-                },
-                registration);
+            if (_entries.TryGetValue(key, out var previous)) RemoveEntry(previous);
+            while ((settings.ResponseCacheMaxBytes > 0 && _payloadBytes + size > settings.ResponseCacheMaxBytes) ||
+                (settings.ResponseCacheMaxEntries > 0 && _clock.Count >= settings.ResponseCacheMaxEntries))
+                EvictOne();
 
-            generation.Keys[key] = registration;
-            // Count before publication: callbacks may run asynchronously, including for refused entries.
-            generation.AddBytes(size);
-            generation.Cache.Set(key, entry, options);
+            // A short slice must not retain a much larger array or a borrowed memory manager.
+            if (!MemoryMarshal.TryGetArray(entry.Bytes, out var array) ||
+                array.Array is null || array.Offset != 0 || array.Count != array.Array.Length)
+                entry = new CachedResponse(entry.Bytes.ToArray(), entry.ETag);
+
+            var now = _timeProvider.GetUtcNow().UtcTicks;
+            var expires = now + Math.Min(ttl.Ticks, DateTimeOffset.MaxValue.UtcTicks - now);
+            var stored = new Entry(key, entry, expires);
+            stored.Node = _clock.AddLast(stored);
+            _entries[key] = stored;
+            _payloadBytes += size;
         }
         return ValueTask.CompletedTask;
     }
@@ -114,11 +126,11 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     /// <inheritdoc />
     public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        var generation = Current();
-        lock (generation.MutationGate)
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
         {
-            generation.Cache.Remove(key);
-            generation.Keys.TryRemove(key, out _);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_entries.TryGetValue(key, out var entry)) RemoveEntry(entry);
         }
         return ValueTask.CompletedTask;
     }
@@ -127,181 +139,119 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     public ValueTask RemoveByPrefixAsync(string keyPrefix, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(keyPrefix);
-        var generation = Current();
-        lock (generation.MutationGate)
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
         {
-            foreach (var key in generation.Keys.Keys)
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            for (var node = _clock.First; node is not null;)
             {
-                if (key.StartsWith(keyPrefix, StringComparison.Ordinal))
-                {
-                    generation.Cache.Remove(key);
-                    generation.Keys.TryRemove(key, out _);
-                }
+                var next = node.Next;
+                if (node.Value.Key.StartsWith(keyPrefix, StringComparison.Ordinal)) RemoveEntry(node.Value);
+                node = next;
             }
-            // A purge must stay visible even when its matching fill has not stored anything yet.
             Interlocked.Increment(ref _purgeStamp);
         }
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>Disposes the backing cache.</summary>
+    /// <summary>Returns a coherent snapshot of cache-owned storage, excluding runtime object overhead.</summary>
+    /// <returns>Payload bytes, retained entry count and admission refusals.</returns>
+    internal (long PayloadBytes, int EntryCount, long SkippedEntries) GetStorageSnapshot()
+    {
+        EnsureSettings();
+        lock (_gate) return (_payloadBytes, _clock.Count, _skippedEntries);
+    }
+
+    /// <summary>Applies changed bounds without taking a lock on an unchanged hit path.</summary>
+    private void EnsureSettings()
+    {
+        var settings = _settings.Current;
+        if (ReferenceEquals(Volatile.Read(ref _appliedSettings), settings)) return;
+        lock (_gate) ApplySettings(_settings.Current);
+    }
+
+    /// <summary>Trims oversized and excess entries when runtime settings change; caller owns the gate.</summary>
+    /// <param name="settings">The current immutable configuration snapshot.</param>
+    private void ApplySettings(WeirSystemSettings settings)
+    {
+        if (ReferenceEquals(_appliedSettings, settings)) return;
+        for (var node = _clock.First; node is not null;)
+        {
+            var next = node.Next;
+            if (settings.ResponseCacheMaxEntryBytes > 0 && node.Value.Response.Bytes.Length > settings.ResponseCacheMaxEntryBytes)
+                RemoveEntry(node.Value);
+            node = next;
+        }
+        while ((settings.ResponseCacheMaxBytes > 0 && _payloadBytes > settings.ResponseCacheMaxBytes) ||
+            (settings.ResponseCacheMaxEntries > 0 && _clock.Count > settings.ResponseCacheMaxEntries))
+            EvictOne();
+        Volatile.Write(ref _appliedSettings, settings);
+    }
+
+    /// <summary>Gives recently read entries one bounded second chance before evicting a victim.</summary>
+    private void EvictOne()
+    {
+        var attempts = _clock.Count;
+        while (attempts-- > 0 && _clock.First is { } node &&
+            node.Value.ExpiresAt > _timeProvider.GetUtcNow().UtcTicks && node.Value.TakeSecondChance())
+        {
+            _clock.RemoveFirst();
+            _clock.AddLast(node);
+        }
+        if (_clock.First is { } victim) RemoveEntry(victim.Value);
+    }
+
+    /// <summary>Removes only the same admitted entry, so a concurrent replacement cannot be removed by an expired reader.</summary>
+    /// <param name="entry">The entry whose identity is being removed.</param>
+    private void RemoveEntry(Entry entry)
+    {
+        if (!_entries.TryRemove(new KeyValuePair<string, Entry>(entry.Key, entry))) return;
+        _clock.Remove(entry.Node!);
+        _payloadBytes -= entry.Response.Bytes.Length;
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         lock (_gate)
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            _generation.Cache.Dispose();
+            if (_disposed) return;
+            Volatile.Write(ref _disposed, true);
+            _entries.Clear();
+            _clock.Clear();
+            _payloadBytes = 0;
         }
     }
 
-    /// <summary>
-    /// Returns the live generation, rebuilding it first if the configured bound has changed since it was
-    /// built. Rebuilding drops the cached entries, which is acceptable: they are a cache, and the next
-    /// call to each endpoint repopulates them.
-    /// </summary>
-    /// <returns>The generation whose bound matches the current settings.</returns>
-    private Generation Current()
+    /// <summary>One immutable payload and its bounded replacement-policy metadata.</summary>
+    /// <param name="key">The index key.</param>
+    /// <param name="response">Owned immutable payload and validator.</param>
+    /// <param name="expiresAt">Expiration in UTC ticks.</param>
+    private sealed class Entry(string key, CachedResponse response, long expiresAt)
     {
-        var limit = NormalizeLimit(_settings.Current.ResponseCacheMaxBytes);
-        var generation = Volatile.Read(ref _generation);
-        if (generation.Limit == limit)
+        /// <summary>The bounded index key.</summary>
+        internal string Key { get; } = key;
+
+        /// <summary>The response, retained until both cache and in-flight readers release it.</summary>
+        internal CachedResponse Response { get; } = response;
+
+        /// <summary>Expiration on the cache's UTC clock.</summary>
+        internal long ExpiresAt { get; } = expiresAt;
+
+        /// <summary>The node owned by the replacement clock.</summary>
+        internal LinkedListNode<Entry>? Node { get; set; }
+
+        /// <summary>Whether a hit occurred since the last replacement sweep.</summary>
+        private int _accessed;
+
+        /// <summary>Marks a hit without repeatedly writing a shared hot cache line.</summary>
+        internal void Touch()
         {
-            return generation;
+            if (Volatile.Read(ref _accessed) == 0) Volatile.Write(ref _accessed, 1);
         }
 
-        lock (_gate)
-        {
-            if (_disposed || _generation.Limit == limit)
-            {
-                return _generation;
-            }
-
-            var previous = _generation;
-            Volatile.Write(ref _generation, new Generation(limit));
-
-            // Release the old payloads now, but leave the instance usable: a request that read the old
-            // generation a moment ago may still be calling into it, and disposing it under that call
-            // would throw into the data plane. Emptied and unreferenced, it is collected normally.
-            previous.Cache.Clear();
-            return _generation;
-        }
-    }
-
-    /// <summary>
-    /// Evicts entries, least recently used first, until <paramref name="incoming"/> bytes fit under the
-    /// generation's bound. A no-op for an unbounded generation.
-    /// </summary>
-    /// <param name="generation">The generation to make room in.</param>
-    /// <param name="incoming">Size in bytes of the payload about to be stored.</param>
-    private static void MakeRoom(Generation generation, long incoming)
-    {
-        if (generation.Limit <= 0)
-        {
-            return;
-        }
-
-        // The common case is a cache with room to spare, and it should not cost a lock. The running total
-        // can only read high (see Generation), so "plainly fits" is a conclusion it is safe to draw from;
-        // anything closer falls through to the cache's own figure below.
-        if (generation.EstimatedBytes + incoming <= generation.Limit)
-        {
-            return;
-        }
-
-        for (var attempt = 0; attempt < MaxCompactionAttempts; attempt++)
-        {
-            var used = generation.Cache.GetCurrentStatistics()?.CurrentEstimatedSize ?? 0;
-            var overflow = used + incoming - generation.Limit;
-            if (overflow <= 0 || used <= 0)
-            {
-                return;
-            }
-
-            generation.Cache.Compact(Math.Min(1d, (double)overflow / used));
-        }
-    }
-
-    /// <summary>Normalizes a configured bound, mapping any non-positive value onto zero (unlimited).</summary>
-    /// <param name="configured">The configured bound in bytes.</param>
-    /// <returns>The bound in bytes, or zero for unlimited.</returns>
-    private static long NormalizeLimit(long configured) => configured > 0 ? configured : 0;
-
-    /// <summary>
-    /// One backing cache together with the bound it was constructed for. A bound cannot be changed on a
-    /// live <see cref="MemoryCache"/>, so a change is applied by building a new generation.
-    /// </summary>
-    private sealed class Generation
-    {
-        /// <summary>Creates a generation whose backing cache is bounded by <paramref name="limit"/>.</summary>
-        /// <param name="limit">The bound in bytes; zero means unlimited.</param>
-        internal Generation(long limit)
-        {
-            Limit = limit;
-
-            // TrackStatistics exposes the measured size, which is what eviction decisions are made against.
-            var options = new MemoryCacheOptions { TrackStatistics = true };
-            if (limit > 0)
-            {
-                options.SizeLimit = limit;
-            }
-
-            Cache = new MemoryCache(options);
-        }
-
-        /// <summary>The bound in bytes this generation was built for; zero means unlimited.</summary>
-        internal long Limit { get; }
-
-        /// <summary>The backing cache.</summary>
-        internal MemoryCache Cache { get; }
-
-        /// <summary>
-        /// Live keys tracked alongside the cache so <see cref="RemoveByPrefixAsync"/> can enumerate them
-        /// (<see cref="MemoryCache"/> exposes no key enumeration). Entries remove themselves via a
-        /// post-eviction callback, so this set does not outgrow the cache.
-        /// </summary>
-        internal ConcurrentDictionary<string, Registration> Keys { get; } = new(StringComparer.Ordinal);
-
-        /// <summary>Serializes publication, removal and prefix purges without blocking cache hits.</summary>
-        internal Lock MutationGate { get; } = new();
-
-        /// <summary>
-        /// A running total of stored bytes, maintained here rather than read from the cache. The
-        /// authoritative figure is <c>GetCurrentStatistics().CurrentEstimatedSize</c>, but that call also
-        /// builds <c>CurrentEntryCount</c> from <c>MemoryCache.Count</c>, which takes every bucket lock in
-        /// the backing dictionary - a serialization point on the store path, paid on every miss, to read a
-        /// number this class never uses.
-        /// <para>
-        /// This total is an estimate and is only ever used to decide that there is plainly room, never to
-        /// decide that there is not: eviction callbacks may run after the entry is gone, so subtractions
-        /// can lag and the total can read high. That bias is the safe one - a high reading falls through to
-        /// the authoritative check, which is merely slower. A low reading would skip admission control, and
-        /// cannot happen from lag.
-        /// </para>
-        /// </summary>
-        private long _estimatedBytes;
-
-        /// <summary>The running total of stored bytes; see <see cref="_estimatedBytes"/>.</summary>
-        internal long EstimatedBytes => Interlocked.Read(ref _estimatedBytes);
-
-        /// <summary>Adds a stored payload's size to the running total.</summary>
-        /// <param name="bytes">Size of the payload, negative when it leaves the cache.</param>
-        internal void AddBytes(long bytes) => Interlocked.Add(ref _estimatedBytes, bytes);
-    }
-
-    /// <summary>Identifies the owner of one index slot even after the same key is replaced.</summary>
-    /// <param name="generation">The owning cache generation.</param>
-    /// <param name="size">The admitted payload size.</param>
-    private sealed class Registration(Generation generation, long size)
-    {
-        /// <summary>The generation whose accounting must be released.</summary>
-        internal Generation Generation { get; } = generation;
-
-        /// <summary>The bytes charged before publishing this entry.</summary>
-        internal long Size { get; } = size;
+        /// <summary>Consumes one second chance during a bounded eviction sweep.</summary>
+        /// <returns>Whether this entry was recently read.</returns>
+        internal bool TakeSecondChance() => Interlocked.Exchange(ref _accessed, 0) != 0;
     }
 }

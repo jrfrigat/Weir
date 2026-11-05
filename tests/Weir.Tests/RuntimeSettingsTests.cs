@@ -38,11 +38,16 @@ public class RuntimeSettingsTests : IDisposable
         var store = NewStore();
         await store.InitializeAsync();
 
-        var settings = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions { MaxRows = 5, MaxTvpRows = 7 }));
+        var settings = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions
+        {
+            MaxRows = 5, MaxTvpRows = 7, ResponseCacheMaxEntryBytes = 4096, ResponseCacheMaxEntries = 123
+        }));
         await settings.InitializeAsync();
 
         Assert.Equal(5, settings.Current.MaxRows);
         Assert.Equal(7, settings.Current.MaxTvpRows);
+        Assert.Equal(4096, settings.Current.ResponseCacheMaxEntryBytes);
+        Assert.Equal(123, settings.Current.ResponseCacheMaxEntries);
     }
 
     [Fact]
@@ -53,7 +58,10 @@ public class RuntimeSettingsTests : IDisposable
 
         var first = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions { MaxRows = 5 }));
         await first.InitializeAsync();
-        await first.UpdateAsync(new WeirSystemSettings { MaxRows = 9, RequestTimeoutSeconds = 12 });
+        await first.UpdateAsync(new WeirSystemSettings
+        {
+            MaxRows = 9, RequestTimeoutSeconds = 12, ResponseCacheMaxEntryBytes = 8192, ResponseCacheMaxEntries = 456
+        });
         Assert.Equal(9, first.Current.MaxRows);
 
         // A fresh instance over the same store loads the persisted values, overriding its seed.
@@ -61,6 +69,22 @@ public class RuntimeSettingsTests : IDisposable
         await second.InitializeAsync();
         Assert.Equal(9, second.Current.MaxRows);
         Assert.Equal(12, second.Current.RequestTimeoutSeconds);
+        Assert.Equal(8192, second.Current.ResponseCacheMaxEntryBytes);
+        Assert.Equal(456, second.Current.ResponseCacheMaxEntries);
+    }
+
+    /// <summary>Old persisted settings gain safe cache bounds without a database migration.</summary>
+    /// <returns>The completed persistence check.</returns>
+    [Fact]
+    public async Task Old_Document_Gains_Default_Cache_Bounds()
+    {
+        var store = NewStore();
+        await store.InitializeAsync();
+        await store.SaveSettingsJsonAsync("{\"MaxRows\":42}");
+        var settings = new RuntimeSettings(store, Options.Create(new WeirDataPlaneOptions()));
+        await settings.InitializeAsync();
+        Assert.Equal(16_777_216, settings.Current.ResponseCacheMaxEntryBytes);
+        Assert.Equal(10_000, settings.Current.ResponseCacheMaxEntries);
     }
 
     [Fact]

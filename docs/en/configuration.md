@@ -171,14 +171,22 @@ settings](#runtime-settings) below), which overlays the stored value on the seed
 | CircuitBreakerFailureThreshold | `0` | Consecutive data-connection failures that open the per-connection circuit breaker; while open, requests are short-circuited with HTTP 503 until a probe succeeds. Zero disables the breaker. |
 | CircuitBreakerResetSeconds | `30` | How long a tripped breaker stays open before allowing a probe request through. |
 | ApiKeyFailureThreshold | `20` | How many unresolved API keys one caller address may present per minute before further requests are refused with HTTP 429 before a lookup. Caps a random-key flood, which would otherwise query the store on every request (an unknown key is never cached). A valid key never counts against it. Zero disables the guard. Per caller address, so behind a proxy it needs `Weir:Network:TrustedProxies`. |
-| ResponseCacheMaxBytes | `134217728` | Total bytes cached response payloads may occupy in memory. Once the cache is full, the least recently used entries are evicted to make room; a payload larger than the cap is never cached. Zero or less means unlimited, which lets an endpoint with a high-cardinality `VaryByParameters` grow the cache until the process runs out of memory. Changing it rebuilds the cache, discarding the entries it currently holds. |
+| ResponseCacheMaxBytes | `134217728` | Stored payload budget, excluding keys, index overhead and active response buffers. CLOCK eviction gives recently read entries a second chance. Reductions trim existing entries. Zero disables this bound. |
+| ResponseCacheMaxEntryBytes | `16777216` | Maximum payload per entry (16 MiB). Larger responses are delivered once but not stored; the database call is not repeated. Zero disables this bound. |
+| ResponseCacheMaxEntries | `10000` | Maximum local entry count, bounding metadata even for empty or tiny responses. Zero disables this bound. |
+
+Keys longer than 1024 characters and ETags longer than 128 characters are not admitted. The payload
+budget is not a total process memory limit. Active buffers and retained pool capacity need separate
+budgets. Disabling all cache bounds permits unbounded growth. Existing stored settings acquire the
+new 16 MiB entry and 10000 entry-count defaults without a database migration; deployments that need
+larger entries can raise the limit explicitly. Changing bounds preserves entries that still fit.
 
 #### Runtime settings
 
 `MaxRows`, `RequestTimeoutSeconds`, `MaxTvpRows`, `MaxImportRows`, `DefaultApiKeyRateLimitPerMinute`,
 `MaxConcurrentRequestsPerConnection`, `CircuitBreakerFailureThreshold`, `CircuitBreakerResetSeconds`,
 `ApiKeyFailureThreshold`, `ResponseDeliveryMode`, `ResponseFlushBytes`, `ResponseCompressionMode` and
-`ResponseCacheMaxBytes` are editable at runtime from the admin **Settings** screen (or `GET` /
+`ResponseCacheMaxBytes`, `ResponseCacheMaxEntryBytes` and `ResponseCacheMaxEntries` are editable at runtime from the admin **Settings** screen (or `GET` /
 `PUT /admin/api/settings`, Admin role, audited).
 The edited values are stored in the control plane, so they survive restarts and reach every instance
 that shares a control database. `MaxRequestBodyBytes` is shown read-only there because it is applied to

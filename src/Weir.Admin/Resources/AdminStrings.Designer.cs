@@ -4302,18 +4302,14 @@ namespace Weir.Admin.Resources {
             }
         }
         
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Total memory cached responses may occupy. Once full, the least recently used entries are evicted to make room; a response larger than the cap is never cached. Zero means unlimited, which lets an endpoint with many parameter combinations grow the cache until the process runs out of memory. Changing this clears the cache..
-        /// </summary>
+        /// <summary>Gets the localized Settings_ResponseCacheHelp string.</summary>
         public static string Settings_ResponseCacheHelp {
             get {
                 return ResourceManager.GetString("Settings_ResponseCacheHelp", resourceCulture);
             }
         }
         
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Cache size cap (bytes).
-        /// </summary>
+        /// <summary>Gets the localized Settings_ResponseCacheMaxBytesLabel string.</summary>
         public static string Settings_ResponseCacheMaxBytesLabel {
             get {
                 return ResourceManager.GetString("Settings_ResponseCacheMaxBytesLabel", resourceCulture);
@@ -5390,5 +5386,33 @@ namespace Weir.Admin.Resources {
                 return ResourceManager.GetString("Language_ReloadAction", resourceCulture);
             }
         }
+        /// <summary>Gets the localized Settings_ResponseCacheMaxEntryBytesLabel string.</summary>
+        public static string Settings_ResponseCacheMaxEntryBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheMaxEntryBytesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_ResponseCacheMaxEntriesLabel string.</summary>
+        public static string Settings_ResponseCacheMaxEntriesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheMaxEntriesLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_ResponseCacheEntryHelp string.</summary>
+        public static string Settings_ResponseCacheEntryHelp {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheEntryHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets the localized Settings_ResponseCacheCountHelp string.</summary>
+        public static string Settings_ResponseCacheCountHelp {
+            get {
+                return ResourceManager.GetString("Settings_ResponseCacheCountHelp", resourceCulture);
+            }
+        }
+
     }
 }

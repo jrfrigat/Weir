@@ -1437,10 +1437,22 @@
     <value>// КЭШ ОТВЕТОВ</value>
   </data>
   <data name="Settings_ResponseCacheMaxBytesLabel" xml:space="preserve">
-    <value>Лимит кэша (байты)</value>
+    <value>Бюджет данных кэша (байты)</value>
   </data>
   <data name="Settings_ResponseCacheHelp" xml:space="preserve">
-    <value>Сколько памяти могут занимать кэшированные ответы. При заполнении вытесняются самые давно использованные записи; ответ больше лимита не кэшируется никогда. Ноль означает без ограничений: тогда эндпоинт с множеством комбинаций параметров может растить кэш, пока в процессе не кончится память. Изменение значения очищает кэш.</value>
+    <value>Учитывает сохраненные байты ответа, без памяти ключей, индексов и активных буферов. Недавно прочитанные записи получают второй шанс при вытеснении. Снижение лимитов удаляет лишние записи. Ноль отключает ограничение; отключение всех лимитов может исчерпать память.</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxEntryBytesLabel" xml:space="preserve">
+    <value>Максимум данных одной записи (байты)</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxEntriesLabel" xml:space="preserve">
+    <value>Максимум локальных записей</value>
+  </data>
+  <data name="Settings_ResponseCacheEntryHelp" xml:space="preserve">
+    <value>Ответ больше этого значения передается клиенту, но не сохраняется в кэш. Вызов БД не повторяется. По умолчанию: 16 MiB. Ноль отключает ограничение.</value>
+  </data>
+  <data name="Settings_ResponseCacheCountHelp" xml:space="preserve">
+    <value>Ограничивает память ключей и индекса, включая записи с пустыми и маленькими данными. По умолчанию: 10000 записей. Ноль отключает ограничение. Для активных HTTP-буферов и заполнений используется отдельный бюджет.</value>
   </data>
   <data name="Settings_SectionRateLimiting" xml:space="preserve">
     <value>// ОГРАНИЧЕНИЕ ЧАСТОТЫ</value>

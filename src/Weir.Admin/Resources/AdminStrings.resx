@@ -1437,10 +1437,22 @@
     <value>// RESPONSE CACHE</value>
   </data>
   <data name="Settings_ResponseCacheMaxBytesLabel" xml:space="preserve">
-    <value>Cache size cap (bytes)</value>
+    <value>Cached payload budget (bytes)</value>
   </data>
   <data name="Settings_ResponseCacheHelp" xml:space="preserve">
-    <value>Total memory cached responses may occupy. Once full, the least recently used entries are evicted to make room; a response larger than the cap is never cached. Zero means unlimited, which lets an endpoint with many parameter combinations grow the cache until the process runs out of memory. Changing this clears the cache.</value>
+    <value>Counts stored response bytes, excluding key/index overhead and active response buffers. Recent entries receive a second chance when space is needed. Lower limits trim existing entries. Zero disables a bound; disabling all bounds can exhaust memory.</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxEntryBytesLabel" xml:space="preserve">
+    <value>Maximum entry payload (bytes)</value>
+  </data>
+  <data name="Settings_ResponseCacheMaxEntriesLabel" xml:space="preserve">
+    <value>Maximum local entries</value>
+  </data>
+  <data name="Settings_ResponseCacheEntryHelp" xml:space="preserve">
+    <value>Responses larger than this are delivered normally but not stored. The database call is not repeated. Default: 16 MiB. Zero disables this bound.</value>
+  </data>
+  <data name="Settings_ResponseCacheCountHelp" xml:space="preserve">
+    <value>Limits key and index overhead, including entries with empty or tiny payloads. Default: 10000 entries. Zero disables this bound. Active HTTP and fill buffers have a separate budget.</value>
   </data>
   <data name="Settings_SectionRateLimiting" xml:space="preserve">
     <value>// RATE LIMITING</value>

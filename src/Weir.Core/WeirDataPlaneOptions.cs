@@ -75,15 +75,20 @@ public sealed class WeirDataPlaneOptions
     public int ApiKeyFailureThreshold { get; set; } = 20;
 
     /// <summary>
-    /// Total bytes cached response payloads may occupy; the least recently used entries are evicted
-    /// once the cache is full. Zero or less means unlimited (an unbounded cache). Defaults to a safe
-    /// non-zero cap so a high-cardinality <c>VaryByParameters</c> cannot exhaust memory.
+    /// Total stored payload bytes, excluding metadata and active buffers. CLOCK eviction gives
+    /// recent hits a second chance. Zero disables this bound; entry count and size remain independent.
     /// Runtime-tunable; seeds <see cref="Weir.Contracts.WeirSystemSettings.ResponseCacheMaxBytes"/>.
     /// </summary>
     public long ResponseCacheMaxBytes { get; set; } = 134_217_728;
 
+    /// <summary>Maximum cached payload per entry; zero disables the bound. Seeds the runtime setting.</summary>
+    public long ResponseCacheMaxEntryBytes { get; set; } = 16_777_216;
+
+    /// <summary>Maximum local entry count; zero disables the bound. Seeds the runtime setting.</summary>
+    public int ResponseCacheMaxEntries { get; set; } = 10_000;
+
     /// <summary>
-    /// Maximum bytes of a single binary (BLOB) column value materialized in a data-plane response.
+    /// Maximum source bytes emitted from a binary (BLOB) column in a data-plane response.
     /// Zero means unlimited. Runtime-tunable; seeds
     /// <see cref="Weir.Contracts.WeirSystemSettings.MaxBinaryBytes"/>.
     /// </summary>

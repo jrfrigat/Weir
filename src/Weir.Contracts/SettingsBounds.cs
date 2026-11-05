@@ -77,6 +77,14 @@ public static class SettingsBounds
     public static Bound ResponseCacheMaxBytes { get; } =
         new(nameof(WeirSystemSettings.ResponseCacheMaxBytes), 0, 1_099_511_627_776, s => s.ResponseCacheMaxBytes);
 
+    /// <summary>Range for the maximum cached payload per entry.</summary>
+    public static Bound ResponseCacheMaxEntryBytes { get; } =
+        new(nameof(WeirSystemSettings.ResponseCacheMaxEntryBytes), 0, 1_099_511_627_776, s => s.ResponseCacheMaxEntryBytes);
+
+    /// <summary>Range for the number of cached entries, bounding key and index metadata.</summary>
+    public static Bound ResponseCacheMaxEntries { get; } =
+        new(nameof(WeirSystemSettings.ResponseCacheMaxEntries), 0, 1_000_000, s => s.ResponseCacheMaxEntries);
+
     /// <summary>
     /// Range for <see cref="WeirSystemSettings.ResponseFlushBytes"/>: up to one mebibyte. The value that
     /// actually matters here is the 85 KB large-object threshold, which the admin form warns about; this
@@ -87,8 +95,8 @@ public static class SettingsBounds
 
     /// <summary>
     /// Range for <see cref="WeirSystemSettings.MaxBinaryBytes"/>. Zero (unlimited) is a supported
-    /// configuration; the ceiling is the property's own type, since the cap exists to bound the one
-    /// allocation that still grows with a single value's size rather than to recommend a size.
+    /// configuration; the ceiling is the property's own type. The cap limits emitted binary bytes;
+    /// in-box connectors drain the remainder in bounded chunks to preserve sequential access.
     /// </summary>
     public static Bound MaxBinaryBytes { get; } =
         new(nameof(WeirSystemSettings.MaxBinaryBytes), 0, int.MaxValue, s => s.MaxBinaryBytes);
@@ -109,6 +117,8 @@ public static class SettingsBounds
         SlowRequestThresholdPercent,
         RequestLogRetentionDays,
         ResponseCacheMaxBytes,
+        ResponseCacheMaxEntryBytes,
+        ResponseCacheMaxEntries,
         ResponseFlushBytes,
         MaxBinaryBytes,
     ];
