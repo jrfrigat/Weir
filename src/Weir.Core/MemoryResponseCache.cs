@@ -89,26 +89,25 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
             return ValueTask.CompletedTask;
         }
 
-        MakeRoom(generation, size);
-
-        var options = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl, Size = size };
-        options.RegisterPostEvictionCallback(
-            static (evictedKey, value, reason, state) =>
-            {
-                var evictedFrom = (Generation)state!;
-                evictedFrom.Keys.TryRemove((string)evictedKey, out _);
-                if (value is CachedResponse evicted)
+        lock (generation.MutationGate)
+        {
+            MakeRoom(generation, size);
+            var registration = new Registration(generation, size);
+            var options = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl, Size = size };
+            options.RegisterPostEvictionCallback(
+                static (evictedKey, value, reason, state) =>
                 {
-                    evictedFrom.AddBytes(-evicted.Bytes.Length);
-                }
-            },
-            generation);
+                    var evicted = (Registration)state!;
+                    evicted.Generation.Keys.TryRemove(new KeyValuePair<string, Registration>((string)evictedKey, evicted));
+                    evicted.Generation.AddBytes(-evicted.Size);
+                },
+                registration);
 
-        generation.Keys[key] = 0;
-        generation.Cache.Set(key, entry, options);
-        // After the Set, so that replacing an entry has already fired its eviction callback and taken the
-        // old size off: adding first would leave the total reading low if the callback ran late.
-        generation.AddBytes(size);
+            generation.Keys[key] = registration;
+            // Count before publication: callbacks may run asynchronously, including for refused entries.
+            generation.AddBytes(size);
+            generation.Cache.Set(key, entry, options);
+        }
         return ValueTask.CompletedTask;
     }
 
@@ -116,8 +115,11 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
         var generation = Current();
-        generation.Cache.Remove(key);
-        generation.Keys.TryRemove(key, out _);
+        lock (generation.MutationGate)
+        {
+            generation.Cache.Remove(key);
+            generation.Keys.TryRemove(key, out _);
+        }
         return ValueTask.CompletedTask;
     }
 
@@ -126,18 +128,19 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     {
         ArgumentNullException.ThrowIfNull(keyPrefix);
         var generation = Current();
-        foreach (var key in generation.Keys.Keys)
+        lock (generation.MutationGate)
         {
-            if (key.StartsWith(keyPrefix, StringComparison.Ordinal))
+            foreach (var key in generation.Keys.Keys)
             {
-                generation.Cache.Remove(key);
-                generation.Keys.TryRemove(key, out _);
+                if (key.StartsWith(keyPrefix, StringComparison.Ordinal))
+                {
+                    generation.Cache.Remove(key);
+                    generation.Keys.TryRemove(key, out _);
+                }
             }
+            // A purge must stay visible even when its matching fill has not stored anything yet.
+            Interlocked.Increment(ref _purgeStamp);
         }
-
-        // Raised whether or not anything was evicted: a purge of a prefix nothing is stored under yet must
-        // still be visible to a fill already in flight, because that fill would put the old body there.
-        Interlocked.Increment(ref _purgeStamp);
         return ValueTask.CompletedTask;
     }
 
@@ -261,7 +264,10 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
         /// (<see cref="MemoryCache"/> exposes no key enumeration). Entries remove themselves via a
         /// post-eviction callback, so this set does not outgrow the cache.
         /// </summary>
-        internal ConcurrentDictionary<string, byte> Keys { get; } = new(StringComparer.Ordinal);
+        internal ConcurrentDictionary<string, Registration> Keys { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Serializes publication, removal and prefix purges without blocking cache hits.</summary>
+        internal Lock MutationGate { get; } = new();
 
         /// <summary>
         /// A running total of stored bytes, maintained here rather than read from the cache. The
@@ -285,5 +291,17 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
         /// <summary>Adds a stored payload's size to the running total.</summary>
         /// <param name="bytes">Size of the payload, negative when it leaves the cache.</param>
         internal void AddBytes(long bytes) => Interlocked.Add(ref _estimatedBytes, bytes);
+    }
+
+    /// <summary>Identifies the owner of one index slot even after the same key is replaced.</summary>
+    /// <param name="generation">The owning cache generation.</param>
+    /// <param name="size">The admitted payload size.</param>
+    private sealed class Registration(Generation generation, long size)
+    {
+        /// <summary>The generation whose accounting must be released.</summary>
+        internal Generation Generation { get; } = generation;
+
+        /// <summary>The bytes charged before publishing this entry.</summary>
+        internal long Size { get; } = size;
     }
 }

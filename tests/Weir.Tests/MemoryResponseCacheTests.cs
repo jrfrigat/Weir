@@ -7,6 +7,47 @@ namespace Weir.Tests;
 
 public class MemoryResponseCacheTests
 {
+    /// <summary>Waits for the real old-entry callback before purging its replacement.</summary>
+    /// <param name="expired">Whether the replaced entry has already expired.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Replacement_RemainsIndexed_AfterOldEvictionCallback(bool expired)
+    {
+        using var cache = NewCache();
+        const string key = "weir:replacement:one";
+        await cache.SetAsync(key, EntryOfSize(3), expired ? TimeSpan.FromTicks(1) : TimeSpan.FromMinutes(5));
+        if (expired)
+            Assert.True(SpinWait.SpinUntil(() => !cache.GetAsync(key).Result.HasValue, TimeSpan.FromSeconds(10)));
+        await cache.SetAsync(key, EntryOfSize(5), TimeSpan.FromMinutes(5));
+
+        var generation = typeof(MemoryResponseCache).GetField("_generation",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(cache)!;
+        var bytes = generation.GetType().GetProperty("EstimatedBytes",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        Assert.True(SpinWait.SpinUntil(() => (long)bytes.GetValue(generation)! == 5, TimeSpan.FromSeconds(10)),
+            "The old entry's eviction callback did not complete.");
+
+        Assert.True((await cache.GetAsync(key)).HasValue);
+        await cache.RemoveByPrefixAsync("weir:replacement:");
+        Assert.Null(await cache.GetAsync(key));
+    }
+
+    /// <summary>Competing mutations must never leave a live entry outside the purge index.</summary>
+    [Fact]
+    public async Task ConcurrentReplacementAndRemoval_RemainPurgeable()
+    {
+        using var cache = NewCache();
+        await Parallel.ForEachAsync(Enumerable.Range(0, 1000), async (i, token) =>
+        {
+            var key = $"weir:concurrent:{i % 8}";
+            await cache.SetAsync(key, EntryOfSize(i + 1), TimeSpan.FromMinutes(5), token);
+            if (i % 3 == 0) await cache.RemoveAsync(key, token);
+        });
+        await cache.RemoveByPrefixAsync("weir:concurrent:");
+        for (var i = 0; i < 8; i++) Assert.Null(await cache.GetAsync($"weir:concurrent:{i}"));
+    }
+
     /// <summary>
     /// Runtime settings whose snapshot can be swapped, standing in for an admin edit. Only
     /// <see cref="IRuntimeSettings.Current"/> is exercised here; nothing is persisted.
