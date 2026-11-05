@@ -69,6 +69,20 @@ finish or close unread results before exposing output parameters, including afte
 binary value limits are applied. Sequential access limits driver buffering; it does not by itself
 remove allocations from materializing a large string or binary value.
 
+The in-box executions opt into `IDbExecution.SupportsSequentialValues`: large or unbounded text
+and binary values use pooled chunks rather than a complete `string` or `byte[]`. Text columns
+declared at most 4096 characters keep their typed `GetString` fast path. SQL Server text reads use
+bounded synchronous `GetChars` calls, with cancellation checks and awaited network flushes between
+chunks; ADO.NET has no `GetCharsAsync`. PostgreSQL can pass raw UTF-8 text streams to the JSON writer
+when both driver and server encodings are UTF-8, and otherwise uses character chunks. Binary streams
+are read asynchronously. JSON escaping and base64 segment boundaries are handled by .NET.
+
+Custom executions default to their existing getter behavior. Opt in only when your reader supports
+incremental `GetChars` and `GetStream`; a short `GetChars` read must indicate the end of the value.
+Override `CanStreamTextColumn` for provider-specific string-mapped types that cannot use `GetChars`.
+`SupportsUtf8TextStreams` additionally promises UTF-8 text streams with a known `Length`; leave it
+false for other encodings. Weir keeps the legacy typed fallback for unsupported string types.
+
 A complete reference implementation lives in
 [`samples/connectors/Weir.Connectors.MySql`](../../samples/connectors/Weir.Connectors.MySql).
 

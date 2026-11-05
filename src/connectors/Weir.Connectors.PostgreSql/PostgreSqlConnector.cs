@@ -24,6 +24,9 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
     /// <summary>Pooled data sources, one per distinct connection string, created on first use.</summary>
     private readonly ConcurrentDictionary<string, NpgsqlDataSource> _dataSources = new(StringComparer.Ordinal);
 
+    /// <summary>Encoding capabilities cached alongside the configured data sources, never per result row.</summary>
+    private readonly ConcurrentDictionary<string, bool> _utf8Text = new(StringComparer.Ordinal);
+
     /// <summary>Creates the connector over the shared connection registry.</summary>
     /// <param name="registry">The data-connection registry.</param>
     public PostgreSqlConnector(IDataConnectionRegistry registry) => _registry = registry;
@@ -129,7 +132,14 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
             command = connection.CreateCommand();
             ConfigureCommand(command, request, descriptor);
             var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
-            return new PostgreSqlExecution(connection, command, reader, messages, handler, extraOutputs);
+            var utf8Text = _utf8Text.GetOrAdd(descriptor.ConnectionString,
+                static cs =>
+                {
+                    var encoding = new NpgsqlConnectionStringBuilder(cs).Encoding;
+                    return string.Equals(encoding, "UTF8", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(encoding, "UTF-8", StringComparison.OrdinalIgnoreCase);
+                });
+            return new PostgreSqlExecution(connection, command, reader, messages, handler, extraOutputs, utf8Text);
         }
         catch
         {

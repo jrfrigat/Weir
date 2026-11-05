@@ -90,6 +90,24 @@ public interface IDbConnector
 /// </summary>
 public interface IDbExecution : IAsyncDisposable
 {
+    /// <summary>
+    /// Whether GetChars and GetStream read values incrementally without materializing the entire value.
+    /// GetChars must fill the requested region unless the value has ended. The default preserves
+    /// compatibility with custom readers whose getters require buffering or do not support streaming.
+    /// </summary>
+    bool SupportsSequentialValues => false;
+
+    /// <summary>Whether a string-mapped column supports incremental GetChars; provider-specific string types may opt out.</summary>
+    /// <param name="ordinal">The result column ordinal.</param>
+    /// <returns>True when chunked GetChars is supported for this column.</returns>
+    bool CanStreamTextColumn(int ordinal) => SupportsSequentialValues;
+
+    /// <summary>
+    /// Whether streamable text columns expose raw UTF-8 through GetStream with a known Length.
+    /// The default uses GetChars so arbitrary provider encodings are never treated as UTF-8.
+    /// </summary>
+    bool SupportsUtf8TextStreams => false;
+
     /// <summary>The open data reader positioned at the first result set. Valid until <see cref="CompleteAsync"/> is called or the execution is disposed.</summary>
     DbDataReader Reader { get; }
 

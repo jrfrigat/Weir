@@ -36,13 +36,21 @@ internal sealed class PostgreSqlExecution : IDbExecution
     private bool _disposed;
 
     /// <summary>Creates the execution handle over the open connection, command and reader.</summary>
+    /// <param name="connection">The live data connection.</param>
+    /// <param name="command">The command owning its output parameters.</param>
+    /// <param name="reader">The sequential result reader.</param>
+    /// <param name="messages">The shared notice collection.</param>
+    /// <param name="handler">The handler to detach on disposal.</param>
+    /// <param name="extraOutputs">Outputs supplied outside the command, such as a dictionary count.</param>
+    /// <param name="utf8Text">Whether the driver's configured text decoder is UTF-8.</param>
     public PostgreSqlExecution(
         NpgsqlConnection connection,
         NpgsqlCommand command,
         NpgsqlDataReader reader,
         List<SqlMessage> messages,
         NoticeEventHandler handler,
-        IReadOnlyDictionary<string, object?>? extraOutputs = null)
+        IReadOnlyDictionary<string, object?>? extraOutputs = null,
+        bool utf8Text = false)
     {
         _connection = connection;
         _command = command;
@@ -50,6 +58,7 @@ internal sealed class PostgreSqlExecution : IDbExecution
         _messages = messages;
         _handler = handler;
         _extraOutputs = extraOutputs;
+        _utf8Text = utf8Text;
         Outputs = extraOutputs is null
             ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, object?>(extraOutputs, StringComparer.OrdinalIgnoreCase);
@@ -58,8 +67,23 @@ internal sealed class PostgreSqlExecution : IDbExecution
     /// <summary>Connector-supplied outputs merged in ahead of the command's own parameters.</summary>
     private readonly IReadOnlyDictionary<string, object?>? _extraOutputs;
 
+    /// <summary>Whether the driver's configured decoder expects UTF-8 wire text.</summary>
+    private readonly bool _utf8Text;
+
     /// <inheritdoc />
     public DbDataReader Reader => _reader;
+
+    /// <inheritdoc />
+    public bool SupportsSequentialValues => true;
+
+    /// <inheritdoc />
+    public bool SupportsUtf8TextStreams => _utf8Text &&
+        _connection.PostgresParameters.TryGetValue("client_encoding", out var encoding) &&
+        string.Equals(encoding, "UTF8", StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc />
+    public bool CanStreamTextColumn(int ordinal) => _reader.GetDataTypeName(ordinal) is
+        "text" or "varchar" or "character varying" or "char" or "bpchar" or "character";
 
     /// <inheritdoc />
     public IReadOnlyList<SqlMessage> Messages => _messages;

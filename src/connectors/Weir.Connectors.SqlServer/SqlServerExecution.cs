@@ -72,6 +72,13 @@ internal sealed class SqlServerExecution : IDbExecution
     public DbDataReader Reader => _reader;
 
     /// <inheritdoc />
+    public bool SupportsSequentialValues => true;
+
+    /// <inheritdoc />
+    public bool CanStreamTextColumn(int ordinal) => _reader.GetDataTypeName(ordinal) is
+        "char" or "nchar" or "varchar" or "nvarchar" or "text" or "ntext";
+
+    /// <inheritdoc />
     public IReadOnlyList<SqlMessage> Messages => _messages;
 
     /// <inheritdoc />

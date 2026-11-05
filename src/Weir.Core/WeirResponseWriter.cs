@@ -46,10 +46,9 @@ internal static class WeirResponseWriter
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="maxBinaryBytes">
-    /// How many bytes of a single binary (BLOB) column value may be materialized before the value is
-    /// truncated and the response is flagged. A binary value is read whole into memory to be
-    /// Base64-encoded, so an unbounded BLOB is the one place the streaming row path still allocates with
-    /// the value's size; capping it bounds that. Zero or less means unlimited (no cap).
+    /// Maximum bytes of one binary value emitted before flagging truncation; zero or less means
+    /// unlimited output. Sequential-value executions read bounded chunks even without a cap.
+    /// Legacy custom readers retain their existing materializing getter fallback.
     /// </param>
     /// <returns>The number of data rows written and whether the response was truncated.</returns>
     public static async Task<WriteResult> WriteAsync(
@@ -89,10 +88,15 @@ internal static class WeirResponseWriter
                 // set and leaves the row loop copying ready-made UTF-8 bytes.
                 var names = new JsonEncodedText[fieldCount];
                 var kinds = new ColumnKind[fieldCount];
+                var schema = execution.SupportsSequentialValues && reader.CanGetColumnSchema() ? reader.GetColumnSchema() : null;
+                var utf8Text = execution.SupportsUtf8TextStreams;
                 for (var i = 0; i < fieldCount; i++)
                 {
                     names[i] = JsonEncodedText.Encode(reader.GetName(i), options.Encoder);
                     kinds[i] = Classify(reader.GetFieldType(i));
+                    if (kinds[i] == ColumnKind.String && execution.CanStreamTextColumn(i) && schema is not null &&
+                        schema[i].ColumnSize is not (> 0 and <= 4096))
+                        kinds[i] = ColumnKind.TextChunks;
                 }
 
                 while (await FlushWhileWaitingAsync(reader.ReadAsync(cancellationToken), writer, buffer, flushWhenWaiting, cancellationToken))
@@ -108,7 +112,16 @@ internal static class WeirResponseWriter
                     for (var i = 0; i < fieldCount; i++)
                     {
                         writer.WritePropertyName(names[i]);
-                        if (WriteCell(writer, reader, i, kinds[i], maxBinaryBytes))
+                        if (kinds[i] == ColumnKind.TextChunks)
+                        {
+                            if (utf8Text) await WriteUtf8TextAsync(writer, buffer, reader, i, cancellationToken);
+                            else await WriteTextAsync(writer, buffer, reader, i, cancellationToken);
+                        }
+                        else if (kinds[i] == ColumnKind.Bytes && execution.SupportsSequentialValues)
+                        {
+                            truncated |= await WriteBinaryAsync(writer, buffer, reader, i, maxBinaryBytes, cancellationToken);
+                        }
+                        else if (WriteCell(writer, reader, i, kinds[i], maxBinaryBytes))
                         {
                             truncated = true;
                         }
@@ -269,6 +282,18 @@ internal static class WeirResponseWriter
         /// <summary>Whether this buffer has released its rental.</summary>
         private bool _disposed;
 
+        /// <summary>The lazily rented text chunk, shared by all cells of this response.</summary>
+        private char[]? _text;
+
+        /// <summary>The lazily rented binary chunk, shared by all cells of this response.</summary>
+        private byte[]? _binary;
+
+        /// <summary>Reusable storage for one bounded text read.</summary>
+        internal char[] TextBuffer => _text ??= ArrayPool<char>.Shared.Rent(4096);
+
+        /// <summary>Reusable storage for one bounded binary read.</summary>
+        internal byte[] BinaryBuffer => _binary ??= ArrayPool<byte>.Shared.Rent(16 * 1024);
+
         /// <summary>Bytes committed by the JSON writer since the previous transport flush.</summary>
         internal int WrittenCount { get; private set; }
 
@@ -317,6 +342,7 @@ internal static class WeirResponseWriter
             cancellationToken.ThrowIfCancellationRequested();
             for (var offset = 0; offset < WrittenCount;)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var count = Math.Min(WrittenCount - offset, 256 * 1024);
                 await output.WriteAsync(_bytes.AsMemory(offset, count), cancellationToken);
                 offset += count;
@@ -331,7 +357,119 @@ internal static class WeirResponseWriter
             if (_disposed) return;
             _disposed = true;
             ArrayPool<byte>.Shared.Return(_bytes);
+            if (_text is not null) ArrayPool<char>.Shared.Return(_text);
+            if (_binary is not null) ArrayPool<byte>.Shared.Return(_binary);
             _bytes = [];
+        }
+    }
+
+    /// <summary>Writes an unbounded text column without constructing a string for the whole value.</summary>
+    /// <param name="writer">The JSON producer.</param>
+    /// <param name="buffer">The request's pooled chunk owner.</param>
+    /// <param name="reader">The positioned sequential reader.</param>
+    /// <param name="ordinal">The column being consumed.</param>
+    /// <param name="cancellationToken">Cancellation checked between bounded reads and writes.</param>
+    /// <returns>The completed value write.</returns>
+    private static async ValueTask WriteTextAsync(Utf8JsonWriter writer, JsonOutputBuffer buffer,
+        DbDataReader reader, int ordinal, CancellationToken cancellationToken)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            writer.WriteNullValue();
+            return;
+        }
+        var chars = buffer.TextBuffer;
+        long offset = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = (int)reader.GetChars(ordinal, offset, chars, 0, 4096);
+            var final = read < 4096;
+            if (offset == 0 && final) writer.WriteStringValue(chars.AsSpan(0, read));
+            else writer.WriteStringValueSegment(chars.AsSpan(0, read), final);
+            offset += read;
+            if ((long)buffer.WrittenCount + writer.BytesPending >= DefaultFlushThresholdBytes)
+                await FlushAsync(writer, buffer, cancellationToken);
+            if (final) return;
+        }
+    }
+
+    /// <summary>Writes a binary value with bounded memory and at most one byte of cap lookahead.</summary>
+    /// <param name="writer">The JSON producer.</param>
+    /// <param name="buffer">The request's pooled chunk owner.</param>
+    /// <param name="reader">The positioned sequential reader.</param>
+    /// <param name="ordinal">The binary column.</param>
+    /// <param name="maxBinaryBytes">The output cap, or zero for unlimited.</param>
+    /// <param name="cancellationToken">Cancellation of database reads and transport writes.</param>
+    /// <returns>Whether the value exceeded the cap.</returns>
+    private static async ValueTask<bool> WriteBinaryAsync(Utf8JsonWriter writer, JsonOutputBuffer buffer,
+        DbDataReader reader, int ordinal, int maxBinaryBytes, CancellationToken cancellationToken)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            writer.WriteNullValue();
+            return false;
+        }
+        using var stream = reader.GetStream(ordinal);
+        var bytes = buffer.BinaryBuffer;
+        var remaining = maxBinaryBytes > 0 ? (long)maxBinaryBytes : long.MaxValue;
+        while (remaining > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = (int)Math.Min(remaining, 16 * 1024);
+            var read = await stream.ReadAsync(bytes.AsMemory(0, count), cancellationToken);
+            if (read == 0) break;
+            writer.WriteBase64StringSegment(bytes.AsSpan(0, read), false);
+            remaining -= read;
+            if ((long)buffer.WrittenCount + writer.BytesPending >= DefaultFlushThresholdBytes)
+                await FlushAsync(writer, buffer, cancellationToken);
+        }
+        var truncated = remaining == 0 && await stream.ReadAsync(bytes.AsMemory(0, 1), cancellationToken) != 0;
+        if (truncated)
+        {
+            // Disposing an unread SqlClient column can allocate a large drain buffer. Consume it
+            // through the same bounded rental before moving to another column or capturing outputs.
+            while (await stream.ReadAsync(bytes.AsMemory(0, 16 * 1024), cancellationToken) != 0)
+                cancellationToken.ThrowIfCancellationRequested();
+        }
+        writer.WriteBase64StringSegment(ReadOnlySpan<byte>.Empty, true);
+        return truncated;
+    }
+
+    /// <summary>Writes UTF-8 text streams without allocating a UTF-16 string or per-cell TextReader.</summary>
+    /// <param name="writer">The JSON producer, which performs escaping and segment validation.</param>
+    /// <param name="buffer">The request's pooled input and output chunks.</param>
+    /// <param name="reader">The positioned reader advertising UTF-8 streams with a known length.</param>
+    /// <param name="ordinal">The text column.</param>
+    /// <param name="cancellationToken">Cancellation of reads and destination writes.</param>
+    /// <returns>The completed value write.</returns>
+    private static async ValueTask WriteUtf8TextAsync(Utf8JsonWriter writer, JsonOutputBuffer buffer,
+        DbDataReader reader, int ordinal, CancellationToken cancellationToken)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            writer.WriteNullValue();
+            return;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        using var stream = reader.GetStream(ordinal);
+        var bytes = buffer.BinaryBuffer;
+        var length = stream.Length;
+        if (length <= 4096)
+        {
+            // Small bounded reads retain the same synchronous getter behavior as GetString.
+            stream.ReadExactly(bytes.AsSpan(0, checked((int)length)));
+            writer.WriteStringValue(bytes.AsSpan(0, (int)length));
+            return;
+        }
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = await stream.ReadAsync(bytes.AsMemory(0, 16 * 1024), cancellationToken);
+            writer.WriteStringValueSegment(bytes.AsSpan(0, read), read == 0);
+            if ((long)buffer.WrittenCount + writer.BytesPending >= DefaultFlushThresholdBytes)
+                await FlushAsync(writer, buffer, cancellationToken);
+            if (read == 0) return;
         }
     }
 
@@ -404,6 +542,9 @@ internal static class WeirResponseWriter
 
         /// <summary><see cref="System.TimeSpan"/> (<c>GetFieldValue</c>).</summary>
         TimeSpan,
+
+        /// <summary>A large or unbounded text value read through reusable character chunks.</summary>
+        TextChunks,
     }
 
     /// <summary>

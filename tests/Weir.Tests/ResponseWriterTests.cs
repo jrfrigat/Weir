@@ -12,6 +12,55 @@ namespace Weir.Tests;
 // patched SQLitePCLRaw works at runtime.
 public class ResponseWriterTests
 {
+    /// <summary>Segmented values preserve Unicode, base64 and null/empty distinctions alongside the fallback path.</summary>
+    /// <param name="sequential">Whether the reader opts into sequential value getters.</param>
+    /// <param name="cap">The binary output cap, with zero meaning unlimited.</param>
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    [InlineData(true, 3)]
+    [InlineData(true, 16384)]
+    [InlineData(true, 32771)]
+    [InlineData(true, 32772)]
+    public async Task LargeValues_PreserveSegmentsAndCaps(bool sequential, int cap)
+    {
+        var text = new string('x', 4095) + "\uD83D\uDE80\"\\\n\u041F\u0440\u0438\u0432\u0435\u0442" + new string('z', 8192);
+        var binary = Enumerable.Range(0, 32771).Select(i => (byte)i).ToArray();
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using (var setup = connection.CreateCommand())
+        {
+            setup.CommandText = "CREATE TABLE v(text TEXT,blob BLOB,tail TEXT,small VARCHAR(64)); " +
+                "INSERT INTO v VALUES (@text,@blob,@text,'short'),('',x'',NULL,NULL),(NULL,NULL,'','');";
+            setup.Parameters.AddWithValue("@text", text);
+            setup.Parameters.AddWithValue("@blob", binary);
+            await setup.ExecuteNonQueryAsync();
+        }
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT * FROM v";
+        await using var execution = new TestExecution(await query.ExecuteReaderAsync(), supportsSequentialValues: sequential);
+        using var output = new MemoryStream();
+        var result = await WeirResponseWriter.WriteAsync(output, execution,
+            new EndpointDefinition { Route = "values", ConnectionName = "default", ObjectName = "rows" },
+            new JsonWriterOptions(), 0, 32768, false, CancellationToken.None, cap);
+        using var json = JsonDocument.Parse(output.ToArray());
+        var rows = json.RootElement.GetProperty("data")[0];
+        Assert.Equal(text, rows[0].GetProperty("text").GetString());
+        Assert.Equal(text, rows[0].GetProperty("tail").GetString());
+        Assert.Equal("short", rows[0].GetProperty("small").GetString());
+        Assert.Equal(binary.AsSpan(0, cap > 0 ? Math.Min(cap, binary.Length) : binary.Length).ToArray(),
+            rows[0].GetProperty("blob").GetBytesFromBase64());
+        Assert.Equal(string.Empty, rows[1].GetProperty("text").GetString());
+        Assert.Equal(string.Empty, rows[1].GetProperty("blob").GetString());
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("tail").ValueKind);
+        Assert.Equal(JsonValueKind.Null, rows[2].GetProperty("text").ValueKind);
+        Assert.Equal(JsonValueKind.Null, rows[2].GetProperty("blob").ValueKind);
+        Assert.Equal(3, result.RowCount);
+        Assert.Equal(cap > 0 && cap < binary.Length, result.Truncated);
+    }
+
     /// <summary>A slow destination retains its rental and prevents the reader from running ahead.</summary>
     [Fact]
     public async Task PooledWriter_AwaitsBackpressure_AndLeavesDestinationOpen()
@@ -88,12 +137,22 @@ public class ResponseWriterTests
         }
     }
 
+    /// <summary>Adapts a test reader while preserving conservative defaults for custom providers.</summary>
+    /// <param name="reader">The result reader.</param>
+    /// <param name="messages">Optional informational messages.</param>
+    /// <param name="outputs">Optional output parameters.</param>
+    /// <param name="returnValue">Optional procedure return value.</param>
+    /// <param name="supportsSequentialValues">Whether this reader supports chunk getters.</param>
     private sealed class TestExecution(
         DbDataReader reader,
         IReadOnlyList<SqlMessage>? messages = null,
         IReadOnlyDictionary<string, object?>? outputs = null,
-        int? returnValue = null) : IDbExecution
+        int? returnValue = null,
+        bool supportsSequentialValues = false) : IDbExecution
     {
+        /// <inheritdoc />
+        public bool SupportsSequentialValues => supportsSequentialValues;
+
         public DbDataReader Reader => reader;
 
         public IReadOnlyList<SqlMessage> Messages => messages ?? [];
