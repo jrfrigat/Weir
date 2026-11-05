@@ -14,11 +14,8 @@ namespace Weir.Core;
 internal static class WeirResponseWriter
 {
     /// <summary>
-    /// Fallback flush threshold, used when the caller passes a non-positive one. A
-    /// <see cref="Utf8JsonWriter"/> over a stream writes nothing until it is flushed - it accumulates
-    /// in an internal buffer that starts small and doubles, on plain heap arrays - so with no flushing
-    /// in the row loop the whole envelope is built in memory and the client waits for the last row to
-    /// get the first byte. Zero would mean exactly that, which is never what a caller means.
+    /// Fallback flush threshold. Both bytes committed to the pooled buffer and bytes still pending
+    /// in the JSON writer count toward it; committing to an IBufferWriter does not send data to the client.
     /// </summary>
     private const int DefaultFlushThresholdBytes = 32 * 1024;
 
@@ -36,10 +33,8 @@ internal static class WeirResponseWriter
     /// <param name="flushBytes">
     /// How many bytes may sit unflushed before the row loop pushes them to <paramref name="output"/>.
     /// Zero or less falls back to <see cref="DefaultFlushThresholdBytes"/>. Flushing on a threshold
-    /// rather than per row keeps the write count sane while capping the writer's buffer: it never grows
-    /// past this plus one row. This matters even when the destination is a buffer rather than the
-    /// client - it is what stops the writer's own array from doubling its way onto the large-object
-    /// heap alongside it.
+    /// rather than per row keeps the write count sane while bounding the accumulated JSON to this
+    /// threshold plus one row. The intermediate bytes are rented instead of allocated per response.
     /// </param>
     /// <param name="flushWhenWaiting">
     /// Whether to push out whatever is pending, however little, whenever the reader has to wait for the
@@ -73,7 +68,8 @@ internal static class WeirResponseWriter
         var reader = execution.Reader;
         var flushThreshold = flushBytes > 0 ? flushBytes : DefaultFlushThresholdBytes;
 
-        await using var writer = new Utf8JsonWriter(output, options);
+        using var buffer = new JsonOutputBuffer(output);
+        using var writer = new Utf8JsonWriter(buffer, options);
         writer.WriteStartObject();
 
         writer.WritePropertyName("data");
@@ -99,7 +95,7 @@ internal static class WeirResponseWriter
                     kinds[i] = Classify(reader.GetFieldType(i));
                 }
 
-                while (await FlushWhileWaitingAsync(reader.ReadAsync(cancellationToken), writer, flushWhenWaiting, cancellationToken))
+                while (await FlushWhileWaitingAsync(reader.ReadAsync(cancellationToken), writer, buffer, flushWhenWaiting, cancellationToken))
                 {
                     if (maxRows > 0 && rowCount >= maxRows)
                     {
@@ -123,10 +119,10 @@ internal static class WeirResponseWriter
 
                     // Push what has piled up out to the destination. On the direct path that is the
                     // client's body, so this is what makes the response actually stream; on the buffered
-                    // path it just moves bytes into the caller's MemoryStream, which is pre-sized.
-                    if (writer.BytesPending >= flushThreshold)
+                    // path it moves bytes into the caller-owned response buffer.
+                    if ((long)buffer.WrittenCount + writer.BytesPending >= flushThreshold)
                     {
-                        await writer.FlushAsync(cancellationToken);
+                        await FlushAsync(writer, buffer, cancellationToken);
                     }
                 }
             }
@@ -137,9 +133,9 @@ internal static class WeirResponseWriter
             // NextResultAsync sits out that pause synchronously - it hands back a task that is already
             // complete - so waiting cannot be detected here the way it is for a row. Flush before asking
             // instead: it costs one write per result set, and a procedure returns a handful of those.
-            if (flushWhenWaiting && !truncated && writer.BytesPending > 0)
+            if (flushWhenWaiting && !truncated && buffer.WrittenCount + writer.BytesPending > 0)
             {
-                await writer.FlushAsync(cancellationToken);
+                await FlushAsync(writer, buffer, cancellationToken);
             }
         }
         while (!truncated && await reader.NextResultAsync(cancellationToken));
@@ -207,7 +203,7 @@ internal static class WeirResponseWriter
         writer.WriteEndArray();
 
         writer.WriteEndObject();
-        await writer.FlushAsync(cancellationToken);
+        await FlushAsync(writer, buffer, cancellationToken);
         return new WriteResult(rowCount, truncated);
     }
 
@@ -218,19 +214,20 @@ internal static class WeirResponseWriter
     /// </summary>
     /// <param name="read">The read, already started.</param>
     /// <param name="writer">The JSON writer over the response.</param>
+    /// <param name="buffer">The pooled bytes committed by the writer.</param>
     /// <param name="flushWhenWaiting">Whether a waiting read flushes the pending bytes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Whether there was a row.</returns>
-    private static async ValueTask<bool> FlushWhileWaitingAsync(Task<bool> read, Utf8JsonWriter writer, bool flushWhenWaiting, CancellationToken cancellationToken)
+    private static async ValueTask<bool> FlushWhileWaitingAsync(Task<bool> read, Utf8JsonWriter writer, JsonOutputBuffer buffer, bool flushWhenWaiting, CancellationToken cancellationToken)
     {
-        if (!flushWhenWaiting || read.IsCompleted || writer.BytesPending == 0)
+        if (!flushWhenWaiting || read.IsCompleted || (buffer.WrittenCount == 0 && writer.BytesPending == 0))
         {
             return await read;
         }
 
         try
         {
-            await writer.FlushAsync(cancellationToken);
+            await FlushAsync(writer, buffer, cancellationToken);
         }
         catch
         {
@@ -249,6 +246,93 @@ internal static class WeirResponseWriter
         }
 
         return await read;
+    }
+
+    /// <summary>Commits JSON before asynchronously handing its pooled bytes to the destination.</summary>
+    /// <param name="writer">The JSON producer, which releases its current memory on flush.</param>
+    /// <param name="buffer">The owner of the committed bytes.</param>
+    /// <param name="cancellationToken">Request cancellation.</param>
+    /// <returns>The completed handover.</returns>
+    private static ValueTask FlushAsync(Utf8JsonWriter writer, JsonOutputBuffer buffer, CancellationToken cancellationToken)
+    {
+        writer.Flush();
+        return buffer.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>Owns rented JSON memory until the destination's asynchronous write and flush have finished.</summary>
+    /// <param name="output">The caller-owned destination, which is never disposed here.</param>
+    private sealed class JsonOutputBuffer(Stream output) : IBufferWriter<byte>, IDisposable
+    {
+        /// <summary>The current rental, released only after the JSON writer stops using it.</summary>
+        private byte[] _bytes = ArrayPool<byte>.Shared.Rent(16 * 1024);
+
+        /// <summary>Whether this buffer has released its rental.</summary>
+        private bool _disposed;
+
+        /// <summary>Bytes committed by the JSON writer since the previous transport flush.</summary>
+        internal int WrittenCount { get; private set; }
+
+        /// <inheritdoc />
+        public void Advance(int count)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(count);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _bytes.Length - WrittenCount);
+            WrittenCount += count;
+        }
+
+        /// <inheritdoc />
+        public Memory<byte> GetMemory(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _bytes.AsMemory(WrittenCount);
+        }
+
+        /// <inheritdoc />
+        public Span<byte> GetSpan(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _bytes.AsSpan(WrittenCount);
+        }
+
+        /// <summary>Preserves committed bytes when the producer needs a larger contiguous region.</summary>
+        /// <param name="sizeHint">The minimum free region requested by the producer.</param>
+        private void EnsureCapacity(int sizeHint)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            ArgumentOutOfRangeException.ThrowIfNegative(sizeHint);
+            var required = checked(WrittenCount + Math.Max(sizeHint, 1));
+            if (required <= _bytes.Length) return;
+            var capacity = _bytes.Length <= Array.MaxLength / 2 ? Math.Max(required, _bytes.Length * 2) : required;
+            var next = ArrayPool<byte>.Shared.Rent(capacity);
+            _bytes.AsSpan(0, WrittenCount).CopyTo(next);
+            ArrayPool<byte>.Shared.Return(_bytes);
+            _bytes = next;
+        }
+
+        /// <summary>Awaits backpressure before making the producer's rental writable again.</summary>
+        /// <param name="cancellationToken">Request cancellation.</param>
+        /// <returns>The completed destination write and flush.</returns>
+        internal async ValueTask FlushAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            for (var offset = 0; offset < WrittenCount;)
+            {
+                var count = Math.Min(WrittenCount - offset, 256 * 1024);
+                await output.WriteAsync(_bytes.AsMemory(offset, count), cancellationToken);
+                offset += count;
+            }
+            await output.FlushAsync(cancellationToken);
+            WrittenCount = 0;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            ArrayPool<byte>.Shared.Return(_bytes);
+            _bytes = [];
+        }
     }
 
     /// <summary>Maps driver output-parameter names (db name, minus any leading '@') to their logical names.</summary>

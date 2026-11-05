@@ -12,6 +12,82 @@ namespace Weir.Tests;
 // patched SQLitePCLRaw works at runtime.
 public class ResponseWriterTests
 {
+    /// <summary>A slow destination retains its rental and prevents the reader from running ahead.</summary>
+    [Fact]
+    public async Task PooledWriter_AwaitsBackpressure_AndLeavesDestinationOpen()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<4000) SELECT x, printf('%064d',x) AS text FROM n";
+        var reader = await command.ExecuteReaderAsync();
+        await using var execution = new TestExecution(reader);
+        using var output = new RetainingStream();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var writing = WeirResponseWriter.WriteAsync(output, execution,
+            new EndpointDefinition { Route = "slow", ConnectionName = "default", ObjectName = "rows" },
+            new JsonWriterOptions(), 0, 32768, false, cancellation.Token);
+        try
+        {
+            await output.Started.Task.WaitAsync(cancellation.Token);
+            Assert.False(writing.IsCompleted);
+            var currentRow = reader.GetInt64(0);
+            Assert.InRange(currentRow, 1, 3999);
+            await Task.Yield();
+            Assert.Equal(currentRow, reader.GetInt64(0));
+        }
+        finally
+        {
+            output.Release.TrySetResult();
+        }
+        var result = await writing;
+        Assert.Equal(4000, result.RowCount);
+        Assert.True(output.CanWrite);
+        using var json = JsonDocument.Parse(output.ToArray());
+        Assert.Equal(4000, json.RootElement.GetProperty("data")[0].GetArrayLength());
+    }
+
+    /// <summary>A cancelled asynchronous write releases the operation without disposing its caller's stream.</summary>
+    [Fact]
+    public async Task PooledWriter_CancelsPendingWrite_WithoutClosingDestination()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 AS id";
+        await using var execution = new TestExecution(await command.ExecuteReaderAsync());
+        using var output = new RetainingStream();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var writing = WeirResponseWriter.WriteAsync(output, execution,
+            new EndpointDefinition { Route = "cancel", ConnectionName = "default", ObjectName = "rows" },
+            new JsonWriterOptions(), 0, 32768, false, cancellation.Token);
+        await output.Started.Task.WaitAsync(cancellation.Token);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => writing);
+        Assert.True(output.CanWrite);
+        Assert.Equal(0, output.Length);
+    }
+
+    /// <summary>Retains supplied memory across an asynchronous pause and checks that it was not reused early.</summary>
+    private sealed class RetainingStream : MemoryStream
+    {
+        /// <summary>Signals that the first destination write owns the supplied memory.</summary>
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Allows the destination to finish consuming the supplied memory.</summary>
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <inheritdoc />
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var snapshot = buffer.ToArray();
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            Assert.Equal(snapshot, buffer.ToArray());
+            await base.WriteAsync(buffer, cancellationToken);
+        }
+    }
+
     private sealed class TestExecution(
         DbDataReader reader,
         IReadOnlyList<SqlMessage>? messages = null,
@@ -109,6 +185,7 @@ public class ResponseWriterTests
         // write carried the whole payload the way a buffer-it-all-then-dump would.
         Assert.True(spy.Writes > 1, $"expected the response to be written in chunks, got {spy.Writes} write(s) of {spy.Total} bytes");
         Assert.True(spy.LargestWrite < spy.Total, $"one write carried the whole {spy.Total}-byte payload, so nothing streamed");
+        Assert.InRange(spy.LargestWrite, 1, 32 * 1024 + 512);
 
         // And it is still exactly the same document - streaming must not cost correctness.
         using var document = JsonDocument.Parse(spy.ToArray());
