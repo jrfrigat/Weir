@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Weir.Tests" />
     <ProjectReference Include="..\Weir.Abstractions\Weir.Abstractions.csproj" />
   </ItemGroup>
 

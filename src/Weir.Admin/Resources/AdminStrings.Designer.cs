@@ -5624,5 +5624,33 @@ namespace Weir.Admin.Resources {
             }
         }
 
+        /// <summary>Gets localized environment memory text.</summary>
+        public static string Memory_Total {
+            get {
+                return ResourceManager.GetString("Memory_Total", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized environment memory text.</summary>
+        public static string Memory_TotalPhysical {
+            get {
+                return ResourceManager.GetString("Memory_TotalPhysical", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized environment memory text.</summary>
+        public static string Memory_TotalLimited {
+            get {
+                return ResourceManager.GetString("Memory_TotalLimited", resourceCulture);
+            }
+        }
+
+        /// <summary>Gets localized environment memory text.</summary>
+        public static string Memory_TotalExplanation {
+            get {
+                return ResourceManager.GetString("Memory_TotalExplanation", resourceCulture);
+            }
+        }
+
     }
 }

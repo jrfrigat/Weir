@@ -34,6 +34,9 @@ payload on one MiB axis. These are independent lines: cache payload is already p
 Payload excludes cache metadata, active response buffers and free buffer pools. Entry count, configured
 cache budget and active buffer reservations are shown separately. With Redis and no local cache layer,
 locally stored payload is zero; Redis server RAM is outside this chart. Unknown observations are gaps.
+An optional third line shows total environment memory: physical RAM constrained by the visible
+container/job limit. It is not free memory; other processes also use this capacity. All three lines
+can be toggled through the legend. Hiding total memory refits the axis to the remaining series.
 Sampling runs every second, even without requests or open dashboards, and retains up to five minutes
 per instance. SignalR and polling display the same server history. Restarting starts a new history.
 

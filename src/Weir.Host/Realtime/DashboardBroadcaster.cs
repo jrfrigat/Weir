@@ -167,7 +167,7 @@ public sealed class DashboardBroadcaster : BackgroundService
     /// <returns>Whether instance, history position and displayed values are unchanged.</returns>
     private static bool SameMemory(MemorySnapshot a, MemorySnapshot b) =>
         a.InstanceId == b.InstanceId && a.StartedAt == b.StartedAt && a.SampledAt == b.SampledAt &&
-        a.HistoryResetCount == b.HistoryResetCount && a.Points.Count == b.Points.Count &&
+        a.HistoryResetCount == b.HistoryResetCount && a.CapacitySource == b.CapacitySource && a.Points.Count == b.Points.Count &&
         (a.Points.Count == 0 || a.Points[^1] == b.Points[^1]) && a.Cache == b.Cache &&
         a.ActiveResponseBufferBytes == b.ActiveResponseBufferBytes && a.ActiveResponseBufferBudgetBytes == b.ActiveResponseBufferBudgetBytes;
 

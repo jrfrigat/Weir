@@ -28,6 +28,8 @@ public sealed class MemoryMetrics : IMemoryMetrics
     private long? _activeBytes;
     /// <summary>Active reservation limit captured with the latest observation.</summary>
     private long? _activeBudget;
+    /// <summary>The scope of the last environment-capacity observation.</summary>
+    private MemoryCapacitySource _capacitySource;
 
     /// <summary>Creates a bounded memory history on the application's clock.</summary>
     /// <param name="clock">Shared server clock; defaults to the system clock.</param>
@@ -39,6 +41,15 @@ public sealed class MemoryMetrics : IMemoryMetrics
     /// <param name="activeBytes">Active buffer reservations.</param>
     /// <param name="activeBudgetBytes">Active reservation bound; zero explicitly disables it.</param>
     public void RecordSample(long? workingSetBytes, ResponseCacheStatus cache, long activeBytes, long activeBudgetBytes)
+        => RecordSample(workingSetBytes, cache, activeBytes, activeBudgetBytes, default);
+
+    /// <summary>Records process, cache and environment capacity on the same observation clock.</summary>
+    /// <param name="workingSetBytes">Resident process bytes, or null.</param>
+    /// <param name="cache">Secret-free cache state.</param>
+    /// <param name="activeBytes">Active buffer reservations.</param>
+    /// <param name="activeBudgetBytes">Reservation budget; zero disables its bound.</param>
+    /// <param name="capacity">Physical or constrained environment capacity, independently of GC heap limits.</param>
+    public void RecordSample(long? workingSetBytes, ResponseCacheStatus cache, long activeBytes, long activeBudgetBytes, MemoryCapacity capacity)
     {
         ArgumentNullException.ThrowIfNull(cache);
         if (cache.LocalPayloadBytes is < 0 || cache.LocalEntryCount is < 0)
@@ -59,7 +70,9 @@ public sealed class MemoryMetrics : IMemoryMetrics
             if (_latestSecond is null) _firstSecond = second;
             _latestSecond = second;
             _slots[Index(second)] = new MemoryPoint(DateTimeOffset.FromUnixTimeSeconds(second),
-                workingSetBytes is >= 0 ? workingSetBytes : null, cache.LocalPayloadBytes);
+                workingSetBytes is >= 0 ? workingSetBytes : null, cache.LocalPayloadBytes)
+            { TotalMemoryBytes = capacity.TotalBytes is >= 0 ? capacity.TotalBytes : null };
+            _capacitySource = capacity.TotalBytes is >= 0 ? capacity.Source : MemoryCapacitySource.Unknown;
             _cache = cache;
             _activeBytes = activeBytes >= 0 ? activeBytes : null;
             _activeBudget = activeBudgetBytes >= 0 ? activeBudgetBytes : null;
@@ -89,6 +102,7 @@ public sealed class MemoryMetrics : IMemoryMetrics
                 InstanceId = _instanceId, StartedAt = _startedAt,
                 SampledAt = _latestSecond is { } current ? DateTimeOffset.FromUnixTimeSeconds(current) : null,
                 HistoryResetCount = _resets, Points = points, Cache = _cache,
+                CapacitySource = _capacitySource,
                 ActiveResponseBufferBytes = _activeBytes, ActiveResponseBufferBudgetBytes = _activeBudget
             };
         }

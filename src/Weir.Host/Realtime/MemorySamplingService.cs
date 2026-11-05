@@ -57,13 +57,16 @@ public sealed partial class MemorySamplingService : BackgroundService
         ResponseCacheStatus cache = new();
         try { workingSet = _process.ReadWorkingSetBytes(); }
         catch (Exception) { ReportFailure(); }
+        MemoryCapacity capacity = default;
+        try { capacity = _process.ReadCapacity(); }
+        catch (Exception) { ReportFailure(); }
         try { cache = _cache.GetStatus(); }
         catch (Exception) { ReportFailure(); }
         long active = -1;
         long limit = -1;
         try { active = _budget.Used; limit = _settings.Current.ActiveResponseBufferMaxBytes; }
         catch (Exception) { ReportFailure(); }
-        _metrics.RecordSample(workingSet, cache, active, limit);
+        _metrics.RecordSample(workingSet, cache, active, limit, capacity);
     }
 
     /// <summary>Reports a reader/provider failure once without arbitrary exception or configuration data.</summary>

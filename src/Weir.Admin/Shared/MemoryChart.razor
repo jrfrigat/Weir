@@ -9,7 +9,7 @@
         }
         <FlareChart @key="Snapshot?.InstanceId" Type="ChartType.Line" Data="@GetChartData()"
                     Title="@AdminStrings.Memory_Title" Description="@Summary()" DataTable
-                    YMin="0" StickyDomain AnimateUpdates Height="220" YAxisTitle="MiB" YAxisFormat="0.#" />
+                    YMin="0" ScaleMode="ChartScaleMode.FitVisible" StickyDomain AnimateUpdates Height="220" YAxisTitle="MiB" YAxisFormat="0.#" />
         @if (Snapshot?.SampledAt is null)
         {
             <FlareText Color="FlareColor.OnSurfaceVariant">@AdminStrings.Dashboard_ChartNoData</FlareText>
@@ -19,6 +19,7 @@
             <FlareStack Row Wrap="true" Gap="FlareSpacing.Large">
                 <FlareText Mono="true">@AdminStrings.Memory_Process: @MiB(Snapshot.Points.LastOrDefault().ProcessWorkingSetBytes)</FlareText>
                 <FlareText Mono="true">@AdminStrings.Memory_Cache: @MiB(Snapshot.Cache.LocalPayloadBytes)</FlareText>
+                <FlareText Mono="true">@AdminStrings.Memory_Total: @MiB(Snapshot.Points.LastOrDefault().TotalMemoryBytes)</FlareText>
             </FlareStack>
             <FlareDescriptionList>
                 <FlareDescriptionItem Label="@AdminStrings.Settings_CacheProviderLabel">@Snapshot.Cache.Provider</FlareDescriptionItem>
@@ -27,8 +28,15 @@
                 <FlareDescriptionItem Label="@AdminStrings.Memory_ActiveBuffers">@MiB(Snapshot.ActiveResponseBufferBytes) / @Limit(Snapshot.ActiveResponseBufferBudgetBytes)</FlareDescriptionItem>
                 <FlareDescriptionItem Label="@AdminStrings.Memory_Observed">@Snapshot.SampledAt.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</FlareDescriptionItem>
             </FlareDescriptionList>
+            <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@(Snapshot.CapacitySource switch
+                {
+                    MemoryCapacitySource.PhysicalMemory => AdminStrings.Memory_TotalPhysical,
+                    MemoryCapacitySource.EnvironmentLimit => AdminStrings.Memory_TotalLimited,
+                    _ => AdminStrings.Settings_CacheUnknown
+                })</FlareText>
         }
         <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Memory_Explanation</FlareText>
+        <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Memory_TotalExplanation</FlareText>
         @if (Snapshot?.Cache.Provider == "Redis")
         {
             <FlareText Typo="TypographyScale.LabelSmall" Color="FlareColor.OnSurfaceVariant">@AdminStrings.Memory_RedisExplanation</FlareText>
@@ -45,11 +53,11 @@
     private MemorySnapshot? _translated;
     /// <summary>Language of the cached series names.</summary>
     private string? _culture;
-    /// <summary>The chart's two independent, unstacked MiB series.</summary>
+    /// <summary>The chart's process, cache and capacity series on the same MiB axis.</summary>
     private ChartData? _data;
 
     /// <summary>Projects the bounded history and refreshes labels when the language changes.</summary>
-    /// <returns>Two shared-axis series with NaN gaps for unknown observations.</returns>
+    /// <returns>Three shared-axis series with NaN gaps for unknown observations.</returns>
     private ChartData GetChartData()
     {
         var culture = CultureInfo.CurrentUICulture.Name;
@@ -59,7 +67,8 @@
         var points = Snapshot?.Points ?? [];
         _data = new ChartData([
             new ChartSeries(AdminStrings.Memory_Process, points.Select(p => Value(p.ProcessWorkingSetBytes)).ToArray(), "var(--flare-color-primary)"),
-            new ChartSeries(AdminStrings.Memory_Cache, points.Select(p => Value(p.LocalCachePayloadBytes)).ToArray(), "var(--flare-color-success)")
+            new ChartSeries(AdminStrings.Memory_Cache, points.Select(p => Value(p.LocalCachePayloadBytes)).ToArray(), "var(--flare-color-success)"),
+            new ChartSeries(AdminStrings.Memory_Total, points.Select(p => Value(p.TotalMemoryBytes)).ToArray(), "var(--flare-color-on-surface-variant)", LineStyle: ChartLineStyle.Dashed)
         ], points.Select(p => p.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)).ToArray());
         return _data;
     }
@@ -84,8 +93,8 @@
     /// <returns>The readable bound.</returns>
     private static string CountLimit(int? count) => count == 0 ? AdminStrings.Memory_Unlimited : count?.ToString("N0", CultureInfo.CurrentCulture) ?? AdminStrings.Settings_CacheUnknown;
 
-    /// <summary>Names both current gauges and their scope for assistive technology.</summary>
+    /// <summary>Names all three current gauges and their scope for assistive technology.</summary>
     /// <returns>A localized description independent of the chart's visual lines.</returns>
     private string Summary() => string.Format(CultureInfo.CurrentCulture, AdminStrings.Memory_Summary,
-        MiB(Snapshot?.Points.LastOrDefault().ProcessWorkingSetBytes), MiB(Snapshot?.Cache.LocalPayloadBytes));
+        MiB(Snapshot?.Points.LastOrDefault().ProcessWorkingSetBytes), MiB(Snapshot?.Cache.LocalPayloadBytes), MiB(Snapshot?.Points.LastOrDefault().TotalMemoryBytes));
 }

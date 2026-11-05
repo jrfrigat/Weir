@@ -31,6 +31,7 @@ public sealed class MemoryMetricsApiTests
         Assert.Equal(first.InstanceId, next.InstanceId);
         Assert.InRange(next.Points.Count, 1, MemorySnapshot.HistorySeconds);
         Assert.True(next.Points[^1].ProcessWorkingSetBytes > 0);
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) Assert.True(next.Points[^1].TotalMemoryBytes > 0);
         Assert.Equal(0, next.Points[^1].LocalCachePayloadBytes);
         Assert.False(factory.Services.GetRequiredService<DashboardClientTracker>().HasClients);
         Assert.Equal(0, factory.Services.GetRequiredService<IMetricsAggregator>().GetOverview().TotalRequests);

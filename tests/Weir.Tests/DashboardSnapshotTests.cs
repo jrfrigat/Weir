@@ -28,6 +28,11 @@ public class DashboardSnapshotTests
         Assert.False(DashboardBroadcaster.SameData(previous, next));
         Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { Cache = first.Cache with { LocalPayloadBytes = 20 } } }));
         Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { InstanceId = "restarted" } }));
+        Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { CapacitySource = MemoryCapacitySource.EnvironmentLimit } }));
+        Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with
+        {
+            Points = [first.Points[0] with { TotalMemoryBytes = 1024 }]
+        } }));
         Assert.True(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { Points = first.Points.ToArray() } }));
     }
 

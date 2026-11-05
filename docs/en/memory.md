@@ -53,9 +53,15 @@ Redis server memory is separate from Weir, but retrieving or sending a snapshot 
 memory. Configure Redis `maxmemory` and eviction. Purges fence late fills, and incomplete/truncated
 responses are never published. Background stores have bounded count, bytes and deadlines.
 
-The dashboard plots process RSS and local stored payload on one MiB axis. Payload is part of RSS,
+The dashboard plots process RSS, local stored payload and total environment memory on one MiB axis. Payload is part of RSS,
 not an additional quantity to add to it; cache metadata and free pools are excluded from that gauge.
 Redis without a local layer reports zero local stored payload. Unknown/custom measurements are gaps.
+Total memory is physical RAM constrained by the visible container/job memory limit, not remaining free
+memory or a GC heap budget. Linux reads the smallest visible cgroup v1/v2 ancestor limit; Windows reads
+physical RAM and current-job limits. Other processes can also consume this capacity. Hide Total memory
+in the chart legend to refit the scale to RSS and cache. The total is unknown if a required OS query
+or visible limit cannot be read; it is not replaced with zero. A separate GC heap hard limit does not
+change this capacity line. Sampling never forces collection or trims the process working set.
 
 ## Reproduce a measurement
 

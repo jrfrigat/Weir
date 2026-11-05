@@ -1920,6 +1920,18 @@
     <value>Redis хранит ответы вне Weir. Без локального слоя сохраненные данные в процессе равны 0. Память сервера Redis здесь не измеряется.</value>
   </data>
   <data name="Memory_Summary" xml:space="preserve">
-    <value>Текущая память процесса: {0}; данные локального кэша: {1}. Независимые линии на общей оси MiB для этого экземпляра.</value>
+    <value>Текущая память процесса: {0}; данные локального кэша: {1}; общая память среды: {2}. Независимые линии на общей оси MiB для этого экземпляра.</value>
+  </data>
+  <data name="Memory_Total" xml:space="preserve">
+    <value>Общая память</value>
+  </data>
+  <data name="Memory_TotalPhysical" xml:space="preserve">
+    <value>Общая память - физическая RAM по данным операционной системы.</value>
+  </data>
+  <data name="Memory_TotalLimited" xml:space="preserve">
+    <value>Общая память ограничена доступным лимитом контейнера или job.</value>
+  </data>
+  <data name="Memory_TotalExplanation" xml:space="preserve">
+    <value>Это емкость среды, а не оставшаяся свободная память или бюджет кучи GC. Другие процессы тоже используют эту емкость. Отключите общую память в легенде, чтобы подстроить масштаб под RSS и кэш.</value>
   </data>
 </root>

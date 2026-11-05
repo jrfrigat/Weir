@@ -1920,6 +1920,18 @@
     <value>Redis stores responses outside Weir. Without a local cache layer, local stored payload is 0. Redis server memory is not measured here.</value>
   </data>
   <data name="Memory_Summary" xml:space="preserve">
-    <value>Current process memory: {0}; local cache payload: {1}. Independent lines on the same MiB axis for this instance.</value>
+    <value>Current process memory: {0}; local cache payload: {1}; total environment memory: {2}. Independent lines on the same MiB axis for this instance.</value>
+  </data>
+  <data name="Memory_Total" xml:space="preserve">
+    <value>Total memory</value>
+  </data>
+  <data name="Memory_TotalPhysical" xml:space="preserve">
+    <value>Total memory is the physical RAM reported by the operating system.</value>
+  </data>
+  <data name="Memory_TotalLimited" xml:space="preserve">
+    <value>Total memory is constrained by the visible container or job memory limit.</value>
+  </data>
+  <data name="Memory_TotalExplanation" xml:space="preserve">
+    <value>This is environment capacity, not remaining free memory or a GC heap budget. Other processes also use this capacity. Hide Total memory in the legend to refit the plot to RSS and cache.</value>
   </data>
 </root>

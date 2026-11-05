@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format is based on
   bodies, local cache entries and pending cache stores have explicit admission limits.
 - Local response caching bounds entry count as well as payload bytes, fences late fills after purges,
   and retains payload ownership through asynchronous sends. Admin test calls avoid an extra full copy.
+- RSS sampling reads the current process directly and reuses one procfs descriptor on Linux, avoiding
+  process/thread snapshots and temporary procfs strings on each observation.
 
 
 
@@ -28,8 +30,10 @@ All notable changes to this project are documented here. The format is based on
 
 - Optional Redis binary response cache with installation isolation, atomic invalidation, bounded
   asynchronous stores and recovery after unavailable backends. Memory remains the default.
-- Per-instance RSS and local cache payload history on the dashboard, with two MiB lines and cache
-  budgets. Sampling continues while idle; both SignalR and polling share the five-minute history.
+- Per-instance RSS, local cache payload and total environment memory history on the dashboard, with
+  three MiB lines and cache budgets. Total memory respects visible container/job limits and can be
+  hidden through the chart legend to refit the scale. Sampling continues while idle; both SignalR
+  and polling share the five-minute history.
 - Opt-in serializer memory benchmarks and sample slow-reader/cancellation options.
 
 

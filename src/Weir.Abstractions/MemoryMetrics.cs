@@ -16,4 +16,8 @@ public interface IProcessMemoryReader
     /// <summary>Reads resident process bytes without forcing garbage collection.</summary>
     /// <returns>Working-set bytes, or null when the operating system cannot provide them.</returns>
     long? ReadWorkingSetBytes();
+
+    /// <summary>Reads physical memory constrained by visible container/job limits, independently of GC limits.</summary>
+    /// <returns>The environment capacity, or an unknown observation for unsupported custom readers.</returns>
+    MemoryCapacity ReadCapacity() => default;
 }
