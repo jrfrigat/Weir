@@ -23,7 +23,7 @@
     }
     else if (_entries.Count == 0)
     {
-        <FlareEmptyState Title="@AdminStrings.Audit_EmptyTitle" Description="@AdminStrings.Audit_EmptyDescription">
+        <FlareEmptyState HeadingLevel="2" Title="@AdminStrings.Audit_EmptyTitle" Description="@AdminStrings.Audit_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.History" /></IconContent>
             <ActionContent>
                 <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="LoadLatestAsync">@AdminStrings.Common_Refresh</FlareButton>

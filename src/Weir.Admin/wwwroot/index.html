@@ -41,7 +41,10 @@
          service, surfaced as a Flare snackbar by the PwaUpdater component. -->
     <div id="weir-offline" class="weir-banner" hidden>Offline - showing the last loaded data.</div>
 
-    <script src="_framework/blazor.webassembly.js"></script>
+    <!-- Both shipped languages must be available before the first render so changing language also
+         updates Flare's mounted controls without a reload or discarding an open editor. -->
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script src="js/blazor-start.js"></script>
     <script src="js/offline-banner.js"></script>
 </body>
 

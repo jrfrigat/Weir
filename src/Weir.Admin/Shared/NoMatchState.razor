@@ -3,7 +3,7 @@
 @* The "your filters match nothing" state, shared by every list so the wording and the way out are
    the same everywhere. Distinct from a page's own empty state, which says the list itself is empty:
    this one says the data is there and the filters are hiding it, and hands over the reset. *@
-<FlareEmptyState Title="@AdminStrings.Common_NoMatchTitle" Description="@(Description ?? AdminStrings.Common_NoMatchDescription)" Compact="@Compact">
+<FlareEmptyState HeadingLevel="2" Title="@AdminStrings.Common_NoMatchTitle" Description="@(Description ?? AdminStrings.Common_NoMatchDescription)" Compact="@Compact">
     <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.SearchOff" /></IconContent>
     <ActionContent>
         <FlareButton Variant="ButtonVariant.Tonal" Size="ButtonSize.Sm" OnClick="OnClear">@AdminStrings.Common_ClearFilters</FlareButton>

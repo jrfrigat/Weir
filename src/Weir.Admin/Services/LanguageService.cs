@@ -45,15 +45,20 @@ public sealed class LanguageService
     /// <summary>Used to say so when a language needs a restart to take effect.</summary>
     private readonly ISnackbarService _snackbar;
 
+    /// <summary>Keeps Flare's mounted controls in the same language and format culture as the console.</summary>
+    private readonly IFlareLocalization _localization;
+
     /// <summary>Initializes the service with the JS runtime used to reach localStorage.</summary>
     /// <param name="js">The Blazor JS interop runtime.</param>
     /// <param name="navigation">Navigation manager, used to restart the app as a last resort.</param>
     /// <param name="snackbar">Snackbar service, used to report a language that needs a restart.</param>
-    public LanguageService(IJSRuntime js, NavigationManager navigation, ISnackbarService snackbar)
+    /// <param name="localization">The scoped culture context for Flare's built-in captions and formats.</param>
+    public LanguageService(IJSRuntime js, NavigationManager navigation, ISnackbarService snackbar, IFlareLocalization localization)
     {
         _js = js;
         _navigation = navigation;
         _snackbar = snackbar;
+        _localization = localization;
     }
 
     /// <summary>
@@ -193,6 +198,7 @@ public sealed class LanguageService
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
         AdminStrings.Culture = culture;
+        _localization.SetCulture(culture);
     }
 
     /// <summary>

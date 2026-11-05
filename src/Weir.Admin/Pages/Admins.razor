@@ -36,7 +36,7 @@
     }
     else if (_admins.Count == 0)
     {
-        <FlareEmptyState Title="@AdminStrings.Admins_EmptyTitle" Description="@AdminStrings.Admins_EmptyDescription">
+        <FlareEmptyState HeadingLevel="2" Title="@AdminStrings.Admins_EmptyTitle" Description="@AdminStrings.Admins_EmptyDescription">
             <IconContent><FlareIconView Value="@MaterialDesign3Icons.Regular.Group" /></IconContent>
             <ActionContent>
                 <FlareButton Variant="ButtonVariant.Filled" Color="FlareColor.Primary" Size="ButtonSize.Sm" OnClick="() => _showAdd = true">@AdminStrings.Admins_NewAdmin</FlareButton>

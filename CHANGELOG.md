@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Updated Flare to 0.52.0. Built-in grid, field and dialog captions now follow the console's
+  language switch in place, preserving open editors. Both shipped languages load at startup.
+  The update also fixes column-filter menu focus, Escape handling and accidental backdrop dismissal.
+  Microsoft packages move together to the required .NET 10.0.14 servicing patch.
+- Empty states use second-level headings under the page title, without changing their appearance.
+
 ## [3.1.0] - 2026-10-24
 
 A release about the admin console. Nothing in the gateway changed: no new settings, no API change,
