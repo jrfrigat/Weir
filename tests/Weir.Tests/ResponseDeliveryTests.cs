@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
+using Microsoft.IO;
 using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Core;
@@ -17,6 +18,58 @@ namespace Weir.Tests;
 // because it is the part most likely to be "fixed" later by someone who reads the mode as absolute.
 public class ResponseDeliveryTests
 {
+    /// <summary>Multi-block Full bodies and bounded result capture never allocate a contiguous large pool buffer.</summary>
+    /// <param name="capture">Whether result logging captures a prefix of the buffered body.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FullAndCapture_DoNotConsolidatePooledBlocks(bool capture)
+    {
+        var largeBuffers = 0;
+        var observer = new ResultObserver();
+        await using var output = new WriteCountingStream();
+        await ExecuteAsync(output, Delivery(ResponseDeliveryMode.Full),
+            logging: new EndpointLogging { Enabled = capture, LogResult = capture },
+            settings: new WeirSystemSettings { RequestLogEnabled = capture }, observer: observer,
+            configure: engine =>
+            {
+                var manager = (RecyclableMemoryStreamManager)typeof(WeirEngine).GetField("_streams",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(engine)!;
+                manager.LargeBufferCreated += (_, _) => Interlocked.Increment(ref largeBuffers);
+            });
+        Assert.True(output.Total > 128 * 1024);
+        Assert.Equal(0, largeBuffers);
+        using var json = JsonDocument.Parse(output.Bytes);
+        Assert.Equal(3000, json.RootElement.GetProperty("data")[0].GetArrayLength());
+        if (capture)
+        {
+            Assert.NotNull(observer.Captured);
+            Assert.EndsWith("\n...[truncated]", observer.Captured, StringComparison.Ordinal);
+            Assert.InRange(System.Text.Encoding.UTF8.GetByteCount(observer.Captured), 1, 16 * 1024 + 15);
+        }
+        else Assert.Null(observer.Captured);
+    }
+
+    /// <summary>Observes the result text passed to the logging boundary.</summary>
+    private sealed class ResultObserver : IWeirCallObserver
+    {
+        /// <summary>The captured result, if enabled.</summary>
+        internal string? Captured { get; private set; }
+
+        /// <inheritdoc />
+        public ValueTask OnStartedAsync(WeirCallContext context) => ValueTask.CompletedTask;
+
+        /// <inheritdoc />
+        public ValueTask OnCompletedAsync(WeirCallContext context)
+        {
+            Captured = context.CapturedResult;
+            return ValueTask.CompletedTask;
+        }
+
+        /// <inheritdoc />
+        public ValueTask OnFailedAsync(WeirCallContext context, Exception exception) => ValueTask.CompletedTask;
+    }
+
     /// <summary>A failure while preparing Full or a cache fill never emits a partial document.</summary>
     /// <param name="cached">Whether the failing request is a cache fill.</param>
     [Theory]
@@ -179,6 +232,8 @@ public class ResponseDeliveryTests
     /// <param name="settings">System settings to run under.</param>
     /// <param name="cached">Whether this request fills the response cache.</param>
     /// <param name="failOnComplete">Whether the database execution fails after its rows.</param>
+    /// <param name="observer">An optional result observer.</param>
+    /// <param name="configure">An optional observer of pool allocation events before execution.</param>
     private static async Task ExecuteAsync(
         Stream output,
         DeliveryPolicy delivery,
@@ -186,12 +241,16 @@ public class ResponseDeliveryTests
         EndpointLogging? logging = null,
         WeirSystemSettings? settings = null,
         bool cached = false,
-        bool failOnComplete = false)
+        bool failOnComplete = false,
+        IWeirCallObserver? observer = null,
+        Action<WeirEngine>? configure = null)
     {
         var runtime = new FixedSettings(settings ?? new WeirSystemSettings());
         using var cache = new MemoryResponseCache(runtime);
         using var engine = new WeirEngine(
-            new ParameterBinder(), new SingleRegistry(), [new SizedConnector { Rows = 3000, FailOnComplete = failOnComplete }], cache, [], runtime);
+            new ParameterBinder(), new SingleRegistry(), [new SizedConnector { Rows = 3000, FailOnComplete = failOnComplete }], cache,
+            observer is null ? [] : [observer], runtime);
+        configure?.Invoke(engine);
 
         await engine.ExecuteAsync(
             new WeirInvocation

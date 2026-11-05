@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
@@ -412,7 +413,7 @@ public sealed class WeirEngine : IDisposable
             // reader and connection are closed and the buffer stands on its own, so a slow client holding
             // a permit would be limiting database concurrency with a download. The direct path cannot do
             // this - its reader is live for the whole write - which is the trade that mode carries.
-            MemoryStream? pending = null;
+            RecyclableMemoryStream? pending = null;
             try
             {
                 using (guard.Enter(settings.MaxConcurrentRequestsPerConnection))
@@ -467,7 +468,8 @@ public sealed class WeirEngine : IDisposable
                 {
                     // The body is complete before headers; bounded writes preserve that error contract.
                     var streamStart = Stopwatch.GetTimestamp();
-                    await WritePayloadAsync(output, pending.GetBuffer().AsMemory(0, (int)pending.Length), cancellationToken);
+                    foreach (var segment in pending.GetReadOnlySequence())
+                        await WritePayloadAsync(output, segment, cancellationToken);
                     context.StreamingDurationMs = Stopwatch.GetElapsedTime(streamStart).TotalMilliseconds;
                 }
             }
@@ -1243,8 +1245,23 @@ public sealed class WeirEngine : IDisposable
     /// <summary>Reads the buffered response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>
     /// <param name="buffer">The buffered response body.</param>
     /// <returns>The (possibly truncated) response text.</returns>
-    private static string CaptureResult(MemoryStream buffer) =>
-        CaptureResult(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+    private static string CaptureResult(RecyclableMemoryStream buffer)
+    {
+        var sequence = buffer.GetReadOnlySequence();
+        if (sequence.IsSingleSegment) return CaptureResult(sequence.FirstSpan);
+        // One extra byte preserves the existing truncation marker without copying the full response.
+        var length = (int)Math.Min(sequence.Length, MaxCapturedResultBytes + 1);
+        var prefix = ArrayPool<byte>.Shared.Rent(length);
+        try
+        {
+            sequence.Slice(0, length).CopyTo(prefix);
+            return CaptureResult(prefix.AsSpan(0, length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(prefix);
+        }
+    }
 
     /// <summary>Reads a response body as UTF-8 JSON text, capped at a fixed size for the log.</summary>
     /// <param name="payload">The response body bytes.</param>
