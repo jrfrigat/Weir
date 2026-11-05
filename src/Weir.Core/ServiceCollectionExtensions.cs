@@ -37,7 +37,9 @@ public static class ServiceCollectionExtensions
         // authenticator); the response cache owns its separately bounded index and payload storage.
         services.AddMemoryCache();
         services.TryAddSingleton<IResponseCache, MemoryResponseCache>();
-        services.TryAddSingleton<ResponseBufferBudget>();
+        services.TryAddSingleton(sp => ResponseBufferBudget.Shared(sp.GetRequiredService<IRuntimeSettings>()));
+        services.TryAddSingleton<IResponseBufferBudget>(sp => sp.GetRequiredService<ResponseBufferBudget>());
+        services.TryAddSingleton<IResponseCacheSettings>(sp => sp.GetRequiredService<IRuntimeSettings>());
 
         services.TryAddSingleton<WeirEngine>();
         return services;

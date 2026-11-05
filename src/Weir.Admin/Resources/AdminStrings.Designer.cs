@@ -5415,13 +5415,25 @@ namespace Weir.Admin.Resources {
         }
 
         /// <summary>Gets the localized Settings_ActiveBufferMaxBytesLabel string.</summary>
-        public static string Settings_ActiveBufferMaxBytesLabel => ResourceManager.GetString("Settings_ActiveBufferMaxBytesLabel", resourceCulture);
+        public static string Settings_ActiveBufferMaxBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_ActiveBufferMaxBytesLabel", resourceCulture);
+            }
+        }
 
         /// <summary>Gets the localized Settings_BufferedResponseMaxBytesLabel string.</summary>
-        public static string Settings_BufferedResponseMaxBytesLabel => ResourceManager.GetString("Settings_BufferedResponseMaxBytesLabel", resourceCulture);
+        public static string Settings_BufferedResponseMaxBytesLabel {
+            get {
+                return ResourceManager.GetString("Settings_BufferedResponseMaxBytesLabel", resourceCulture);
+            }
+        }
 
         /// <summary>Gets the localized Settings_BufferBudgetHelp string.</summary>
-        public static string Settings_BufferBudgetHelp => ResourceManager.GetString("Settings_BufferBudgetHelp", resourceCulture);
+        public static string Settings_BufferBudgetHelp {
+            get {
+                return ResourceManager.GetString("Settings_BufferBudgetHelp", resourceCulture);
+            }
+        }
 
     }
 }

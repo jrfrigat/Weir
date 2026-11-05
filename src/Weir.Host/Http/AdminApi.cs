@@ -562,6 +562,7 @@ public static class AdminApi
                 return Results.ValidationProblem(problems, title: "The endpoint definition is not usable.");
             }
 
+            var previous = endpoint.Id == Guid.Empty ? null : await store.GetEndpointAsync(endpoint.Id);
             EndpointDefinition saved;
             try
             {
@@ -573,6 +574,8 @@ public static class AdminApi
             }
 
             await catalog.LoadAsync();
+            if (previous is not null && previous.Route != saved.Route)
+                await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(previous.Route));
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
             await AuditActionAsync(store, publisher, clock, user, "endpoint.upsert", DescribeEndpoint(saved));
             return Results.Ok(saved);
@@ -585,6 +588,7 @@ public static class AdminApi
                 return Results.ValidationProblem(problems, title: "The endpoint definition is not usable.");
             }
 
+            var previous = await store.GetEndpointAsync(id);
             EndpointDefinition saved;
             try
             {
@@ -596,6 +600,8 @@ public static class AdminApi
             }
 
             await catalog.LoadAsync();
+            if (previous is not null && previous.Route != saved.Route)
+                await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(previous.Route));
             await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
             await AuditActionAsync(store, publisher, clock, user, "endpoint.update", DescribeEndpoint(saved));
             return Results.Ok(saved);
@@ -633,28 +639,35 @@ public static class AdminApi
             // The identity the store already knows, by id and by method + route. The maps grow as rows are
             // written, so a route named twice in one file updates the row the earlier line created rather
             // than colliding with it. Route comparison is exact, matching the unique index in the store.
-            var byId = new HashSet<Guid>();
+            var byId = new Dictionary<Guid, EndpointDefinition>();
             var byRoute = new Dictionary<(string Method, string Route), Guid>();
             foreach (var existing in await store.GetEndpointsAsync())
             {
-                byId.Add(existing.Id);
+                byId[existing.Id] = existing;
                 byRoute[(existing.HttpMethod, existing.Route)] = existing.Id;
             }
 
             var written = new List<EndpointDefinition>();
+            var routesToPurge = new HashSet<string>(StringComparer.Ordinal);
             try
             {
                 foreach (var endpoint in endpoints)
                 {
-                    var id = endpoint.Id != Guid.Empty && byId.Contains(endpoint.Id)
+                    var id = endpoint.Id != Guid.Empty && byId.ContainsKey(endpoint.Id)
                         ? endpoint.Id
                         : byRoute.TryGetValue((endpoint.HttpMethod, endpoint.Route), out var localId)
                             ? localId
                             : endpoint.Id;
 
                     var saved = await store.UpsertEndpointAsync(endpoint with { Id = id });
+                    if (byId.TryGetValue(saved.Id, out var previous))
+                    {
+                        routesToPurge.Add(previous.Route);
+                        byRoute.Remove((previous.HttpMethod, previous.Route));
+                    }
+                    routesToPurge.Add(saved.Route);
                     written.Add(saved);
-                    byId.Add(saved.Id);
+                    byId[saved.Id] = saved;
                     byRoute[(saved.HttpMethod, saved.Route)] = saved.Id;
                 }
             }
@@ -664,9 +677,9 @@ public static class AdminApi
                 // stored. Those rows changed, so their cached responses are dropped like any other write;
                 // the catalog is reloaded so memory matches the store, what landed is recorded, and the
                 // caller gets a problem+json it can show rather than a bare 500.
-                foreach (var saved in written)
+                foreach (var route in routesToPurge)
                 {
-                    await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
+                    await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(route));
                 }
 
                 await catalog.LoadAsync();
@@ -676,9 +689,9 @@ public static class AdminApi
                     detail: $"{ex.Message} {written.Count} of {endpoints.Count} endpoint(s) were imported before the conflict.");
             }
 
-            foreach (var saved in written)
+            foreach (var route in routesToPurge)
             {
-                await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(saved.Route));
+                await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix(route));
             }
 
             await catalog.LoadAsync();

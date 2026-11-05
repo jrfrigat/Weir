@@ -191,6 +191,9 @@ stored procedure, silently truncates a response or changes Full into Stream. A l
 endpoint may need an explicit higher limit or a deliberate change to streaming. Lowering the active
 budget stops new reservations; already borrowed memory remains charged until its consumers finish.
 The old initial-capacity hints are removed: segmented pooled blocks now grow under reservation.
+Cache-hit borrowers also retain admission until their last awaited write finishes, even if the
+entry is purged meanwhile. Concurrent borrowers and a still-active fill share the same physical
+payload reservation rather than charging one copy per client.
 Unary gRPC also charges its contiguous transport buffer, growth copies and final protobuf payload
 against this same budget. The final payload remains charged until HTTP response cleanup, after
 protobuf serialization. Prefer `InvokeStream` for large results; a unary response inherently needs

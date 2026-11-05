@@ -86,6 +86,35 @@ false for other encodings. Weir keeps the legacy typed fallback for unsupported 
 A complete reference implementation lives in
 [`samples/connectors/Weir.Connectors.MySql`](../../samples/connectors/Weir.Connectors.MySql).
 
+## Response cache providers
+
+Existing `IResponseCache` implementations remain compatible. Their `GetAsync` must return immutable,
+independently owned bytes that stay valid after eviction. The engine retains a filled body's owner
+until the background store completes. Legacy providers keep their own invalidation semantics; a
+pre-store version check alone cannot prevent a concurrent purge from being undone.
+
+Implement `IVersionedResponseCache` to provide the stronger contract. `LookupAsync(key, scopePrefix)`
+returns a `CachedResponseLease` and an opaque `CacheWriteFence` for a subsequent miss fill.
+`SetIfCurrentAsync` must check that fence and publish the complete bytes atomically with invalidation.
+Invalidating an absent entry must fence fills already running for it. Use non-repeating generations
+to avoid restoring a stale version when an epoch expires or the provider restarts. A lookup begun
+after completed invalidation cannot return the invalidated generation. Calls already running may
+finish their old response. The engine includes the generation in its local single-flight key.
+
+Keep a lease alive through every awaited read. The engine does so for body writes, header callbacks,
+304, cancellation and errors; `Dispose` releases the provider owner once and clears the response
+reference. A failed lookup may return a miss without a fence: the engine executes the database call
+without coalescing or storing that result. Do not convert a missing fence into an unconditional store.
+When storing borrowed memory, finish copying or retaining it before returning from the awaited store.
+
+The memory provider shares active admission for one physical payload across fill consumers and hit
+borrowers, including after eviction. Its global opaque generation conservatively rejects unrelated
+fills after any explicit invalidation. Its legacy `PurgeStamp` remains available but the engine does
+not depend on concrete providers. Custom hosts should share one `IRuntimeSettings` instance and the
+`ResponseBufferBudget` registered by `AddWeirCore` across the engine, cache and whole-body transports.
+Cache hits have a small lease allocation; this contract promises bounded ownership, not literal zero
+allocation for the entire HTTP request.
+
 ## Packaging and deploying a plugin
 
 - Gather the plugin's private dependencies beside it: `dotnet publish` the plugin, or set

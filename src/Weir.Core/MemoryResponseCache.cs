@@ -7,10 +7,11 @@ namespace Weir.Core;
 
 /// <summary>
 /// Stores immutable UTF-8 payloads with independent byte, entry-size and entry-count bounds.
-/// Lock-free hits mark a second-chance CLOCK entry; mutations and accounting are synchronous,
+/// The lock-free index marks second-chance CLOCK entries; leased hits share one active reservation.
+/// Mutations and accounting are synchronous,
 /// so evicted payloads are not retained in background eviction callback queues.
 /// </summary>
-public sealed class MemoryResponseCache : IResponseCache, IDisposable
+public sealed class MemoryResponseCache : IVersionedResponseCache, IDisposable
 {
     /// <summary>Bounds retained key metadata independently of the payload budget.</summary>
     private const int MaxKeyChars = 1024;
@@ -23,6 +24,12 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
 
     /// <summary>The TTL clock, replaceable by deterministic tests.</summary>
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>Accounts payloads borrowed by clients, including entries evicted during transmission.</summary>
+    private readonly ResponseBufferBudget _bufferBudget;
+
+    /// <summary>An opaque non-repeating generation, published while holding the mutation gate.</summary>
+    private string _generation = Guid.NewGuid().ToString("N");
 
     /// <summary>Serializes store, trim, expiry removal and invalidation.</summary>
     private readonly Lock _gate = new();
@@ -42,7 +49,7 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     /// <summary>Admission refusals, protected by the mutation gate.</summary>
     private long _skippedEntries;
 
-    /// <summary>Prefix invalidation stamp retained for compatibility with the engine.</summary>
+    /// <summary>Legacy prefix invalidation stamp retained for existing callers.</summary>
     private long _purgeStamp;
 
     /// <summary>Whether this cache has released its stored entries.</summary>
@@ -55,12 +62,19 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     /// <summary>Creates the cache with an explicit TTL clock.</summary>
     /// <param name="settings">Runtime cache policy.</param>
     /// <param name="timeProvider">The clock used for expiration.</param>
-    public MemoryResponseCache(IRuntimeSettings settings, TimeProvider timeProvider)
+    public MemoryResponseCache(IRuntimeSettings settings, TimeProvider timeProvider) : this(settings, timeProvider, null) { }
+
+    /// <summary>Creates a cache whose borrowed payloads use shared active-buffer admission.</summary>
+    /// <param name="settings">Runtime cache policy.</param>
+    /// <param name="timeProvider">The TTL clock.</param>
+    /// <param name="bufferBudget">Shared admission, or the common runtime-service instance.</param>
+    public MemoryResponseCache(IRuntimeSettings settings, TimeProvider timeProvider, ResponseBufferBudget? bufferBudget)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(timeProvider);
         _settings = settings;
         _timeProvider = timeProvider;
+        _bufferBudget = bufferBudget ?? ResponseBufferBudget.Shared(settings);
         _appliedSettings = settings.Current;
     }
 
@@ -68,19 +82,35 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     public long PurgeStamp => Interlocked.Read(ref _purgeStamp);
 
     /// <inheritdoc />
-    public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default)
+    public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(FindEntry(key, cancellationToken)?.Response);
+
+    /// <inheritdoc />
+    public ValueTask<ResponseCacheLookup> LookupAsync(string key, string scopePrefix, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scopePrefix);
+        if (!key.StartsWith(scopePrefix, StringComparison.Ordinal)) throw new ArgumentException("The cache key must belong to its scope.", nameof(key));
+        var fence = new CacheWriteFence(scopePrefix, Volatile.Read(ref _generation));
+        return ValueTask.FromResult(new ResponseCacheLookup(FindEntry(key, cancellationToken)?.Borrow(), fence));
+    }
+
+    /// <summary>Finds a live entry without serializing unrelated cache hits.</summary>
+    /// <param name="key">The logical key.</param>
+    /// <param name="cancellationToken">The lookup lifetime.</param>
+    /// <returns>The immutable entry, or null after a miss or expiry.</returns>
+    private Entry? FindEntry(string key, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
         EnsureSettings();
-        if (!_entries.TryGetValue(key, out var entry)) return ValueTask.FromResult<CachedResponse?>(null);
+        if (!_entries.TryGetValue(key, out var entry)) return null;
         if (entry.ExpiresAt <= _timeProvider.GetUtcNow().UtcTicks)
         {
             lock (_gate) RemoveEntry(entry);
-            return ValueTask.FromResult<CachedResponse?>(null);
+            return null;
         }
         entry.Touch();
-        return ValueTask.FromResult<CachedResponse?>(entry.Response);
+        return entry;
     }
 
     /// <inheritdoc />
@@ -89,38 +119,60 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
         ArgumentNullException.ThrowIfNull(key);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(ttl, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate) StoreEntry(key, entry, ttl);
+        return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public ValueTask SetIfCurrentAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence fence,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(ttl, TimeSpan.Zero);
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            var settings = _settings.Current;
-            ApplySettings(settings);
-            var size = entry.Bytes.Length;
-            if (key.Length > MaxKeyChars || entry.ETag is null || entry.ETag.Length > MaxETagChars ||
-                (settings.ResponseCacheMaxEntryBytes > 0 && size > settings.ResponseCacheMaxEntryBytes) ||
-                (settings.ResponseCacheMaxBytes > 0 && size > settings.ResponseCacheMaxBytes))
-            {
-                _skippedEntries++;
-                return ValueTask.CompletedTask;
-            }
-
-            if (_entries.TryGetValue(key, out var previous)) RemoveEntry(previous);
-            while ((settings.ResponseCacheMaxBytes > 0 && _payloadBytes + size > settings.ResponseCacheMaxBytes) ||
-                (settings.ResponseCacheMaxEntries > 0 && _clock.Count >= settings.ResponseCacheMaxEntries))
-                EvictOne();
-
-            // A short slice must not retain a much larger array or a borrowed memory manager.
-            if (!MemoryMarshal.TryGetArray(entry.Bytes, out var array) ||
-                array.Array is null || array.Offset != 0 || array.Count != array.Array.Length)
-                entry = new CachedResponse(entry.Bytes.ToArray(), entry.ETag);
-
-            var now = _timeProvider.GetUtcNow().UtcTicks;
-            var expires = now + Math.Min(ttl.Ticks, DateTimeOffset.MaxValue.UtcTicks - now);
-            var stored = new Entry(key, entry, expires);
-            stored.Node = _clock.AddLast(stored);
-            _entries[key] = stored;
-            _payloadBytes += size;
+            if (fence.Version != _generation || fence.ScopePrefix is null ||
+                !key.StartsWith(fence.ScopePrefix, StringComparison.Ordinal)) return ValueTask.CompletedTask;
+            StoreEntry(key, entry, ttl);
         }
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Admits and publishes one entry; caller holds the same gate as invalidation.</summary>
+    /// <param name="key">The bounded logical key.</param>
+    /// <param name="entry">The owned immutable response.</param>
+    /// <param name="ttl">Maximum lifetime.</param>
+    private void StoreEntry(string key, CachedResponse entry, TimeSpan ttl)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var settings = _settings.Current;
+        ApplySettings(settings);
+        var size = entry.Bytes.Length;
+        if (key.Length > MaxKeyChars || entry.ETag is null || entry.ETag.Length > MaxETagChars ||
+            (settings.ResponseCacheMaxEntryBytes > 0 && size > settings.ResponseCacheMaxEntryBytes) ||
+            (settings.ResponseCacheMaxBytes > 0 && size > settings.ResponseCacheMaxBytes))
+        {
+            _skippedEntries++;
+            return;
+        }
+
+        if (_entries.TryGetValue(key, out var previous)) RemoveEntry(previous);
+        while ((settings.ResponseCacheMaxBytes > 0 && _payloadBytes + size > settings.ResponseCacheMaxBytes) ||
+            (settings.ResponseCacheMaxEntries > 0 && _clock.Count >= settings.ResponseCacheMaxEntries))
+            EvictOne();
+
+        // A short slice must not retain a much larger array or a borrowed memory manager.
+        if (!MemoryMarshal.TryGetArray(entry.Bytes, out var array) ||
+            array.Array is null || array.Offset != 0 || array.Count != array.Array.Length)
+            entry = new CachedResponse(entry.Bytes.ToArray(), entry.ETag);
+
+        var now = _timeProvider.GetUtcNow().UtcTicks;
+        var expires = now + Math.Min(ttl.Ticks, DateTimeOffset.MaxValue.UtcTicks - now);
+        var stored = new Entry(key, entry, expires, _bufferBudget);
+        stored.Node = _clock.AddLast(stored);
+        _entries[key] = stored;
+        _payloadBytes += size;
     }
 
     /// <inheritdoc />
@@ -131,6 +183,7 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_entries.TryGetValue(key, out var entry)) RemoveEntry(entry);
+            Volatile.Write(ref _generation, Guid.NewGuid().ToString("N"));
         }
         return ValueTask.CompletedTask;
     }
@@ -150,6 +203,7 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
                 node = next;
             }
             Interlocked.Increment(ref _purgeStamp);
+            Volatile.Write(ref _generation, Guid.NewGuid().ToString("N"));
         }
         return ValueTask.CompletedTask;
     }
@@ -227,8 +281,43 @@ public sealed class MemoryResponseCache : IResponseCache, IDisposable
     /// <param name="key">The index key.</param>
     /// <param name="response">Owned immutable payload and validator.</param>
     /// <param name="expiresAt">Expiration in UTC ticks.</param>
-    private sealed class Entry(string key, CachedResponse response, long expiresAt)
+    /// <param name="budget">Admission retained for the lifetime of active borrowers.</param>
+    private sealed class Entry(string key, CachedResponse response, long expiresAt, ResponseBufferBudget budget) : IDisposable
     {
+        /// <summary>Serializes only borrowers of this one payload.</summary>
+        private readonly Lock _borrowGate = new();
+
+        /// <summary>Number of asynchronous readers retaining this payload.</summary>
+        private int _borrowers;
+
+        /// <summary>One allocation reservation shared by every borrower.</summary>
+        private IDisposable? _borrowed;
+
+        /// <summary>Borrows a payload without charging its bytes once per concurrent client.</summary>
+        /// <returns>The independently disposable consumer lease.</returns>
+        internal CachedResponseLease Borrow()
+        {
+            lock (_borrowGate)
+            {
+                if (_borrowers == 0) _borrowed = budget.BorrowPayload(Response.Bytes);
+                _borrowers++;
+                return new CachedResponseLease(Response, this);
+            }
+        }
+
+        /// <summary>Releases one borrow, retaining admission even after cache eviction.</summary>
+        public void Dispose()
+        {
+            lock (_borrowGate)
+            {
+                if (--_borrowers == 0)
+                {
+                    _borrowed?.Dispose();
+                    _borrowed = null;
+                }
+            }
+        }
+
         /// <summary>The bounded index key.</summary>
         internal string Key { get; } = key;
 

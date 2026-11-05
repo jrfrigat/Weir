@@ -11,6 +11,114 @@ namespace Weir.Tests;
 // pre-write 304 short-circuit when the caller's If-None-Match matches.
 public class WeirEngineTests
 {
+    /// <summary>A provider's borrowed memory stays owned across writes and is released on every exit.</summary>
+    /// <param name="exit">Success, client cancellation, or transport failure.</param>
+    /// <returns>The completed payload-lifetime check.</returns>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task VersionedLease_LivesThroughAwaitedWrite(int exit)
+    {
+        var cache = new LeasedHitCache(new byte[1024 * 1024]);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [new UnusedConnector()], cache, [], new FixedSettings());
+        using var canceled = new CancellationTokenSource();
+        using var output = new GatedLeaseStream(cache, exit == 2);
+        var call = engine.ExecuteAsync(NewInvocation(), output, default, canceled.Token);
+        try
+        {
+            await output.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (exit == 1) canceled.Cancel();
+            Assert.Equal(0, cache.Owner!.DisposeCount);
+        }
+        finally { output.Gate.TrySetResult(); }
+        if (exit == 1) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+        else if (exit == 2) await Assert.ThrowsAsync<IOException>(() => call);
+        else await call;
+        Assert.Equal(1, cache.Owner!.DisposeCount);
+        cache.Lease!.Dispose();
+        Assert.Equal(1, cache.Owner.DisposeCount);
+        Assert.Throws<ObjectDisposedException>(() => cache.Lease.Response);
+    }
+
+    /// <summary>A conditional hit keeps ownership through the asynchronous response-head callback.</summary>
+    /// <returns>The completed conditional-hit check.</returns>
+    [Fact]
+    public async Task VersionedLease_ConditionalHitReleasesWithoutWriting()
+    {
+        var cache = new LeasedHitCache(new byte[10]);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [new UnusedConnector()], cache, [], new FixedSettings());
+        using var output = new MemoryStream();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call = engine.ExecuteAsync(NewInvocation(), output, new WeirResponseControl
+        {
+            IfNoneMatch = "\"lease\"",
+            OnResponseHead = async _ => { entered.TrySetResult(); await gate.Task; }
+        });
+        try { await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); Assert.Equal(0, cache.Owner!.DisposeCount); }
+        finally { gate.TrySetResult(); }
+        Assert.True((await call).NotModified);
+        Assert.Equal(0, output.Length);
+        Assert.Equal(1, cache.Owner!.DisposeCount);
+    }
+
+    /// <summary>Counts ownership releases without hiding repeated disposal bugs.</summary>
+    private sealed class LeaseOwner : IDisposable
+    {
+        /// <summary>The number of provider disposal calls.</summary>
+        internal int DisposeCount;
+        /// <inheritdoc />
+        public void Dispose() => Interlocked.Increment(ref DisposeCount);
+    }
+
+    /// <summary>A custom cache that only permits the new leased-hit contract.</summary>
+    /// <param name="payload">The immutable body.</param>
+    private sealed class LeasedHitCache(byte[] payload) : IVersionedResponseCache
+    {
+        /// <summary>The most recently borrowed provider owner.</summary>
+        internal LeaseOwner? Owner { get; private set; }
+        /// <summary>The most recent consumer lease.</summary>
+        internal CachedResponseLease? Lease { get; private set; }
+        /// <inheritdoc />
+        public ValueTask<ResponseCacheLookup> LookupAsync(string key, string scopePrefix, CancellationToken cancellationToken = default)
+        {
+            Owner = new LeaseOwner();
+            Lease = new CachedResponseLease(new CachedResponse(payload, "\"lease\""), Owner);
+            return ValueTask.FromResult(new ResponseCacheLookup(Lease, new CacheWriteFence(scopePrefix, "generation")));
+        }
+        /// <inheritdoc />
+        public ValueTask SetIfCurrentAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence fence, CancellationToken cancellationToken = default) => throw new InvalidOperationException("A hit must not store.");
+        /// <inheritdoc />
+        public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Use leased lookup.");
+        /// <inheritdoc />
+        public ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Use conditional store.");
+        /// <inheritdoc />
+        public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        /// <inheritdoc />
+        public ValueTask RemoveByPrefixAsync(string keyPrefix, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    }
+
+    /// <summary>Suspends a transport while it still borrows the provider's body.</summary>
+    /// <param name="cache">The provider whose owner must stay alive.</param>
+    /// <param name="fail">Whether the transport fails after suspension.</param>
+    private sealed class GatedLeaseStream(LeasedHitCache cache, bool fail) : MemoryStream
+    {
+        /// <summary>Signals the first borrowed write.</summary>
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <summary>Releases all pending writes.</summary>
+        internal TaskCompletionSource Gate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <inheritdoc />
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult();
+            await Gate.Task;
+            Assert.Equal(0, cache.Owner!.DisposeCount);
+            if (fail) throw new IOException("Transport failed.");
+            await base.WriteAsync(buffer, cancellationToken);
+        }
+    }
+
     /// <summary>Large cached bodies are copied exactly through bounded writes, and 304 writes nothing.</summary>
     [Fact]
     public async Task LargeCacheHit_IsBounded_AndConditionalHitWritesNothing()

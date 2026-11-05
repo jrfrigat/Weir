@@ -7,6 +7,26 @@ namespace Weir.Tests;
 
 public class MemoryResponseCacheTests
 {
+    /// <summary>Invalidation of an absent key fences a fill that has not published its entry yet.</summary>
+    /// <param name="prefix">Whether the invalidation targets a prefix or one key.</param>
+    /// <returns>The completed conditional-publication check.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConditionalStore_RejectsFillAfterInvalidation(bool prefix)
+    {
+        using var cache = NewCache();
+        var before = await cache.LookupAsync("route:key", "route:");
+        if (prefix) await cache.RemoveByPrefixAsync("route:");
+        else await cache.RemoveAsync("route:key");
+        await cache.SetIfCurrentAsync("route:key", Entry(1), TimeSpan.FromMinutes(1), before.Fence!.Value);
+        Assert.Null(await cache.GetAsync("route:key"));
+        var after = await cache.LookupAsync("route:key", "route:");
+        Assert.NotEqual(before.Fence, after.Fence);
+        await cache.SetIfCurrentAsync("route:key", Entry(2), TimeSpan.FromMinutes(1), after.Fence!.Value);
+        Assert.Equal(2, (await cache.GetAsync("route:key"))!.Value.Bytes.Span[0]);
+    }
+
     /// <summary>Replacement and expiry keep the current entry reachable by prefix invalidation.</summary>
     /// <param name="expired">Whether the replaced entry has already expired.</param>
     [Theory]

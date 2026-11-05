@@ -1,4 +1,5 @@
 using Microsoft.IO;
+using Weir.Abstractions;
 using Weir.Contracts;
 using Weir.Core;
 using Weir.Host.Grpc;
@@ -9,6 +10,53 @@ namespace Weir.Tests;
 /// <summary>Verifies allocation admission and deterministic reservation cleanup.</summary>
 public sealed class ResponseBufferBudgetTests
 {
+    /// <summary>Publishing a fill into cache does not double-charge its physical array during handover.</summary>
+    /// <returns>The completed shared-allocation check.</returns>
+    [Fact]
+    public async Task FillAndCacheBorrow_ShareOnePhysicalReservation()
+    {
+        var settings = new MutableSettings(new WeirSystemSettings { ActiveResponseBufferMaxBytes = 8 });
+        var budget = new ResponseBufferBudget(settings);
+        var admission = budget.Reserve(8);
+        var payload = new byte[8];
+        using var fill = budget.AdoptPayload(payload, admission);
+        using var cache = new MemoryResponseCache(settings, TimeProvider.System, budget);
+        await cache.SetAsync("route:key", new CachedResponse(payload, "tag"), TimeSpan.FromMinutes(1));
+        using var hit = (await cache.LookupAsync("route:key", "route:")).Entry!;
+        Assert.Equal(8, budget.Used);
+        fill.Dispose();
+        Assert.Equal(8, budget.Used);
+        hit.Dispose();
+        Assert.Equal(0, budget.Used);
+    }
+
+    /// <summary>Borrowers share one reservation and keep evicted bytes visible to admission.</summary>
+    /// <returns>The completed eviction-lifetime check.</returns>
+    [Fact]
+    public async Task BorrowedCachePayload_RemainsChargedAfterEviction()
+    {
+        var settings = new MutableSettings(new WeirSystemSettings { ActiveResponseBufferMaxBytes = 8 });
+        var budget = new ResponseBufferBudget(settings);
+        using var cache = new MemoryResponseCache(settings, TimeProvider.System, budget);
+        await cache.SetAsync("route:key", new CachedResponse(new byte[8], "tag"), TimeSpan.FromMinutes(1));
+        using var first = (await cache.LookupAsync("route:key", "route:")).Entry!;
+        using var second = (await cache.LookupAsync("route:key", "route:")).Entry!;
+        Assert.Equal(8, budget.Used);
+        await cache.RemoveByPrefixAsync("route:");
+        Assert.Equal(0, cache.GetStorageSnapshot().PayloadBytes);
+        Assert.Equal(8, budget.Used);
+        await cache.SetAsync("route:key", new CachedResponse(new byte[8], "new"), TimeSpan.FromMinutes(1));
+        await Assert.ThrowsAsync<WeirBufferCapacityException>(() => cache.LookupAsync("route:key", "route:").AsTask());
+        first.Dispose();
+        Assert.Equal(8, budget.Used);
+        second.Dispose();
+        second.Dispose();
+        Assert.Equal(0, budget.Used);
+        using var current = (await cache.LookupAsync("route:key", "route:")).Entry!;
+        Assert.Equal("new", current.Response.ETag);
+        Assert.Equal(8, budget.Used);
+    }
+
     /// <summary>Unary gRPC growth charges old and new arrays together before copying.</summary>
     /// <returns>The completed admission check.</returns>
     [Fact]

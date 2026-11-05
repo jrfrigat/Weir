@@ -13,6 +13,82 @@ namespace Weir.Tests;
 // on the cache store.
 public class WeirEngineCacheFillTests
 {
+    /// <summary>A request arriving after purge cannot join an older in-flight generation.</summary>
+    /// <returns>The completed single-flight isolation check.</returns>
+    [Fact]
+    public async Task PostPurgeRequest_StartsNewGenerationBeforeOldFillCompletes()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = new GatedConnector(gate);
+        var settings = new FixedSettings();
+        using var cache = new MemoryResponseCache(settings);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [connector], cache, [], settings);
+        using var firstOutput = new MemoryStream();
+        using var secondOutput = new MemoryStream();
+        var first = engine.ExecuteAsync(NewInvocation(), firstOutput);
+        await connector.Started;
+        await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix("orders/list"));
+        var second = engine.ExecuteAsync(NewInvocation(), secondOutput);
+        try { await WaitUntil(() => connector.Executions == 2); }
+        finally { gate.TrySetResult(); }
+        await Task.WhenAll(first, second);
+        Assert.Equal(2, connector.Executions);
+    }
+
+    /// <summary>A custom provider checks its fence after its asynchronous write has already begun.</summary>
+    /// <returns>The completed provider-neutral race check.</returns>
+    [Fact]
+    public async Task CustomVersionedStore_PurgeDuringAwaitCannotRepublish()
+    {
+        var settings = new FixedSettings();
+        using var cache = new DelayedVersionedCache(settings);
+        var executionGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        executionGate.SetResult();
+        var connector = new GatedConnector(executionGate);
+        using var engine = new WeirEngine(new ParameterBinder(), new SingleRegistry(), [connector], cache, [], settings);
+        using var output = new MemoryStream();
+        await engine.ExecuteAsync(NewInvocation(), output);
+        await cache.StoreEntered.Task;
+        await cache.RemoveByPrefixAsync(CacheKey.RoutePrefix("orders/list"));
+        cache.StoreGate.SetResult();
+        await WaitUntil(() => engine.DisposedFillCount == 1);
+        using var next = new MemoryStream();
+        await engine.ExecuteAsync(NewInvocation(), next);
+        Assert.Equal(2, connector.Executions);
+    }
+
+    /// <summary>A custom adapter that pauses after receiving a store but before atomic publication.</summary>
+    /// <param name="settings">The shared runtime configuration.</param>
+    private sealed class DelayedVersionedCache(IRuntimeSettings settings) : IVersionedResponseCache, IDisposable
+    {
+        /// <summary>The provider's private storage, inaccessible to the engine.</summary>
+        private readonly MemoryResponseCache _inner = new(settings);
+        /// <summary>Signals that the asynchronous store is already in progress.</summary>
+        internal TaskCompletionSource StoreEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <summary>Releases the actual conditional publication.</summary>
+        internal TaskCompletionSource StoreGate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <inheritdoc />
+        public ValueTask<ResponseCacheLookup> LookupAsync(string key, string scopePrefix, CancellationToken cancellationToken = default) =>
+            _inner.LookupAsync(key, scopePrefix, cancellationToken);
+        /// <inheritdoc />
+        public async ValueTask SetIfCurrentAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence fence, CancellationToken cancellationToken = default)
+        {
+            StoreEntered.TrySetResult();
+            await StoreGate.Task.WaitAsync(cancellationToken);
+            await _inner.SetIfCurrentAsync(key, entry, ttl, fence, cancellationToken);
+        }
+        /// <inheritdoc />
+        public ValueTask<CachedResponse?> GetAsync(string key, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Use versioned lookup.");
+        /// <inheritdoc />
+        public ValueTask SetAsync(string key, CachedResponse entry, TimeSpan ttl, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Use conditional store.");
+        /// <inheritdoc />
+        public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default) => _inner.RemoveAsync(key, cancellationToken);
+        /// <inheritdoc />
+        public ValueTask RemoveByPrefixAsync(string keyPrefix, CancellationToken cancellationToken = default) => _inner.RemoveByPrefixAsync(keyPrefix, cancellationToken);
+        /// <inheritdoc />
+        public void Dispose() { StoreGate.TrySetResult(); _inner.Dispose(); }
+    }
+
     /// <summary>A single shared body remains reserved through the pending store, then releases its bytes.</summary>
     /// <returns>The completed shared-lifetime check.</returns>
     [Fact]

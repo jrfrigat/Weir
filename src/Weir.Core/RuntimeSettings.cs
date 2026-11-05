@@ -13,10 +13,13 @@ namespace Weir.Core;
 /// <see cref="InitializeAsync"/>; components read <see cref="Current"/> on each use so an update from
 /// the admin panel takes effect without a restart.
 /// </summary>
-public interface IRuntimeSettings
+public interface IRuntimeSettings : IResponseCacheSettings
 {
     /// <summary>The current settings snapshot. Reads are lock-free; each update swaps a new immutable value.</summary>
-    WeirSystemSettings Current { get; }
+    new WeirSystemSettings Current { get; }
+
+    /// <summary>Adapts the existing runtime contract for provider-independent cache settings.</summary>
+    WeirSystemSettings IResponseCacheSettings.Current => Current;
 
     /// <summary>Loads the persisted settings document, overlaying it on the seeded defaults.</summary>
     /// <param name="cancellationToken">Cancellation token.</param>

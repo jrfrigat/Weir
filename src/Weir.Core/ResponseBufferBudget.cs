@@ -1,5 +1,8 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.IO;
+using Weir.Abstractions;
 
 namespace Weir.Core;
 
@@ -12,13 +15,92 @@ public sealed class WeirBufferCapacityException : WeirException
 
 /// <summary>Accounts active pooled blocks and owned copies before allocation.</summary>
 /// <param name="settings">The live configuration checked on each reservation.</param>
-public sealed class ResponseBufferBudget(IRuntimeSettings settings)
+public sealed class ResponseBufferBudget(IRuntimeSettings settings) : IResponseBufferBudget
 {
+    /// <summary>Shares admission for legacy constructors composed over the same runtime service.</summary>
+    private static readonly ConditionalWeakTable<IRuntimeSettings, ResponseBufferBudget> SharedBudgets = new();
+
+    /// <summary>Gets the common admission instance for one runtime service.</summary>
+    /// <param name="settings">The application's runtime configuration.</param>
+    /// <returns>The shared budget without retaining abandoned runtime services.</returns>
+    internal static ResponseBufferBudget Shared(IRuntimeSettings settings) =>
+        SharedBudgets.GetValue(settings, static value => new ResponseBufferBudget(value));
     /// <summary>Serializes reservation changes.</summary>
     private readonly Lock _gate = new();
 
     /// <summary>Currently reserved bytes, including shared copies only once.</summary>
     private long _used;
+
+    /// <summary>Tracks shared GC-owned payloads without keeping discarded cache bodies alive.</summary>
+    private readonly ConditionalWeakTable<byte[], PayloadAllocation> _payloads = new();
+
+    /// <summary>Transfers a newly allocated exact payload reservation to shared ownership.</summary>
+    /// <param name="payload">Fresh immutable storage, never previously registered.</param>
+    /// <param name="reservation">Admission taken before allocating the array; ownership transfers here.</param>
+    /// <returns>The initial asynchronous consumer's ownership token.</returns>
+    internal IDisposable AdoptPayload(byte[] payload, Lease reservation)
+    {
+        var allocation = new PayloadAllocation(this, payload.Length, reservation);
+        _payloads.Add(payload, allocation);
+        return new PayloadOwner(allocation);
+    }
+
+    /// <summary>Charges one physical payload once across fill consumers and cache-hit borrowers.</summary>
+    /// <param name="payload">The immutable owned payload.</param>
+    /// <returns>An ownership token retained until the last asynchronous reader finishes.</returns>
+    internal IDisposable BorrowPayload(ReadOnlyMemory<byte> payload)
+    {
+        if (!MemoryMarshal.TryGetArray(payload, out var array) || array.Array is null ||
+            array.Offset != 0 || array.Count != array.Array.Length) return Reserve(payload.Length);
+        if (!_payloads.TryGetValue(array.Array, out var allocation))
+            allocation = _payloads.GetValue(array.Array, key => new PayloadAllocation(this, key.Length, null));
+        return allocation.Acquire();
+    }
+
+    /// <summary>Shares one admitted array across otherwise independent consumers.</summary>
+    /// <param name="budget">The shared admission service.</param>
+    /// <param name="bytes">The physical array length, without retaining the weak-table key.</param>
+    /// <param name="initial">Admission transferred from the fill, or null for an idle cache entry.</param>
+    private sealed class PayloadAllocation(ResponseBufferBudget budget, int bytes, Lease? initial)
+    {
+        /// <summary>Serializes acquisition and release for this array only.</summary>
+        private readonly Lock _gate = new();
+        /// <summary>The current reservation, absent while no asynchronous consumer owns it.</summary>
+        private Lease? _lease = initial;
+        /// <summary>Asynchronous owners, independent of whether the cache still stores the array.</summary>
+        private int _owners = initial is null ? 0 : 1;
+
+        /// <summary>Retains the array without charging another copy of its bytes.</summary>
+        /// <returns>A token for this consumer.</returns>
+        internal PayloadOwner Acquire()
+        {
+            lock (_gate)
+            {
+                if (_owners == 0) _lease = budget.Reserve(bytes);
+                _owners++;
+                return new PayloadOwner(this);
+            }
+        }
+
+        /// <summary>Releases admission when no asynchronous reader still borrows this array.</summary>
+        internal void Release()
+        {
+            lock (_gate)
+            {
+                if (--_owners == 0) { _lease!.Dispose(); _lease = null; }
+            }
+        }
+    }
+
+    /// <summary>An idempotent reference to one tracked payload allocation.</summary>
+    /// <param name="allocation">The allocation whose owner count was already increased.</param>
+    private sealed class PayloadOwner(PayloadAllocation allocation) : IDisposable
+    {
+        /// <summary>The allocation until this consumer ends.</summary>
+        private PayloadAllocation? _allocation = allocation;
+        /// <inheritdoc />
+        public void Dispose() => Interlocked.Exchange(ref _allocation, null)?.Release();
+    }
 
     /// <summary>Gets the active reservation total.</summary>
     public long Used { get { lock (_gate) return _used; } }
@@ -31,6 +113,9 @@ public sealed class ResponseBufferBudget(IRuntimeSettings settings)
         Add(bytes);
         return new Lease(this, bytes);
     }
+
+    /// <inheritdoc />
+    IDisposable IResponseBufferBudget.Reserve(long bytes) => Reserve(bytes);
 
     /// <summary>Checks and records an increase against the current global bound.</summary>
     /// <param name="bytes">Additional bytes.</param>

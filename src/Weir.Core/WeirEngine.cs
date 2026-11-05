@@ -78,11 +78,10 @@ public sealed class WeirEngine : IDisposable
     private readonly IResponseCache _cache;
 
     /// <summary>
-    /// The same cache as the in-box implementation, when that is what was registered. A store is refused
-    /// when a purge landed after the query that produced it began (<see cref="MemoryResponseCache.PurgeStamp"/>).
-    /// A third-party cache has no such marker, so it keeps whatever semantics it has.
+    /// Optional provider-neutral ownership and atomic invalidation fencing.
+    /// Legacy providers retain their existing independently owned payload semantics.
     /// </summary>
-    private readonly MemoryResponseCache? _memoryCache;
+    private readonly IVersionedResponseCache? _versionedCache;
 
     /// <summary>Observers notified around each call (telemetry, audit).</summary>
     private readonly IReadOnlyList<IWeirCallObserver> _observers;
@@ -171,11 +170,11 @@ public sealed class WeirEngine : IDisposable
         _binder = binder;
         _registry = registry;
         _cache = cache;
-        _memoryCache = cache as MemoryResponseCache;
+        _versionedCache = cache as IVersionedResponseCache;
         _observers = observers.ToArray();
         _connectors = connectors.ToDictionary(c => c.ProviderName, StringComparer.OrdinalIgnoreCase);
         _settings = settings;
-        _bufferBudget = bufferBudget ?? new ResponseBufferBudget(settings);
+        _bufferBudget = bufferBudget ?? ResponseBufferBudget.Shared(settings);
     }
 
     /// <summary>
@@ -274,10 +273,8 @@ public sealed class WeirEngine : IDisposable
 
             var cacheKey = endpoint.Cache.Enabled ? CacheKey.Build(endpoint, binding.Values, invocation.ApiKeyPrefix) : null;
 
-            // Read once per call, before the query runs, and compared before anything is stored. Reading it
-            // earlier would be pointless - a purge before the query starts still leaves fresh data to cache -
-            // and reading it later would leave the query itself outside the window.
-            var purgeStamp = _memoryCache?.PurgeStamp ?? 0;
+            // Captured by the versioned lookup before the query and compared atomically at publication.
+            CacheWriteFence? cacheFence = null;
 
             // Request-log capture is opt-in per endpoint and gated by the global switch. Parameters come
             // from the bound scalar values; the result is captured from the buffered body (see below).
@@ -313,7 +310,14 @@ public sealed class WeirEngine : IDisposable
                 // W-4: measure cache lookup and use the pre-computed ETag from the cache entry,
                 // avoiding a redundant SHA-256 recomputation on every cache hit.
                 var cacheStart = Stopwatch.GetTimestamp();
-                var cached = await _cache.GetAsync(cacheKey, cancellationToken);
+                var lookup = _versionedCache is { } versioned
+                    ? await versioned.LookupAsync(cacheKey, CacheKey.RoutePrefix(endpoint.Route), cancellationToken)
+                    : default;
+                using var cachedLease = lookup.Entry;
+                var cached = _versionedCache is null
+                    ? await _cache.GetAsync(cacheKey, cancellationToken)
+                    : cachedLease?.Response;
+                cacheFence = lookup.Fence;
                 context.CacheLookupDurationMs = Stopwatch.GetElapsedTime(cacheStart).TotalMilliseconds;
 
                 if (cached is { } entry)
@@ -331,8 +335,10 @@ public sealed class WeirEngine : IDisposable
                 // A miss. Either claim the fill for this key or join the one already running: the first
                 // caller starts the query, the rest wait for its bytes instead of piling the same query
                 // onto the database. The endpoint can opt out, in which case every caller runs its own.
-                var candidate = endpoint.Cache.CoalesceRequests ? new CacheFill(this) : null;
-                var inFlight = candidate is null ? null : _fills.GetOrAdd(cacheKey, candidate);
+                var fillKey = cacheFence is { } fence ? string.Concat(cacheKey, ":", fence.Version) : cacheKey;
+                var candidate = endpoint.Cache.CoalesceRequests && (_versionedCache is null || cacheFence is not null)
+                    ? new CacheFill(this) : null;
+                var inFlight = candidate is null ? null : _fills.GetOrAdd(fillKey, candidate);
                 if (!ReferenceEquals(inFlight, candidate))
                 {
                     // Lost the race: GetOrAdd returned the fill that was already registered for this key, so
@@ -351,7 +357,7 @@ public sealed class WeirEngine : IDisposable
                         // Started, not awaited inline. This call waits on the fill exactly like every other
                         // caller, so its own token can end its wait - a disconnect, or the gateway timeout -
                         // without ending the query the others are still waiting for.
-                        _ = RunFillAsync(cacheKey, inFlight, connector, request, endpoint, maxRows, purgeStamp);
+                        _ = RunFillAsync(cacheKey, fillKey, inFlight, connector, request, endpoint, maxRows, cacheFence);
                     }
 
                     var shared = await inFlight.Task.WaitAsync(cancellationToken);
@@ -410,7 +416,7 @@ public sealed class WeirEngine : IDisposable
                 // publishes before storing for the same reason.
                 if (built.ETag is { } builtETag)
                 {
-                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), purgeStamp, built);
+                    StoreInBackground(cacheKey, new CachedResponse(built.Payload, builtETag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cacheFence, built);
                 }
 
                 context.RowsReturned = built.RowCount;
@@ -536,21 +542,23 @@ public sealed class WeirEngine : IDisposable
     /// last caller waiting for it has gone, which is what <see cref="CacheFill.Token"/> tracks.
     /// </summary>
     /// <param name="key">The cache key being filled.</param>
+    /// <param name="fillKey">The registration key, including its invalidation generation.</param>
     /// <param name="fill">The fill to publish into.</param>
     /// <param name="connector">The connector for the endpoint's connection.</param>
     /// <param name="request">The execution request.</param>
     /// <param name="endpoint">The endpoint being called.</param>
     /// <param name="maxRows">The row cap.</param>
-    /// <param name="purgeStamp">The cache's purge stamp as it read when this fill's call began.</param>
+    /// <param name="cacheFence">The provider generation captured before the query began.</param>
     /// <returns>A task that completes once the fill has been published and stored.</returns>
     private async Task RunFillAsync(
         string key,
+        string fillKey,
         CacheFill fill,
         IDbConnector connector,
         DbExecutionRequest request,
         EndpointDefinition endpoint,
         int maxRows,
-        long purgeStamp)
+        CacheWriteFence? cacheFence)
     {
         try
         {
@@ -564,13 +572,14 @@ public sealed class WeirEngine : IDisposable
             // on it gets the bytes they asked for - so storing now would put the pre-purge body back for the
             // entry's whole TTL. Skipping the store costs the next caller one query, which is the cheaper of
             // the two mistakes.
-            if (filled.ETag is { } etag && !PurgedSince(purgeStamp))
+            if (filled.ETag is { } etag)
             {
                 try
                 {
                     // CancellationToken.None on purpose: the entry outlives the request that produced it,
                     // so a client giving up must not throw away a payload others are already waiting on.
-                    await _cache.SetAsync(key, new CachedResponse(filled.Payload, etag), TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), CancellationToken.None);
+                    await StoreResponseAsync(key, new CachedResponse(filled.Payload, etag),
+                        TimeSpan.FromSeconds(endpoint.Cache.TtlSeconds), cacheFence);
                 }
                 catch (Exception)
                 {
@@ -587,7 +596,7 @@ public sealed class WeirEngine : IDisposable
         {
             // Held until the store lands, so a caller arriving in that window still joins the fill instead
             // of missing both it and the cache.
-            Release(key, fill);
+            Release(fillKey, fill);
         }
     }
 
@@ -643,7 +652,8 @@ public sealed class WeirEngine : IDisposable
                 {
                     var payload = buffer.ToArray();
                     var etag = result.Truncated ? null : ResponseETag.Compute(payload);
-                    return new FilledResponse(payload, etag, result.Truncated, result.RowCount, dbDurationMs, copyLease);
+                    return new FilledResponse(payload, etag, result.Truncated, result.RowCount, dbDurationMs,
+                        _bufferBudget.AdoptPayload(payload, copyLease));
                 }
                 catch { copyLease.Dispose(); throw; }
             }
@@ -665,9 +675,9 @@ public sealed class WeirEngine : IDisposable
     /// <param name="key">The cache key.</param>
     /// <param name="entry">The response bytes and their entity tag.</param>
     /// <param name="ttl">The endpoint's cache TTL.</param>
-    /// <param name="purgeStamp">The cache's purge stamp as it read when this call began.</param>
+    /// <param name="cacheFence">The generation captured before the query began.</param>
     /// <param name="owner">Keeps the payload reservation alive until the store finishes.</param>
-    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, long purgeStamp, FilledResponse owner)
+    private void StoreInBackground(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence? cacheFence, FilledResponse owner)
     {
         // Deliberately not awaited. An in-process cache completes this synchronously, so there is no
         // thread-pool hop to pay for; a cache doing I/O suspends at its first await and finishes behind
@@ -679,17 +689,9 @@ public sealed class WeirEngine : IDisposable
         {
             try
             {
-                // A purge that landed while this call's query was running was answered to this caller, so the
-                // bytes in hand are already stale with respect to it: storing them would undo the purge for a
-                // whole TTL. The entry is simply absent instead, and the next caller fills it.
-                if (PurgedSince(purgeStamp))
-                {
-                    return;
-                }
-
                 // CancellationToken.None on purpose: the entry outlives the request that produced it, so
                 // that client giving up must not throw away a payload others are already waiting on.
-                await _cache.SetAsync(key, entry, ttl, CancellationToken.None);
+                await StoreResponseAsync(key, entry, ttl, cacheFence);
             }
             catch (Exception)
             {
@@ -702,13 +704,18 @@ public sealed class WeirEngine : IDisposable
     }
 
     /// <summary>
-    /// Whether a prefix was purged after <paramref name="purgeStamp"/> was read. True only for the in-box
-    /// cache: a third-party one offers no such marker, so it keeps whatever invalidation semantics it has.
+    /// Uses atomic conditional publication where supported, preserving legacy custom-cache behavior.
+    /// A versioned lookup without a fence cannot safely publish a result and therefore skips storage.
     /// </summary>
-    /// <param name="purgeStamp">The stamp read when the call's query began.</param>
-    /// <returns>True when the cache purged a prefix since that reading.</returns>
-    private bool PurgedSince(long purgeStamp) =>
-        _memoryCache is { } cache && cache.PurgeStamp != purgeStamp;
+    /// <param name="key">The logical response key.</param>
+    /// <param name="entry">Complete bytes retained through this await.</param>
+    /// <param name="ttl">Maximum cache lifetime.</param>
+    /// <param name="fence">The captured invalidation generation.</param>
+    /// <returns>The provider's completed or refused publication.</returns>
+    private ValueTask StoreResponseAsync(string key, CachedResponse entry, TimeSpan ttl, CacheWriteFence? fence) =>
+        _versionedCache is { } cache
+            ? fence is { } current ? cache.SetIfCurrentAsync(key, entry, ttl, current, CancellationToken.None) : ValueTask.CompletedTask
+            : _cache.SetAsync(key, entry, ttl, CancellationToken.None);
 
     /// <summary>
     /// Removes an in-flight registration, but only if it is still the one this call owns, so a fill that
@@ -848,6 +855,7 @@ public sealed class WeirEngine : IDisposable
                 }
 
                 _disposed = true;
+                _closed = true;
                 _abandoned.Dispose();
                 if (_users == 0) _response?.Dispose();
             }
@@ -940,16 +948,26 @@ public sealed class WeirEngine : IDisposable
     }
 
     /// <summary>A response body produced by one execution and shared with everyone waiting on its fill.</summary>
-    /// <param name="Payload">The complete response bytes.</param>
-    /// <param name="ETag">The entity tag, or null when the response is truncated and so not cacheable.</param>
-    /// <param name="Truncated">Whether the row cap was hit.</param>
-    /// <param name="RowCount">Rows across all result sets, reported by each waiter as its own row count.</param>
-    /// <param name="DbDurationMs">How long the execution took, reported by everyone it served.</param>
-    /// <param name="BudgetLease">Reservation retained through all asynchronous payload consumers.</param>
-    private sealed record FilledResponse(
-        ReadOnlyMemory<byte> Payload, string? ETag, bool Truncated, int RowCount, double DbDurationMs,
-        IDisposable BudgetLease) : IDisposable
+    /// <param name="payload">The complete response bytes.</param>
+    /// <param name="etag">The entity tag, or null when truncated.</param>
+    /// <param name="truncated">Whether the row cap was hit.</param>
+    /// <param name="rowCount">Rows across all result sets.</param>
+    /// <param name="dbDurationMs">Execution time shared by every waiter.</param>
+    /// <param name="budgetLease">Reservation retained through asynchronous consumers.</param>
+    private sealed class FilledResponse(
+        ReadOnlyMemory<byte> payload, string? etag, bool truncated, int rowCount, double dbDurationMs,
+        IDisposable budgetLease) : IDisposable
     {
+        /// <summary>The body, cleared when no asynchronous consumer still owns it.</summary>
+        public ReadOnlyMemory<byte> Payload { get; private set; } = payload;
+        /// <summary>The complete response validator, or null when truncated.</summary>
+        public string? ETag { get; } = etag;
+        /// <summary>Whether the result was capped.</summary>
+        public bool Truncated { get; } = truncated;
+        /// <summary>The execution's total row count.</summary>
+        public int RowCount { get; } = rowCount;
+        /// <summary>The execution duration in milliseconds.</summary>
+        public double DbDurationMs { get; } = dbDurationMs;
         /// <summary>Independent owners: the fill or direct caller, plus a pending background store.</summary>
         private int _references = 1;
 
@@ -959,7 +977,11 @@ public sealed class WeirEngine : IDisposable
         /// <inheritdoc />
         public void Dispose()
         {
-            if (Interlocked.Decrement(ref _references) == 0) BudgetLease.Dispose();
+            if (Interlocked.Decrement(ref _references) == 0)
+            {
+                try { budgetLease.Dispose(); }
+                finally { Payload = default; }
+            }
         }
     }
 
