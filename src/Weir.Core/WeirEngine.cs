@@ -61,7 +61,7 @@ public readonly record struct WeirResponseControl
 /// The data-plane engine: binds parameters, serves or fills the response cache, executes the target
 /// object through the matching connector, streams the JSON envelope, and notifies call observers.
 /// </summary>
-public sealed class WeirEngine : IDisposable, IAsyncDisposable
+public sealed class WeirEngine : IDisposable, IAsyncDisposable, IResponseCacheDiagnostics
 {
     /// <summary>Shared JSON writer options; validation is skipped since the writer emits well-formed output.</summary>
     private static readonly JsonWriterOptions WriterOptions = new() { SkipValidation = true };
@@ -1159,6 +1159,9 @@ public sealed class WeirEngine : IDisposable, IAsyncDisposable
     /// <returns>The combined cache and store snapshot.</returns>
     public ResponseCacheStatus GetCacheStatus() =>
         _stores.GetStatus((_cache as IResponseCacheDiagnostics)?.GetStatus() ?? new ResponseCacheStatus());
+
+    /// <inheritdoc />
+    ResponseCacheStatus IResponseCacheDiagnostics.GetStatus() => GetCacheStatus();
 
     private static void Finish(WeirCallContext context) =>
         context.DurationMs = Stopwatch.GetElapsedTime(context.StartTimestamp).TotalMilliseconds;

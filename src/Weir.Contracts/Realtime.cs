@@ -18,4 +18,7 @@ public sealed record DashboardSnapshot
 
     /// <summary>Recent latency time series (p50, in milliseconds).</summary>
     public required TimeSeries Latency { get; init; }
+
+    /// <summary>Per-instance resident-process and local-cache history, sampled independently of requests.</summary>
+    public MemorySnapshot Memory { get; init; } = new();
 }

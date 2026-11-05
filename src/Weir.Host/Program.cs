@@ -509,6 +509,7 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<DashboardClientTracker>();
 builder.Services.AddSingleton<IAuditPublisher, AuditPublisher>();
+builder.Services.AddHostedService<MemorySamplingService>();
 builder.Services.AddHostedService<DashboardBroadcaster>();
 
 var app = builder.Build();

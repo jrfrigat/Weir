@@ -22,6 +22,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<InMemoryMetricsAggregator>();
         services.TryAddSingleton<IMetricsAggregator>(sp => sp.GetRequiredService<InMemoryMetricsAggregator>());
+        services.TryAddSingleton<MemoryMetrics>();
+        services.TryAddSingleton<IMemoryMetrics>(sp => sp.GetRequiredService<MemoryMetrics>());
+        services.TryAddSingleton<IProcessMemoryReader, ProcessMemoryReader>();
 
         // The aggregator is also fed as an observer. A factory descriptor cannot be de-duplicated by
         // TryAddEnumerable, so register it with AddSingleton (AddWeirDiagnostics is called once).

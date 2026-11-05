@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IResponseCacheSettings>(sp => sp.GetRequiredService<IRuntimeSettings>());
 
         services.TryAddSingleton<WeirEngine>();
+        services.TryAddSingleton<IResponseCacheDiagnostics>(sp => sp.GetRequiredService<WeirEngine>());
         return services;
     }
 }

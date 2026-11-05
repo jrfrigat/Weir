@@ -1109,6 +1109,8 @@ public static class AdminApi
         group.MapGet("/metrics/overview", (IMetricsAggregator metrics) =>
             Results.Ok(metrics.GetOverview()));
 
+        group.MapGet("/metrics/memory", (IMemoryMetrics memory) => Results.Ok(memory.GetSnapshot()));
+
         group.MapGet("/metrics/endpoints", (IMetricsAggregator metrics) =>
             Results.Ok(metrics.GetEndpoints()));
 

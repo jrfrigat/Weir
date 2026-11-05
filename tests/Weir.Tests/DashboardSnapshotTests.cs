@@ -10,6 +10,27 @@ namespace Weir.Tests;
 // make every snapshot "different" and the whole thing pointless.
 public class DashboardSnapshotTests
 {
+    /// <summary>An idle memory observation advances the dashboard even when every request metric is unchanged.</summary>
+    [Fact]
+    public void MemoryOnlyMovement_IsPublished()
+    {
+        var first = new MemorySnapshot
+        {
+            InstanceId = "instance", SampledAt = DateTimeOffset.UnixEpoch,
+            Points = [new MemoryPoint(DateTimeOffset.UnixEpoch, 1000, 0)]
+        };
+        var previous = Snapshot() with { Memory = first };
+        var next = Snapshot() with { Memory = first with
+        {
+            SampledAt = DateTimeOffset.UnixEpoch.AddSeconds(1),
+            Points = [new MemoryPoint(DateTimeOffset.UnixEpoch.AddSeconds(1), 1000, 0)]
+        } };
+        Assert.False(DashboardBroadcaster.SameData(previous, next));
+        Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { Cache = first.Cache with { LocalPayloadBytes = 20 } } }));
+        Assert.False(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { InstanceId = "restarted" } }));
+        Assert.True(DashboardBroadcaster.SameData(previous, previous with { Memory = first with { Points = first.Points.ToArray() } }));
+    }
+
     [Fact]
     public void A_Client_With_Nothing_Yet_Is_Always_Sent_A_Snapshot()
     {

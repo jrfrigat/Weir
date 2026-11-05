@@ -11,9 +11,8 @@ namespace Weir.Host.Realtime;
 /// <para>
 /// The socket carries changes rather than a heartbeat: the in-memory aggregator is read once a second
 /// (cheap - no database is touched) and a snapshot is sent only when it differs from the one already on
-/// the client's screen. An idle gateway therefore sends one keepalive every five seconds instead of a
-/// full snapshot twice a second, and a busy one updates four times faster than the old fixed cadence
-/// did. Everything stops entirely when no dashboard is connected.
+/// the client's screen. Memory gauge observations also advance while request traffic is idle.
+/// Broadcasting stops without clients; the independent memory sampler keeps its bounded history.
 /// </para>
 /// <para>
 /// Connection health is the exception and stays on a slow fixed cadence: it opens a database
@@ -53,6 +52,8 @@ public sealed class DashboardBroadcaster : BackgroundService
     private readonly IDataConnectionRegistry _registry;
     private readonly IEnumerable<IDbConnector> _connectors;
     private readonly TimeProvider _clock;
+    /// <summary>The independently sampled process/cache memory history.</summary>
+    private readonly IMemoryMetrics? _memory;
 
     /// <summary>Creates the broadcaster from its collaborators.</summary>
     /// <param name="hub">The dashboard hub context.</param>
@@ -61,13 +62,15 @@ public sealed class DashboardBroadcaster : BackgroundService
     /// <param name="registry">The data-connection registry (for health).</param>
     /// <param name="connectors">The registered connectors (for health probes).</param>
     /// <param name="clock">Clock for the broadcast timer and health timestamps.</param>
+    /// <param name="memory">Optional background memory history; the in-box host registers it.</param>
     public DashboardBroadcaster(
         IHubContext<DashboardHub> hub,
         IMetricsAggregator metrics,
         DashboardClientTracker tracker,
         IDataConnectionRegistry registry,
         IEnumerable<IDbConnector> connectors,
-        TimeProvider clock)
+        TimeProvider clock,
+        IMemoryMetrics? memory = null)
     {
         _hub = hub;
         _metrics = metrics;
@@ -75,6 +78,7 @@ public sealed class DashboardBroadcaster : BackgroundService
         _registry = registry;
         _connectors = connectors;
         _clock = clock;
+        _memory = memory;
     }
 
     /// <inheritdoc />
@@ -133,6 +137,7 @@ public sealed class DashboardBroadcaster : BackgroundService
         Endpoints = _metrics.GetEndpoints(),
         Throughput = _metrics.GetTimeSeries("requests", null, ChartWindow, ChartBucket),
         Latency = _metrics.GetTimeSeries("latency", null, ChartWindow, ChartBucket),
+        Memory = _memory?.GetSnapshot() ?? new MemorySnapshot(),
     };
 
     /// <summary>
@@ -152,8 +157,19 @@ public sealed class DashboardBroadcaster : BackgroundService
             && SameOverview(previous.Overview, current.Overview)
             && SameEndpoints(previous.Endpoints, current.Endpoints)
             && SameSeries(previous.Throughput, current.Throughput)
-            && SameSeries(previous.Latency, current.Latency);
+            && SameSeries(previous.Latency, current.Latency)
+            && SameMemory(previous.Memory, current.Memory);
     }
+
+    /// <summary>Compares append/replace-last gauge history and its observation metadata.</summary>
+    /// <param name="a">The last published memory view.</param>
+    /// <param name="b">The current memory view.</param>
+    /// <returns>Whether instance, history position and displayed values are unchanged.</returns>
+    private static bool SameMemory(MemorySnapshot a, MemorySnapshot b) =>
+        a.InstanceId == b.InstanceId && a.StartedAt == b.StartedAt && a.SampledAt == b.SampledAt &&
+        a.HistoryResetCount == b.HistoryResetCount && a.Points.Count == b.Points.Count &&
+        (a.Points.Count == 0 || a.Points[^1] == b.Points[^1]) && a.Cache == b.Cache &&
+        a.ActiveResponseBufferBytes == b.ActiveResponseBufferBytes && a.ActiveResponseBufferBudgetBytes == b.ActiveResponseBufferBudgetBytes;
 
     /// <summary>Compares two overviews field by field, except for the uptime.</summary>
     /// <param name="a">One overview.</param>
