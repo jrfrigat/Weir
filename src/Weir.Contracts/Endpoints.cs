@@ -172,8 +172,8 @@ public sealed record DeliveryPolicy
     /// How many bytes may sit unflushed before the row loop pushes them out, overriding the global
     /// <c>ResponseFlushBytes</c> setting. Null uses that setting, and normally should: the threshold
     /// self-adjusts, since a wide row crosses it on its own while narrow rows batch up. Raise it only
-    /// with a reason, and keep it under 85 KB - past that the writer's buffer becomes a large-object
-    /// allocation on every call, which is the thing the flushing exists to avoid.
+    /// with a reason: larger thresholds retain more pooled output per active request and delay
+    /// backpressure. The writer's initial staging buffer is pooled, not a full-response allocation.
     /// </summary>
     public int? FlushBytes { get; init; }
 

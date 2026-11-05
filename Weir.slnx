@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Weir.Benchmarks/Weir.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Weir.Abstractions/Weir.Abstractions.csproj" />
     <Project Path="src/Weir.Caching.Redis/Weir.Caching.Redis.csproj" />

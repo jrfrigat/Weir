@@ -140,6 +140,7 @@ Content-Type: application/json
 | [Клиент для .NET](docs/ru/client.md) | Пакет FrigaT.Weir.Client: типизированные вызовы, страницы, импорт, ошибки |
 | [Безопасность](docs/ru/security.md) | API-ключи и скоупы, клиентские сертификаты (mTLS) и CORS на каждый ключ, аккаунты админов и JWT |
 | [Конфигурация](docs/ru/configuration.md) | Все настройки и переменные окружения |
+| [Память и большие ответы](docs/ru/memory.md) | Потоковая выдача, лимиты памяти, локальный кэш или Redis, измерения |
 | [Деплой](docs/ru/deployment.md) | Docker-образ и docker-compose |
 | [Админка](docs/ru/admin-ui.md) | Дашборд и страницы управления |
 | [План развития](docs/ru/roadmap.md) | Ревью кода, сформировавшее Weir, и вытекающий из него поэтапный план |

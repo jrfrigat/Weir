@@ -66,6 +66,9 @@ internal static class HelpCommand
         load.AddRow("-d, --duration <SECONDS>", "Run for a time window (default: 10).");
         load.AddRow("-n, --requests <N>", "Run a fixed request count (overrides --duration).");
         load.AddRow("-w, --warmup <SECONDS>", "Warm-up window, results discarded (default: 0).");
+        load.AddRow("--read-delay <MS>", "Delay per 16 KiB consumed, to simulate a slow client.");
+        load.AddRow("--cancel-after <MS>", "Cancel measured requests after this window (warm-up excluded).");
+        load.AddRow("--skip-preflight", "Skip the parsed client preflight for large-response memory checks.");
         AnsiConsole.Write(load);
 
         var stream = new Table { Border = TableBorder.Rounded, Title = new TableTitle("stream / stream-list options") };

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707;CA1822;CA1859</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <ProjectReference Include="../../src/Weir.Abstractions/Weir.Abstractions.csproj" />
+    <Compile Include="../../src/Weir.Core/WeirResponseWriter.cs" Link="ProductionWriter.cs" />
+  </ItemGroup>
+</Project>

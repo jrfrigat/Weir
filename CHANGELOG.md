@@ -10,11 +10,28 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Result streaming uses SequentialAccess, pooled UTF-8 output and chunked large text/BLOB reads.
+  Full responses use segmented pooled buffers and bounded network writes. Active buffers, individual
+  bodies, local cache entries and pending cache stores have explicit admission limits.
+- Local response caching bounds entry count as well as payload bytes, fences late fills after purges,
+  and retains payload ownership through asynchronous sends. Admin test calls avoid an extra full copy.
+
+
+
 - Updated Flare to 0.52.0. Built-in grid, field and dialog captions now follow the console's
   language switch in place, preserving open editors. Both shipped languages load at startup.
   The update also fixes column-filter menu focus, Escape handling and accidental backdrop dismissal.
   Microsoft packages move together to the required .NET 10.0.14 servicing patch.
 - Empty states use second-level headings under the page title, without changing their appearance.
+
+### Added
+
+- Optional Redis binary response cache with installation isolation, atomic invalidation, bounded
+  asynchronous stores and recovery after unavailable backends. Memory remains the default.
+- Per-instance RSS and local cache payload history on the dashboard, with two MiB lines and cache
+  budgets. Sampling continues while idle; both SignalR and polling share the five-minute history.
+- Opt-in serializer memory benchmarks and sample slow-reader/cancellation options.
+
 
 ## [3.1.0] - 2026-10-24
 

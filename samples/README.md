@@ -170,6 +170,18 @@ benchmarking rig.
 
 ### Streaming check
 
+For large-response memory checks, `load --skip-preflight` avoids parsing a whole response in the client
+before the measured run. Measured reads reuse one 16 KiB buffer per worker. `--read-delay 3` adds a delay
+per aggregate 16 KiB consumed, independent of network fragment size. `--cancel-after 1000` cancels the
+measured window after one second; warm-up is separate. The client retains latency samples and a sorted
+copy for percentiles, so its memory is not server RSS. Measure the host separately. See
+[memory and large responses](../docs/en/memory.md).
+
+```sh
+dotnet run -- load --route export -c 8 -n 8 --skip-preflight --read-delay 3
+dotnet run -- load --route export -c 8 -d 10 --skip-preflight --cancel-after 1000
+```
+
 The `stream` command checks that a response really streams through the whole chain - the database,
 Weir, and anything between Weir and the client. It calls `GET /api/stream` - the widgets sample's
 `dbo.StreamWidgets` and the demo database's `sales.StreamBatches` both send batches of rows, each its

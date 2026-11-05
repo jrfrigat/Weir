@@ -26,6 +26,8 @@ internal static class LoadCommand
         var body = args.Option("-b", "--body");
         var concurrency = Math.Max(1, args.IntOption(16, "-c", "--concurrency"));
         var warmup = Math.Max(0, args.IntOption(0, "-w", "--warmup"));
+        var readDelay = Math.Max(0, args.IntOption(0, "--read-delay"));
+        var cancelAfter = Math.Max(0, args.IntOption(0, "--cancel-after"));
 
         // --requests wins over --duration when both are given; otherwise default to a 10s window.
         int? requests = args.Option("-n", "--requests") is not null ? args.IntOption(1, "-n", "--requests") : null;
@@ -56,8 +58,8 @@ internal static class LoadCommand
 
         // Preflight one request through the package, so a bad URL / key / route fails fast with the
         // gateway's own problem text instead of a wall of identical errors in the results.
-        var probe = await Gateway.TryAsync(() => Gateway.SendAsync(session.Client, method.Method, path, parameters));
-        if (probe is null)
+        var probe = args.Flag("--skip-preflight") ? null : await Gateway.TryAsync(() => Gateway.SendAsync(session.Client, method.Method, path, parameters));
+        if (probe is null && !args.Flag("--skip-preflight"))
         {
             AnsiConsole.MarkupLine("[red]Preflight request failed - aborting load test.[/]");
             return 1;
@@ -66,7 +68,7 @@ internal static class LoadCommand
         if (warmup > 0)
         {
             using var warmupCts = new CancellationTokenSource(TimeSpan.FromSeconds(warmup));
-            var warmupRun = RunWorkersAsync(http, method, path, parameters, concurrency, byCount: false, total: 0, stats: null, warmupCts.Token);
+            var warmupRun = RunWorkersAsync(http, method, path, parameters, concurrency, byCount: false, total: 0, stats: null, readDelay, warmupCts.Token);
             if (interactive)
             {
                 await AnsiConsole.Status().StartAsync($"warming up for {warmup}s...", async _ => await warmupRun);
@@ -82,8 +84,9 @@ internal static class LoadCommand
         using var cts = byCount
             ? new CancellationTokenSource()
             : new CancellationTokenSource(TimeSpan.FromSeconds(duration));
+        if (cancelAfter > 0 && (byCount || cancelAfter < duration * 1000L)) cts.CancelAfter(cancelAfter);
         var clock = Stopwatch.StartNew();
-        var run = RunWorkersAsync(http, method, path, parameters, concurrency, byCount, requests ?? 0, stats, cts.Token);
+        var run = RunWorkersAsync(http, method, path, parameters, concurrency, byCount, requests ?? 0, stats, readDelay, cts.Token);
         await ShowProgressAsync(stats, clock, run, interactive);
         clock.Stop();
 
@@ -105,11 +108,12 @@ internal static class LoadCommand
     /// <param name="byCount">True to stop after <paramref name="total"/> requests; false to run until cancelled.</param>
     /// <param name="total">The total request count in count mode.</param>
     /// <param name="stats">The stats to record into, or null to discard (warm-up).</param>
+    /// <param name="readDelay">Delay in milliseconds per 16 KiB consumed, independent of network fragment size.</param>
     /// <param name="token">Cancellation token (the duration window, or the caller's).</param>
     /// <returns>A task that completes when every worker has stopped.</returns>
     private static Task RunWorkersAsync(
         HttpClient http, HttpMethod method, string path, JsonElement? parameters, int concurrency,
-        bool byCount, int total, LoadStats? stats, CancellationToken token)
+        bool byCount, int total, LoadStats? stats, int readDelay, CancellationToken token)
     {
         var issued = 0;
         var workers = new Task[concurrency];
@@ -118,6 +122,7 @@ internal static class LoadCommand
             workers[i] = Task.Run(async () =>
             {
                 var latencies = stats is null ? null : new List<double>();
+                var buffer = new byte[16 * 1024];
                 while (!token.IsCancellationRequested)
                 {
                     if (byCount && Interlocked.Increment(ref issued) > total)
@@ -128,7 +133,7 @@ internal static class LoadCommand
                     RequestOutcome outcome;
                     try
                     {
-                        outcome = await MeasureAsync(http, method, path, parameters, token);
+                        outcome = await MeasureAsync(http, method, path, parameters, buffer, readDelay, token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -160,10 +165,12 @@ internal static class LoadCommand
     /// <param name="method">The HTTP method.</param>
     /// <param name="path">The route relative to the gateway origin.</param>
     /// <param name="parameters">The request parameters, or null.</param>
+    /// <param name="buffer">The worker's reused 16 KiB receive buffer.</param>
+    /// <param name="readDelay">Delay per aggregate buffer of consumed bytes.</param>
     /// <param name="cancellationToken">Cancellation token (cancelled when the load window ends).</param>
     /// <returns>The measured outcome; a failed request is reported, not thrown.</returns>
     private static async Task<RequestOutcome> MeasureAsync(
-        HttpClient http, HttpMethod method, string path, JsonElement? parameters, CancellationToken cancellationToken)
+        HttpClient http, HttpMethod method, string path, JsonElement? parameters, byte[] buffer, int readDelay, CancellationToken cancellationToken)
     {
         var start = Stopwatch.GetTimestamp();
         try
@@ -179,13 +186,19 @@ internal static class LoadCommand
                 .ConfigureAwait(false);
 
             long bytes = 0;
-            var buffer = new byte[16 * 1024];
+            var pacedBytes = 0;
             await using (var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
             {
                 int read;
                 while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
                 {
                     bytes += read;
+                    pacedBytes += read;
+                    if (readDelay > 0 && pacedBytes >= buffer.Length)
+                    {
+                        pacedBytes -= buffer.Length;
+                        await Task.Delay(readDelay, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
 

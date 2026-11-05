@@ -703,7 +703,7 @@ public static class AdminApi
 
         // Admin "try it": run an endpoint through the engine (admin-authorized, no API key) and
         // return the response envelope.
-        group.MapPost("/endpoints/{id:guid}/invoke", async (Guid id, JsonElement payload, IControlPlaneStore store, WeirEngine engine, ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
+        group.MapPost("/endpoints/{id:guid}/invoke", async (Guid id, JsonElement payload, HttpContext context, IControlPlaneStore store, WeirEngine engine, ClaimsPrincipal user, TimeProvider clock, CancellationToken cancellationToken) =>
         {
             var endpoint = await store.GetEndpointAsync(id, cancellationToken);
             if (endpoint is null)
@@ -753,10 +753,22 @@ public static class AdminApi
                 ApiKeyPrefix = "admin-test",
             };
 
-            using var buffer = new MemoryStream();
             try
             {
-                await engine.ExecuteAsync(invocation, buffer, cancellationToken);
+                // The engine owns Full/cache buffering and its admission budget. A second full
+                // response here would bypass that budget and allocate another contiguous copy.
+                context.Response.ContentType = "application/json";
+                await engine.ExecuteAsync(invocation, context.Response.Body, cancellationToken);
+            }
+            catch (Exception) when (context.Response.HasStarted || cancellationToken.IsCancellationRequested)
+            {
+                context.Abort();
+                return Results.Empty;
+            }
+            catch (WeirBufferCapacityException)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Response buffer capacity exceeded", detail: "The response exceeded the configured buffering limits.");
             }
             catch (WeirValidationException ex)
             {
@@ -767,7 +779,7 @@ public static class AdminApi
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Execution error", detail: ex.Message);
             }
 
-            return Results.Bytes(buffer.ToArray(), "application/json");
+            return Results.Empty;
         }).RequireAuthorization("AdminOnly");
 
         // Generate an OpenAPI 3.0 document from the current endpoint metadata for client generation.
