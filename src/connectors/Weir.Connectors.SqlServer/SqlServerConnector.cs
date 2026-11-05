@@ -128,7 +128,7 @@ public sealed class SqlServerConnector : IDbConnector
 
             command = connection.CreateCommand();
             ConfigureCommand(command, request, descriptor);
-            var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
             return new SqlServerExecution(connection, command, reader, messages, handler, extraOutputs);
         }
         catch

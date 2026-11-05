@@ -61,6 +61,14 @@ public sealed class MySqlPlugin : IWeirPlugin
 The engine selects a connector per connection by matching the connection's `Provider` to the
 connector's `ProviderName`, so once registered, a connection with `Provider = "MySql"` just works.
 
+The SQL Server and PostgreSQL connectors open live data-plane readers with
+`CommandBehavior.SequentialAccess`. A custom connector should also avoid buffering the result set.
+The engine reads column metadata once, then reads values in ordinal order using typed getters.
+Do not depend on revisiting an earlier column after consuming a later one. `CompleteAsync` must
+finish or close unread results before exposing output parameters, including after response row or
+binary value limits are applied. Sequential access limits driver buffering; it does not by itself
+remove allocations from materializing a large string or binary value.
+
 A complete reference implementation lives in
 [`samples/connectors/Weir.Connectors.MySql`](../../samples/connectors/Weir.Connectors.MySql).
 

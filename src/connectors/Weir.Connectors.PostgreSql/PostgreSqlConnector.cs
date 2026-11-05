@@ -128,7 +128,7 @@ public sealed class PostgreSqlConnector : IDbConnector, IAsyncDisposable
 
             command = connection.CreateCommand();
             ConfigureCommand(command, request, descriptor);
-            var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
             return new PostgreSqlExecution(connection, command, reader, messages, handler, extraOutputs);
         }
         catch
