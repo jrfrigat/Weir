@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-06
+
+Bounded response memory, optional Redis caching and live memory monitoring, with the existing
+HTTP response envelope and cache-provider compatibility preserved.
+
 ### Changed
 
 - The Linux image disables huge pages for pthread stacks and limits glibc allocator arenas, reducing
@@ -19,9 +24,6 @@ All notable changes to this project are documented here. The format is based on
   and retains payload ownership through asynchronous sends. Admin test calls avoid an extra full copy.
 - RSS sampling reads the current process directly and reuses one procfs descriptor on Linux, avoiding
   process/thread snapshots and temporary procfs strings on each observation.
-
-
-
 - Updated Flare to 0.52.0. Built-in grid, field and dialog captions now follow the console's
   language switch in place, preserving open editors. Both shipped languages load at startup.
   The update also fixes column-filter menu focus, Escape handling and accidental backdrop dismissal.
@@ -38,8 +40,12 @@ All notable changes to this project are documented here. The format is based on
   and polling share the five-minute history.
 - Opt-in serializer memory benchmarks and sample slow-reader/cancellation options.
 
+### Security
 
-## [3.1.0] - 2026-10-24
+- Pin the transitive System.Security.Cryptography.Pkcs dependency to 10.0.14, fixing the known
+  denial-of-service vulnerabilities CVE-2026-84008 and CVE-2026-70162 brought in by SqlClient.
+
+## [3.1.0] - 2026-10-25
 
 A release about the admin console. Nothing in the gateway changed: no new settings, no API change,
 no migration. What changed is what the console tells you while you use it.
@@ -1622,7 +1628,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/jrfrigat/weir/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jrfrigat/weir/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0
 [2.3.1]: https://github.com/jrfrigat/weir/compare/v2.3.0...v2.3.1

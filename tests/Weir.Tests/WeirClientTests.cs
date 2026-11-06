@@ -154,6 +154,12 @@ public class WeirClientTests
     /// <summary>A stable array, so the query-rendering test is not re-allocating a constant each run.</summary>
     private static readonly int[] ThreeIds = [1, 2, 3];
 
+    /// <summary>The two result-set indexes expected from the streaming fixture.</summary>
+    private static readonly int[] TwoResultSetIndexes = [0, 1];
+
+    /// <summary>The product names expected from the streaming fixture in wire order.</summary>
+    private static readonly string[] TwoProductNames = ["Widget", "Gadget"];
+
     private const string TwoProducts =
         """{"data":[[{"ProductId":1,"Name":"Widget","Price":9.99},{"ProductId":2,"Name":"Gadget","Price":19.5}]],"rowsAffected":-1,"truncated":false,"messages":[]}""";
 
@@ -377,7 +383,7 @@ public class WeirClientTests
         var sets = events.Where(item => item.Kind == WeirStreamEventKind.ResultSetStarted).ToList();
         var rows = events.Where(item => item.Kind == WeirStreamEventKind.Row).ToList();
 
-        Assert.Equal(new[] { 0, 1 }, sets.Select(item => item.ResultSetIndex));
+        Assert.Equal(TwoResultSetIndexes, sets.Select(item => item.ResultSetIndex));
         Assert.Equal(2, rows.Count);
         Assert.Equal(0, rows[0].ResultSetIndex);
         Assert.Equal(1, rows[1].ResultSetIndex);
@@ -396,7 +402,7 @@ public class WeirClientTests
             names.Add(row.Name);
         }
 
-        Assert.Equal(new[] { "Widget", "Gadget" }, names);
+        Assert.Equal(TwoProductNames, names);
     }
 
     [Fact]
