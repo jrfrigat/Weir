@@ -44,6 +44,24 @@ requests, driver/network buffers, runtime behavior and configured caches. A cons
 of unlimited concurrency is impossible. Active-buffer admission bounds the memory it owns; it is
 not a hard process-RSS cap. Connection concurrency limits bound database pressure separately.
 
+## Linux container memory
+
+RSS includes native allocator pools and thread stacks as well as the managed heap and response bytes.
+Linux can back a sparsely used thread stack with a 2 MiB transparent huge page. Native allocator arenas
+can also retain free blocks after requests finish. Neither quantity is a live response payload.
+
+The shipped glibc-based image sets
+`GLIBC_TUNABLES=glibc.pthread.stack_hugetlb=0:glibc.malloc.arena_max=4` before starting .NET. This keeps
+pthread stacks on small pages and limits native arenas to four. It preserves the runtime's choice of
+GC heap pages and does not force collection or trim the working set. These are image startup defaults,
+not runtime settings editable in the admin panel. Other hosts and libc implementations keep their own
+defaults unless configured separately.
+
+Overriding `GLIBC_TUNABLES` in Docker/Compose replaces the whole value. Include the stack and arena
+items alongside other tunables when retaining these defaults. Benchmark a different arena count for
+workloads or native plugins that need more allocator concurrency. This is not a process-RSS cap:
+retain headroom for native/runtime pools and enforce response, cache, connection and container limits.
+
 ## Local cache or Redis
 
 Memory is the default. It stores serialized UTF-8 bodies and bounds both payload bytes and entry count,

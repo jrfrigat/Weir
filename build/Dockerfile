@@ -24,6 +24,9 @@ COPY --from=build /app ./
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
+# Avoid huge pages for sparse pthread stacks and excessive retained free native arenas.
+# GC heap paging stays under the runtime's control; installations can override this environment value.
+ENV GLIBC_TUNABLES=glibc.pthread.stack_hugetlb=0:glibc.malloc.arena_max=4
 
 # Configure at runtime via environment, e.g.:
 #   -e Weir__DataConnections__default__ConnectionString="Server=...;Database=...;"

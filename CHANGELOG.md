@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- The Linux image disables huge pages for pthread stacks and limits glibc allocator arenas, reducing
+  resident memory retained outside the managed heap. The defaults can be overridden with GLIBC_TUNABLES.
 - Result streaming uses SequentialAccess, pooled UTF-8 output and chunked large text/BLOB reads.
   Full responses use segmented pooled buffers and bounded network writes. Active buffers, individual
   bodies, local cache entries and pending cache stores have explicit admission limits.
