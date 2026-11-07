@@ -8,6 +8,14 @@
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-11-08
+
+### Изменено
+
+- Flare обновлен до 0.53.0. Админка выделяет меньше памяти при отрисовке стилей темы, текста,
+  кнопок, полей, строк таблиц и графиков. Параллельные запросы одного JavaScript-модуля используют
+  общий импорт, а поля обновляются при изменении отображаемого сообщения валидации.
+
 ## [3.2.0] - 2026-11-06
 
 Ограниченная память ответов, необязательный Redis-кэш и мониторинг памяти с сохранением
@@ -1705,7 +1713,8 @@
 - SQLitePCLRaw закреплён на 3.0.3, чтобы закрыть advisory NU1903 на транзитивную нативную библиотеку
   2.1.11; проверено во время выполнения тестами на SQLite.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/jrfrigat/weir/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/jrfrigat/weir/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jrfrigat/weir/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0

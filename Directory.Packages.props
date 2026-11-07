@@ -33,12 +33,12 @@
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
   </ItemGroup>
   <ItemGroup Label="Microsoft.Extensions">
-    <!-- Keep the whole 10.0.* set on one servicing patch. Flare's Microsoft.AspNetCore.Components.Web
-         floats to the newest 10.0.* patch, so letting these lag behind it downgrades them (NU1109). -->
+    <!-- Keep the Microsoft 10.0.* packages on the same servicing patch. -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Localization" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
@@ -80,10 +80,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.14" />
-    <PackageVersion Include="Flare.Blazor" Version="0.52.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.52.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.52.0" />
-    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.52.0" />
+    <PackageVersion Include="Flare.Blazor" Version="0.53.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.53.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.53.0" />
+    <PackageVersion Include="Flare.Icons.MaterialDesign3.Svg" Version="0.53.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

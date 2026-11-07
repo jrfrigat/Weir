@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-11-08
+
+### Changed
+
+- Updated Flare to 0.53.0. The admin console benefits from lower allocations when rendering theme
+  styles, text, buttons, fields, grid rows and charts. The update also shares concurrent JavaScript
+  module imports and refreshes fields when their displayed validation message changes.
+
 ## [3.2.0] - 2026-11-06
 
 Bounded response memory, optional Redis caching and live memory monitoring, with the existing
@@ -1628,7 +1636,8 @@ Initial release.
 - Pinned SQLitePCLRaw to 3.0.3 to resolve the NU1903 advisory on the transitive 2.1.11 native
   library; verified at runtime by the SQLite-backed tests.
 
-[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/jrfrigat/weir/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/jrfrigat/weir/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/jrfrigat/weir/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jrfrigat/weir/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jrfrigat/weir/compare/v2.3.1...v3.0.0
