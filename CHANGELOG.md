@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format is based on
   stay on the compiler async model. Response compression prefers the new zstd coding when a client
   offers it, and the new .NET 11 Blazor analyzers drove small fixes in the admin. The typed client
   continues to ask for Brotli and gzip. .NET 11 requires x86-64-v2 processors, and LSE on Windows Arm64.
+  Concurrent streaming at eight clients measured slower than on .NET 10 in our tests, an upstream
+  .NET 11 runtime issue; single large responses, startup and zstd improve.
 - Considered .NET 11 memory-cache metrics, the new in-memory stream adapters, `Utf8JsonWriter.Reset`
   and SignalR authentication refresh. The first three duplicate existing cache metrics or add risk to
   an already pooled hot path; the last needs the admin token provider to drive Weir's rotating refresh
