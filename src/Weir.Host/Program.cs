@@ -492,11 +492,14 @@ builder.Services.AddHealthChecks()
     .AddCheck<ControlPlaneHealthCheck>("control-plane", tags: ["ready"])
     .AddCheck<DataConnectionsHealthCheck>("data-connections", tags: ["ready"]);
 
-// Response compression for the (often large) JSON result sets and problem+json errors. Brotli/gzip
-// are negotiated from the client's Accept-Encoding; static Blazor assets are already precompressed.
+// Response compression for the (often large) JSON result sets and problem+json errors. zstd, Brotli
+// and gzip are negotiated from the client's Accept-Encoding; zstd comes first because at the same
+// Fastest level it is both smaller and faster than Brotli on a row envelope. Static Blazor assets are
+// already precompressed.
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
+    options.Providers.Add<ZstandardCompressionProvider>();
     options.Providers.Add<BrotliCompressionProvider>();
     options.Providers.Add<GzipCompressionProvider>();
     options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(

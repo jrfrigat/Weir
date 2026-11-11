@@ -248,8 +248,8 @@ internal static class Gateway
 
         try
         {
-            // Cloned, because the document that parsed it is disposed right away.
-            return JsonDocument.Parse(body).RootElement.Clone();
+            // JsonElement.Parse returns a standalone element, so there is no document to dispose.
+            return JsonElement.Parse(body);
         }
         catch (JsonException)
         {

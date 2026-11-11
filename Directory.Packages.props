@@ -93,6 +93,7 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <!-- 0.15.x does not recognize net11.0 and fails before running; 0.16.0 stable is not out yet. -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
   </ItemGroup>
 </Project>

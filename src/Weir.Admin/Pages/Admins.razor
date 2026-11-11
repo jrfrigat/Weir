@@ -5,7 +5,6 @@
 @inject WeirApiClient Api
 @inject ISnackbarService Snackbar
 @inject IDialogService Dialog
-@inject AuthenticationStateProvider AuthState
 
 <FlareStack Gap="FlareSpacing.Medium">
     <PageHeader Title="@AdminStrings.Admins_Title" Description="@AdminStrings.Admins_Description">
@@ -134,6 +133,10 @@
     private FlareDataGrid<AdminUserInfo>? _grid;
     private string? _currentUser;
 
+    /// <summary>The authentication state supplied by the app's cascading provider.</summary>
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
     /// <summary>
     /// Clears the grid's column and quick filters, which are the only filters on this page, so the
     /// no-match state's button brings every account back.
@@ -147,7 +150,7 @@
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        _currentUser = (await AuthState.GetAuthenticationStateAsync()).User.Identity?.Name;
+        _currentUser = AuthState is null ? null : (await AuthState).User.Identity?.Name;
         await LoadAsync();
     }
 

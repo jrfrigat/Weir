@@ -241,7 +241,14 @@ internal static class LoadCommand
                     {
                         ctx.UpdateTarget(LiveTable(stats, clock.Elapsed));
                         ctx.Refresh();
-                        await Task.WhenAny(run, Task.Delay(200));
+                        try
+                        {
+                            await run.WaitAsync(TimeSpan.FromMilliseconds(200));
+                        }
+                        catch (TimeoutException)
+                        {
+                            // The progress update is due; the run is still going.
+                        }
                     }
 
                     ctx.UpdateTarget(LiveTable(stats, clock.Elapsed));
@@ -252,7 +259,15 @@ internal static class LoadCommand
         {
             while (!run.IsCompleted)
             {
-                await Task.WhenAny(run, Task.Delay(1000));
+                try
+                {
+                    await run.WaitAsync(TimeSpan.FromSeconds(1));
+                }
+                catch (TimeoutException)
+                {
+                    // The progress line is due; the run is still going.
+                }
+
                 if (!run.IsCompleted)
                 {
                     var seconds = Math.Max(clock.Elapsed.TotalSeconds, 0.001);

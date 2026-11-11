@@ -144,7 +144,14 @@ public class StreamingFlushTests
         {
             var next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             Volatile.Write(ref _nextWrite, next);
-            await Task.WhenAny(next.Task, Task.Delay(WriteWaitLimit));
+            try
+            {
+                await next.Task.WaitAsync(WriteWaitLimit);
+            }
+            catch (TimeoutException)
+            {
+                // No write arrived within the limit; the test asserts on what was collected.
+            }
         }
 
         /// <inheritdoc />

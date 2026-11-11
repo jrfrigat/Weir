@@ -53,7 +53,7 @@ public class TableRequestBinderTests
         var hasBody = false;
         if (bodyJson is not null)
         {
-            body = JsonDocument.Parse(bodyJson).RootElement;
+            body = JsonElement.Parse(bodyJson);
             hasBody = true;
         }
 

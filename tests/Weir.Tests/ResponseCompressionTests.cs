@@ -16,6 +16,8 @@ public class ResponseCompressionTests
 {
     [Theory]
     [InlineData(ResultMode.MultiRow, null, "br, gzip", "br")]        // Auto compresses the row shape...
+    [InlineData(ResultMode.MultiRow, null, "zstd", "zstd")]          // ...and accepts zstd when offered.
+    [InlineData(ResultMode.MultiRow, null, "gzip, zstd", "zstd")]    // zstd wins over the older codings.
     [InlineData(ResultMode.Scalar, null, "br, gzip", null)]          // ...and skips the small ones.
     [InlineData(ResultMode.SingleRow, null, "br", null)]
     [InlineData(ResultMode.NonQuery, null, "gzip", null)]
@@ -30,6 +32,15 @@ public class ResponseCompressionTests
         var coding = ResponseCompression.Negotiate(endpoint, settings, new StringValues(acceptEncoding));
 
         Assert.Equal(expected, coding);
+    }
+
+    [Fact]
+    public void Zstandard_Is_Preferred_Over_Brotli_And_Gzip_When_All_Are_Accepted()
+    {
+        var coding = ResponseCompression.Negotiate(
+            Endpoint(ResultMode.MultiRow, ResponseCompressionMode.On), Settings(), new StringValues("gzip, br, zstd"));
+
+        Assert.Equal("zstd", coding);
     }
 
     [Fact]
@@ -52,6 +63,16 @@ public class ResponseCompressionTests
     }
 
     [Fact]
+    public void A_Zstandard_Refusal_Falls_Back_To_The_Next_Coding()
+    {
+        // "zstd;q=0" is an explicit refusal, so brotli must be chosen even though zstd is listed.
+        var coding = ResponseCompression.Negotiate(
+            Endpoint(ResultMode.MultiRow, ResponseCompressionMode.On), Settings(), new StringValues("zstd;q=0, br"));
+
+        Assert.Equal("br", coding);
+    }
+
+    [Fact]
     public void No_Acceptable_Coding_Means_No_Compression()
     {
         var coding = ResponseCompression.Negotiate(
@@ -71,21 +92,24 @@ public class ResponseCompressionTests
         Assert.Null(ResponseCompression.Negotiate(endpoint, settings, new StringValues("br")));
     }
 
-    [Fact]
-    public async Task Writing_Through_The_Stream_Produces_A_Body_That_Decompresses_To_The_Input()
+    [Theory]
+    [InlineData("br")]
+    [InlineData("gzip")]
+    [InlineData("zstd")]
+    public async Task Writing_Through_The_Stream_Produces_A_Body_That_Decompresses_To_The_Input(string encoding)
     {
         var inner = new MemoryStream();
         var context = new DefaultHttpContext();
         var payload = Encoding.UTF8.GetBytes(new string('x', 10_000));
 
-        await using (var stream = new LazyCompressingStream(inner, context.Response, "br"))
+        await using (var stream = new LazyCompressingStream(inner, context.Response, encoding))
         {
             await stream.WriteAsync(payload);
         }
 
-        Assert.Equal("br", context.Response.Headers.ContentEncoding.ToString());
+        Assert.Equal(encoding, context.Response.Headers.ContentEncoding.ToString());
         Assert.True(inner.Length < payload.Length, "the repetitive payload should have shrunk");
-        Assert.Equal(payload, Decompress(inner.ToArray(), "br"));
+        Assert.Equal(payload, Decompress(inner.ToArray(), encoding));
     }
 
     [Fact]
@@ -125,14 +149,17 @@ public class ResponseCompressionTests
 
     /// <summary>Decompresses bytes produced by the given coding, for round-trip assertions.</summary>
     /// <param name="bytes">The compressed bytes.</param>
-    /// <param name="encoding">The coding, <c>"br"</c> or <c>"gzip"</c>.</param>
+    /// <param name="encoding">The coding, <c>"zstd"</c>, <c>"br"</c> or <c>"gzip"</c>.</param>
     /// <returns>The original bytes.</returns>
     private static byte[] Decompress(byte[] bytes, string encoding)
     {
         using var source = new MemoryStream(bytes);
-        using Stream decompressor = encoding == "br"
-            ? new BrotliStream(source, CompressionMode.Decompress)
-            : new GZipStream(source, CompressionMode.Decompress);
+        using Stream decompressor = encoding switch
+        {
+            "br" => new BrotliStream(source, CompressionMode.Decompress),
+            "zstd" => new ZstandardStream(source, CompressionMode.Decompress),
+            _ => new GZipStream(source, CompressionMode.Decompress),
+        };
         using var target = new MemoryStream();
         decompressor.CopyTo(target);
         return target.ToArray();

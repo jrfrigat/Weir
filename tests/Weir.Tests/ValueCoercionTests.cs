@@ -10,21 +10,21 @@ public class ValueCoercionTests
     [Fact]
     public void FromJson_Int32_Parses()
     {
-        var element = JsonDocument.Parse("42").RootElement;
+        var element = JsonElement.Parse("42");
         Assert.Equal(42, ValueCoercion.FromJson(element, WeirDbType.Int32));
     }
 
     [Fact]
     public void FromJson_Null_ReturnsNull()
     {
-        var element = JsonDocument.Parse("null").RootElement;
+        var element = JsonElement.Parse("null");
         Assert.Null(ValueCoercion.FromJson(element, WeirDbType.String));
     }
 
     [Fact]
     public void FromJson_Decimal_Parses()
     {
-        var element = JsonDocument.Parse("12.5").RootElement;
+        var element = JsonElement.Parse("12.5");
         Assert.Equal(12.5m, ValueCoercion.FromJson(element, WeirDbType.Decimal));
     }
 

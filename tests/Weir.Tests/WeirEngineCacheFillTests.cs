@@ -560,8 +560,14 @@ public class WeirEngineCacheFillTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiter).WaitAsync(TimeSpan.FromSeconds(10));
 
         // The gate is never opened: if the execution had not been cancelled it would still be sitting on it.
-        Assert.True(connector.ExecutionCancelled.Task.IsCompleted ||
-            await System.Threading.Tasks.Task.WhenAny(connector.ExecutionCancelled.Task, System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10))) == connector.ExecutionCancelled.Task);
+        try
+        {
+            await connector.ExecutionCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+            Assert.Fail("The execution was not cancelled within 10 seconds.");
+        }
         Assert.Equal(1, connector.Executions);
     }
 

@@ -86,7 +86,16 @@ public sealed class LanguageService
     /// <returns>A task that completes once the culture is applied.</returns>
     public async Task InitializeCultureAsync()
     {
-        var stored = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+        string? stored = null;
+        try
+        {
+            stored = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+        }
+        catch (JSException)
+        {
+            // No JS runtime or storage access; fall back to the browser language below.
+        }
+
         Apply(Resolve(stored) ?? Resolve(CultureInfo.CurrentUICulture.Name) ?? DefaultCulture);
     }
 
@@ -104,7 +113,14 @@ public sealed class LanguageService
         }
 
         Apply(cultureCode);
-        await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, cultureCode);
+        try
+        {
+            await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, cultureCode);
+        }
+        catch (JSException)
+        {
+            // The switch still applies for this session; only persistence is lost.
+        }
 
         if (await ResourcesReadyAsync(cultureCode))
         {

@@ -18,7 +18,14 @@ public sealed class WeirAuthStateProvider : AuthenticationStateProvider
     public WeirAuthStateProvider(TokenStore tokens) => _tokens = tokens;
 
     /// <inheritdoc />
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override Task<AuthenticationState> GetAuthenticationStateAsync() => ComputeAuthenticationStateAsync();
+
+    /// <summary>
+    /// Reads and validates the stored token. Kept apart from the public override so notifications
+    /// compute the new state without the analyzer treating them as an unsubscribed read.
+    /// </summary>
+    /// <returns>The current authentication state.</returns>
+    private async Task<AuthenticationState> ComputeAuthenticationStateAsync()
     {
         var token = await _tokens.GetAsync();
         if (string.IsNullOrEmpty(token))
@@ -41,7 +48,7 @@ public sealed class WeirAuthStateProvider : AuthenticationStateProvider
     }
 
     /// <summary>Signals that the user has signed in, refreshing the auth state.</summary>
-    public void NotifyLogin() => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+    public void NotifyLogin() => NotifyAuthenticationStateChanged(ComputeAuthenticationStateAsync());
 
     /// <summary>Signals that the user has signed out, resetting to anonymous.</summary>
     public void NotifyLogout() => NotifyAuthenticationStateChanged(Task.FromResult(Anonymous));
