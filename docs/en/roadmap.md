@@ -42,7 +42,7 @@ Backlog (all delivered - retained as a record of the work per plane):
 
 ## Review summary
 
-Weir is a mature, clean-building (.NET 10, zero warnings) metadata-driven HTTP-to-database gateway.
+Weir is a mature, clean-building (.NET 11, zero warnings) metadata-driven HTTP-to-database gateway.
 Strengths confirmed in review: a genuinely streaming JSON hot path (DbDataReader -> Utf8JsonWriter,
 no ORM, no whole-result buffering on the uncached path); disciplined SQL parameterization with quoted
 identifiers everywhere; strong crypto (PBKDF2-HMAC-SHA256 100k iterations, 32-byte API keys from a CSPRNG,

@@ -14,6 +14,17 @@ All notable changes to this project are documented here. The format is based on
   the current runtime, keep theme and browser-storage JSON trim- and AOT-safe, and carry the component
   fixes and accessibility improvements from 0.54-0.56. Token storage uses source-generated JSON
   metadata instead of reflection.
+- Moved the solution to .NET 11: SDK 11.0.100, the net11.0 target, SDK and ASP.NET 11.0 container images,
+  and CI on 11.0.x. Microsoft packages move to 11.0.0, and the four Microsoft.Extensions abstractions
+  now come from the shared framework. Server projects use runtime async, which measured 5-11% faster
+  serialization and 72 bytes less allocation per response; the WASM admin and the browser-safe client
+  stay on the compiler async model. Response compression prefers the new zstd coding when a client
+  offers it, and the new .NET 11 Blazor analyzers drove small fixes in the admin. The typed client
+  continues to ask for Brotli and gzip. .NET 11 requires x86-64-v2 processors, and LSE on Windows Arm64.
+- Considered .NET 11 memory-cache metrics, the new in-memory stream adapters, `Utf8JsonWriter.Reset`
+  and SignalR authentication refresh. The first three duplicate existing cache metrics or add risk to
+  an already pooled hot path; the last needs the admin token provider to drive Weir's rotating refresh
+  tokens. All four stay out for now.
 
 ## [3.2.1] - 2026-11-08
 

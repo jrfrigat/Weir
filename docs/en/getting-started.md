@@ -8,7 +8,8 @@ your first endpoint.
 
 ## Requirements
 
-- .NET 10 SDK (to build and run from source), or Docker (to run the container / compose stack).
+- .NET 11 SDK (to build and run from source), or Docker (to run the container / compose stack).
+  .NET 11 requires an x86-64-v2 processor; on Windows Arm64 it requires the LSE instruction set.
 - A reachable SQL Server instance with the stored procedures you want to expose.
 
 ## 1. Run it

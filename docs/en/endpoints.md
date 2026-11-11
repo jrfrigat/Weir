@@ -316,9 +316,10 @@ body arrives; see [samples/README.md](../../samples/README.md#streaming-check).
 
 ## Compression
 
-The response body is compressed (Brotli or gzip, negotiated from the caller's `Accept-Encoding`) per
-endpoint. A large JSON array pays for the compression CPU many times over on the wire; a single row or
-scalar does not, so compressing it costs more than it saves. Which is which is a property of the
+The response body is compressed (zstd, Brotli or gzip, negotiated from the caller's `Accept-Encoding`)
+per endpoint. When the caller offers several, zstd is preferred: at the same level it is both smaller
+and faster than Brotli on a row envelope. A large JSON array pays for the compression CPU many times
+over on the wire; a single row or scalar does not, so compressing it costs more than it saves. Which is which is a property of the
 endpoint, so the choice lives on the endpoint.
 
 | Mode | Behaviour |

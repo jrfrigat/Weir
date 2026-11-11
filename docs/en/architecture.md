@@ -129,4 +129,4 @@ hits, settings changes) are logged. A background service prunes audit history pe
 
 Weir.Host serves both the JSON API and the Blazor WASM admin PWA (UseBlazorFrameworkFiles() plus
 MapFallbackToFile("index.html")) as a single deployable. A multi-stage Dockerfile builds on the
-.NET 10 SDK image and runs on aspnet:10.0.
+.NET 11 SDK image and runs on aspnet:11.0.

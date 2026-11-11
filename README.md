@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jrfrigat/weir/actions/workflows/ci.yml"><img src="https://github.com/jrfrigat/weir/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/.NET-10-512BD4.svg" alt=".NET 10">
+  <img src="https://img.shields.io/badge/.NET-11-512BD4.svg" alt=".NET 11">
   <a href="https://hub.docker.com/r/frigat/weir"><img src="https://img.shields.io/docker/pulls/frigat/weir?logo=docker&label=Docker%20pulls" alt="Docker Pulls"></a>
 </p>
 
@@ -182,7 +182,7 @@ dotnet test
 dotnet run --project src/Weir.Host
 ```
 
-Requires the **.NET 10** SDK. Or run Weir in Docker (it connects to a SQL Server you provide; compose does not start one):
+Requires the **.NET 11** SDK. Or run Weir in Docker (it connects to a SQL Server you provide; compose does not start one):
 
 ```sh
 docker compose up -d --build   # Windows: run-docker-compose.bat

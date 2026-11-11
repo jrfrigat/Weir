@@ -4,12 +4,12 @@
 
 Weir is a single deployable: one ASP.NET Core host that serves the JSON API and the Blazor WASM
 admin PWA. The two surfaces can sit on one port, or on two with `Weir:Ports` - the docker-compose file
-in this repository splits them. It targets .NET 10.
+in this repository splits them. It targets .NET 11.
 
 ## Docker image
 
-A multi-stage `build/Dockerfile` builds the whole app on the .NET 10 SDK image and runs it on the
-`aspnet:10.0` runtime. The publish step also bundles the WASM admin as static assets.
+A multi-stage `build/Dockerfile` builds the whole app on the .NET 11 SDK image and runs it on the
+`aspnet:11.0` runtime. The publish step also bundles the WASM admin as static assets.
 
 ### Published image (GHCR)
 

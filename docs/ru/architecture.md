@@ -129,4 +129,4 @@ correlation id; логируются события безопасности (н
 
 Weir.Host отдаёт и JSON API, и Blazor WASM PWA админку (UseBlazorFrameworkFiles() плюс
 MapFallbackToFile("index.html")) как единый деплой. Многоступенчатый Dockerfile собирается на
-образе SDK .NET 10 и запускается на aspnet:10.0.
+образе SDK .NET 11 и запускается на aspnet:11.0.
