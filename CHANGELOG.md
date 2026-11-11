@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format is based on
   and SignalR authentication refresh. The first three duplicate existing cache metrics or add risk to
   an already pooled hot path; the last needs the admin token provider to drive Weir's rotating refresh
   tokens. All four stay out for now.
+- Updated Microsoft.Data.SqlClient to 7.1.1.
 
 ## [3.2.1] - 2026-11-08
 
