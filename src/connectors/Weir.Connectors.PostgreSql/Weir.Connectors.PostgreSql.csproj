@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 
 </Project>

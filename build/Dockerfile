@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Multi-stage build for the Weir host. Build the whole app (including the Blazor WASM admin, which
-# the host serves as static assets) on the .NET 10 SDK image, then run on the aspnet:10.0 runtime.
+# the host serves as static assets) on the .NET 11 SDK image, then run on the aspnet:11.0 runtime.
 # Build context is the repository root:  docker build -f build/Dockerfile -t weir .
 
 # ---- build ----
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # Copy the build configuration first so restore can be cached across source-only changes.
@@ -18,7 +18,7 @@ RUN dotnet publish src/Weir.Host/Weir.Host.csproj -c Release -o /app --no-restor
     -p:MinVerSkip=true -p:EnableSourceLink=false -p:IncludeSymbols=false
 
 # ---- runtime ----
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 
