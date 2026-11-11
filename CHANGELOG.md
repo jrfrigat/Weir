@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-12
+
 ### Changed
 
 - Updated Flare to 0.56.0. The admin console now runs on Flare packages that target .NET 11 as well as
