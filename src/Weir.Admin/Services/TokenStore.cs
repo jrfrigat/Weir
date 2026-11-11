@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Flare.Components;
 
 namespace Weir.Admin.Services;
@@ -21,18 +22,18 @@ public sealed class TokenStore
     /// <summary>Reads the stored access token, or null if none.</summary>
     /// <returns>The token or null.</returns>
     public async ValueTask<string?> GetAsync() =>
-        await _storage.GetAsync<string>(StorageKey);
+        await _storage.GetAsync(StorageKey, TokenJsonContext.Default.String);
 
     /// <summary>Stores the access token.</summary>
     /// <param name="token">The access token.</param>
     /// <returns>A task that completes when stored.</returns>
     public async ValueTask SetAsync(string token) =>
-        await _storage.SetAsync(StorageKey, token);
+        await _storage.SetAsync(StorageKey, token, TokenJsonContext.Default.String);
 
     /// <summary>Reads the stored refresh token, or null if none.</summary>
     /// <returns>The refresh token or null.</returns>
     public async ValueTask<string?> GetRefreshAsync() =>
-        await _storage.GetAsync<string>(RefreshKey);
+        await _storage.GetAsync(RefreshKey, TokenJsonContext.Default.String);
 
     /// <summary>Stores (or, when null, clears) the refresh token.</summary>
     /// <param name="refreshToken">The refresh token, or null to clear it.</param>
@@ -45,7 +46,7 @@ public sealed class TokenStore
         }
         else
         {
-            await _storage.SetAsync(RefreshKey, refreshToken);
+            await _storage.SetAsync(RefreshKey, refreshToken, TokenJsonContext.Default.String);
         }
     }
 
@@ -61,4 +62,13 @@ public sealed class TokenStore
         await _storage.RemoveAsync(StorageKey);
         await _storage.RemoveAsync(RefreshKey);
     }
+}
+
+/// <summary>
+/// Source-generated JSON metadata for the strings the token store keeps in browser storage, so the
+/// storage calls stay trim- and AOT-safe.
+/// </summary>
+[JsonSerializable(typeof(string))]
+internal sealed partial class TokenJsonContext : JsonSerializerContext
+{
 }

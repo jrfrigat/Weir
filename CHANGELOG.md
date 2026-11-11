@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Updated Flare to 0.56.0. The admin console now runs on Flare packages that target .NET 11 as well as
+  the current runtime, keep theme and browser-storage JSON trim- and AOT-safe, and carry the component
+  fixes and accessibility improvements from 0.54-0.56. Token storage uses source-generated JSON
+  metadata instead of reflection.
+
 ## [3.2.1] - 2026-11-08
 
 ### Changed

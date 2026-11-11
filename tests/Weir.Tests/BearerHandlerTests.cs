@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Flare.Components;
 using Weir.Admin.Services;
 using Weir.Contracts;
@@ -49,9 +50,31 @@ public class BearerHandlerTests
         public ValueTask<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(_values.TryGetValue(key, out var json) ? JsonSerializer.Deserialize<T>(json) : default);
 
+        /// <summary>Reads and deserializes a stored value using caller-supplied JSON metadata.</summary>
+        /// <typeparam name="T">The value type.</typeparam>
+        /// <param name="key">The storage key.</param>
+        /// <param name="typeInfo">The JSON metadata for <typeparamref name="T"/>.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The stored value, or the default when absent.</returns>
+        public ValueTask<T?> GetAsync<T>(string key, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_values.TryGetValue(key, out var json) ? JsonSerializer.Deserialize(json, typeInfo) : default);
+
         public ValueTask SetAsync<T>(string key, T value, CancellationToken cancellationToken = default)
         {
             _values[key] = JsonSerializer.Serialize(value);
+            return ValueTask.CompletedTask;
+        }
+
+        /// <summary>Serializes and stores a value using caller-supplied JSON metadata.</summary>
+        /// <typeparam name="T">The value type.</typeparam>
+        /// <param name="key">The storage key.</param>
+        /// <param name="value">The value to store.</param>
+        /// <param name="typeInfo">The JSON metadata for <typeparamref name="T"/>.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A completed task.</returns>
+        public ValueTask SetAsync<T>(string key, T value, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
+        {
+            _values[key] = JsonSerializer.Serialize(value, typeInfo);
             return ValueTask.CompletedTask;
         }
 
